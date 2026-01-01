@@ -38,12 +38,13 @@ enum AIClientError: Error, LocalizedError, Sendable {
 }
 
 /// Request model for AI analysis
+/// Nonisolated to allow use from any actor context
 struct AnalysisRequest: Sendable {
-    let inputText: String
-    let role: String?
-    let rubric: Rubric
+    nonisolated let inputText: String
+    nonisolated let role: String?
+    nonisolated let rubric: Rubric
 
-    init(inputText: String, role: String? = nil, rubric: Rubric = .softwareEngineering) {
+    nonisolated init(inputText: String, role: String? = nil, rubric: Rubric = .softwareEngineering) {
         self.inputText = inputText
         self.role = role
         self.rubric = rubric
@@ -51,9 +52,10 @@ struct AnalysisRequest: Sendable {
 }
 
 /// Response model for AI analysis
+/// Nonisolated to allow use from any actor context
 struct AnalysisResponse: Sendable {
-    let feedback: String
-    let timestamp: Date
+    nonisolated let feedback: String
+    nonisolated let timestamp: Date
 
     nonisolated init(feedback: String, timestamp: Date = Date()) {
         self.feedback = feedback

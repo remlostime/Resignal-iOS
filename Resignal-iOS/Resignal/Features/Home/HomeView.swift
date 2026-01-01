@@ -36,6 +36,7 @@ struct HomeView: View {
                     Image(systemName: "gearshape")
                         .foregroundStyle(AppTheme.Colors.primary)
                 }
+                .accessibilityIdentifier(HomeAccessibility.settingsButton)
             }
         }
         .onAppear {
@@ -116,6 +117,7 @@ struct HomeView: View {
             Spacer()
             Spacer()
         }
+        .accessibilityIdentifier(HomeAccessibility.emptyStateView)
     }
     
     private func sessionListView(viewModel: HomeViewModel) -> some View {
@@ -178,7 +180,18 @@ struct HomeView: View {
                 .clipShape(Circle())
                 .mediumShadow()
         }
+        .accessibilityIdentifier("newSessionButton")
     }
+}
+
+// MARK: - Accessibility Identifiers
+
+enum HomeAccessibility {
+    static let newSessionButton = "newSessionButton"
+    static let settingsButton = "settingsButton"
+    static let emptyStateView = "emptyStateView"
+    static let sessionList = "sessionList"
+    static let sessionRow = "sessionRow"
 }
 
 /// Row view for a single session

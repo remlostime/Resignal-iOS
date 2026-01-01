@@ -198,15 +198,18 @@ struct ResultView: View {
                     await viewModel.regenerate()
                 }
             }
-            
+            .accessibilityIdentifier(ResultAccessibility.regenerateButton)
+
             HStack(spacing: AppTheme.Spacing.sm) {
                 PrimaryButton("Copy", icon: "doc.on.doc", style: .text) {
                     viewModel.copyToClipboard()
                 }
-                
+                .accessibilityIdentifier(ResultAccessibility.copyButton)
+
                 PrimaryButton("Share", icon: "square.and.arrow.up", style: .text) {
                     viewModel.showShareSheet = true
                 }
+                .accessibilityIdentifier(ResultAccessibility.shareButton)
             }
         }
         .padding(.top, AppTheme.Spacing.md)
@@ -215,12 +218,12 @@ struct ResultView: View {
 
 /// Individual feedback section view
 struct FeedbackSectionView: View {
-    
+
     let title: String
     let icon: String
     let content: String
     @Binding var isExpanded: Bool
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header
@@ -233,13 +236,13 @@ struct FeedbackSectionView: View {
                     Image(systemName: icon)
                         .font(.body.weight(.medium))
                         .foregroundStyle(AppTheme.Colors.textSecondary)
-                    
+
                     Text(title)
                         .font(AppTheme.Typography.headline)
                         .foregroundStyle(AppTheme.Colors.textPrimary)
-                    
+
                     Spacer()
-                    
+
                     Image(systemName: "chevron.down")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(AppTheme.Colors.textSecondary)
@@ -249,11 +252,11 @@ struct FeedbackSectionView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            
+
             if isExpanded {
                 Divider()
                     .background(AppTheme.Colors.divider)
-                
+
                 Text(content)
                     .font(AppTheme.Typography.body)
                     .foregroundStyle(AppTheme.Colors.textSecondary)
@@ -262,7 +265,21 @@ struct FeedbackSectionView: View {
             }
         }
         .cardStyle()
+        .accessibilityIdentifier("feedbackSection_\(title.replacingOccurrences(of: " ", with: ""))")
     }
+}
+
+// MARK: - Accessibility Identifiers
+
+enum ResultAccessibility {
+    static let summarySection = "feedbackSection_Summary"
+    static let strengthsSection = "feedbackSection_Strengths"
+    static let weaknessesSection = "feedbackSection_Weaknesses"
+    static let suggestedSection = "feedbackSection_SuggestedImprovedAnswers"
+    static let followUpSection = "feedbackSection_Follow-upQuestions"
+    static let copyButton = "copyButton"
+    static let shareButton = "shareButton"
+    static let regenerateButton = "regenerateButton"
 }
 
 /// Share sheet wrapper
