@@ -55,7 +55,7 @@ struct AnalysisResponse: Sendable {
     let feedback: String
     let timestamp: Date
 
-    init(feedback: String, timestamp: Date = Date()) {
+    nonisolated init(feedback: String, timestamp: Date = Date()) {
         self.feedback = feedback
         self.timestamp = timestamp
     }

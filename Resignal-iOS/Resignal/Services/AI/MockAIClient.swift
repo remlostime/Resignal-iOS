@@ -56,7 +56,7 @@ actor MockAIClient: AIClient {
     
     // MARK: - Private Methods
 
-    private static func generateFeedback(for request: AnalysisRequest) -> String {
+    private nonisolated static func generateFeedback(for request: AnalysisRequest) -> String {
         let roleText = request.role.map { " for the \($0) position" } ?? ""
         let questionCount = countQuestions(in: request.inputText)
         let wordCount = request.inputText.split(separator: " ").count
@@ -115,7 +115,7 @@ actor MockAIClient: AIClient {
         """
     }
     
-    private static func countQuestions(in text: String) -> Int {
+    private nonisolated static func countQuestions(in text: String) -> Int {
         let patterns = ["Q:", "Question:", "?"]
         var count = 0
 

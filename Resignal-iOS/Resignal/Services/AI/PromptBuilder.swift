@@ -8,11 +8,12 @@
 import Foundation
 
 /// Builds prompts for AI analysis of interview responses
+/// All members are nonisolated to allow use from any actor context
 struct PromptBuilder: Sendable {
 
     // MARK: - System Prompt
 
-    static let systemPrompt = """
+    nonisolated static let systemPrompt = """
     You are an expert interview coach with deep experience in technical and behavioral interviews. \
     Your role is to analyze interview Q&A transcripts and provide actionable, specific feedback.
     
@@ -45,7 +46,7 @@ struct PromptBuilder: Sendable {
     ///   - role: Optional role being interviewed for
     ///   - rubric: The evaluation rubric to use
     /// - Returns: The formatted prompt string
-    static func buildPrompt(
+    nonisolated static func buildPrompt(
         inputText: String,
         role: String?,
         rubric: Rubric
@@ -72,7 +73,7 @@ struct PromptBuilder: Sendable {
     /// Returns rubric-specific guidance to append to the prompt
     /// - Parameter rubric: The evaluation rubric
     /// - Returns: Additional guidance string
-    static func rubricGuidance(for rubric: Rubric) -> String {
+    nonisolated static func rubricGuidance(for rubric: Rubric) -> String {
         switch rubric {
         case .softwareEngineering:
             return """

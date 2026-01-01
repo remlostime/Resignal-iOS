@@ -17,7 +17,7 @@ enum Rubric: String, CaseIterable, Codable, Sendable {
     case behavioral = "Behavioral"
     case general = "General"
 
-    var description: String { rawValue }
+    nonisolated var description: String { rawValue }
 }
 
 /// Represents a single interview analysis session
