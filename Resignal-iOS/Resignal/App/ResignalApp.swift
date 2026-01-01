@@ -24,6 +24,7 @@ struct ResignalApp: App {
                 .environment(container)
                 .environment(router)
                 .modelContainer(container.modelContainer)
+                .background(AppTheme.Colors.background)
         }
     }
 }
@@ -43,6 +44,8 @@ struct RootView: View {
                 }
         }
         .tint(AppTheme.Colors.primary)
+        .background(AppTheme.Colors.background)
+        .scrollContentBackground(.hidden)
     }
     
     @ViewBuilder

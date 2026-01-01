@@ -26,7 +26,7 @@ struct HomeView: View {
                 ProgressView()
             }
         }
-        .navigationTitle("InterviewAI")
+        .navigationTitle("Resignal")
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
