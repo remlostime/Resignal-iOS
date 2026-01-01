@@ -1,0 +1,178 @@
+//
+//  Session.swift
+//  Resignal
+//
+//  Core data model for interview analysis sessions.
+//
+
+import Foundation
+import SwiftData
+
+/// Available rubric types for interview analysis
+enum Rubric: String, CaseIterable, Codable, Sendable {
+    case softwareEngineering = "Software Engineering"
+    case productManagement = "Product Management"
+    case dataScience = "Data Science"
+    case design = "Design"
+    case behavioral = "Behavioral"
+    case general = "General"
+
+    nonisolated var description: String { rawValue }
+}
+
+/// Represents a single interview analysis session
+@Model
+final class Session {
+    
+    // MARK: - Properties
+    
+    @Attribute(.unique) var id: UUID
+    var createdAt: Date
+    var title: String
+    var role: String?
+    var inputText: String
+    var outputFeedback: String
+    var rubric: String
+    var tags: [String]
+    var version: Int
+    
+    // MARK: - Initialization
+    
+    init(
+        id: UUID = UUID(),
+        createdAt: Date = Date(),
+        title: String = "",
+        role: String? = nil,
+        inputText: String = "",
+        outputFeedback: String = "",
+        rubric: Rubric = .softwareEngineering,
+        tags: [String] = [],
+        version: Int = 1
+    ) {
+        self.id = id
+        self.createdAt = createdAt
+        self.title = title
+        self.role = role
+        self.inputText = inputText
+        self.outputFeedback = outputFeedback
+        self.rubric = rubric.rawValue
+        self.tags = tags
+        self.version = version
+    }
+    
+    // MARK: - Computed Properties
+    
+    /// Returns the rubric as an enum type
+    var rubricType: Rubric {
+        get { Rubric(rawValue: rubric) ?? .general }
+        set { rubric = newValue.rawValue }
+    }
+    
+    /// Returns a preview of the input text (first 100 characters)
+    var inputPreview: String {
+        let trimmed = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.count <= 100 {
+            return trimmed
+        }
+        return String(trimmed.prefix(100)) + "..."
+    }
+    
+    /// Auto-generates a title from the first question or uses a default
+    var displayTitle: String {
+        if !title.isEmpty {
+            return title
+        }
+        
+        // Try to extract first question
+        let lines = inputText.components(separatedBy: .newlines)
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.contains("?") || trimmed.lowercased().starts(with: "q:") {
+                let preview = String(trimmed.prefix(50))
+                return preview.count < trimmed.count ? preview + "..." : preview
+            }
+        }
+        
+        // Fallback to date-based title
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return "Session - \(formatter.string(from: createdAt))"
+    }
+    
+    /// Checks if the session has been analyzed
+    var hasAnalysis: Bool {
+        !outputFeedback.isEmpty
+    }
+}
+
+// MARK: - Sample Data
+
+extension Session {
+    static var sample: Session {
+        Session(
+            title: "iOS Engineer Interview",
+            role: "Senior iOS Engineer",
+            inputText: """
+            Q: Tell me about a challenging iOS project you worked on.
+            
+            A: I led the development of a real-time collaboration feature for our document editing app. The challenge was synchronizing changes across multiple devices with minimal latency while handling offline scenarios gracefully.
+            
+            We implemented a CRDT-based approach using Operational Transformation. I designed the sync protocol and worked closely with our backend team to optimize WebSocket connections.
+            
+            The result was a 40% reduction in sync conflicts and 99.9% data consistency across devices.
+            
+            Q: How do you approach testing in iOS development?
+            
+            A: I follow a testing pyramid approach. Unit tests form the base, covering business logic and view models. I use XCTest for unit tests and combine it with dependency injection to make code testable.
+            
+            For integration tests, I focus on critical user flows. UI tests are used sparingly for smoke tests since they're slower.
+            
+            I also advocate for snapshot testing for UI components to catch visual regressions early.
+            """,
+            outputFeedback: "",
+            rubric: .softwareEngineering,
+            tags: ["iOS", "Technical", "Senior"],
+            version: 1
+        )
+    }
+    
+    static var sampleWithAnalysis: Session {
+        let session = sample
+        session.outputFeedback = """
+        ## Summary
+        
+        The candidate demonstrated strong technical knowledge in iOS development, particularly in real-time synchronization and testing practices. Answers were well-structured with concrete examples.
+        
+        ## Strengths
+        
+        - **Technical Depth**: Showed deep understanding of CRDTs and Operational Transformation for real-time sync
+        - **Quantifiable Results**: Provided specific metrics (40% reduction, 99.9% consistency)
+        - **Cross-functional Collaboration**: Mentioned working with backend team
+        - **Testing Philosophy**: Clear understanding of testing pyramid and practical trade-offs
+        
+        ## Weaknesses
+        
+        - **Limited Scope**: Could have mentioned more about error handling and edge cases
+        - **No Mention of User Experience**: Didn't discuss how technical decisions impacted UX
+        - **Offline Handling**: Briefly mentioned but didn't elaborate on the strategy
+        
+        ## Suggested Improved Answers
+        
+        For the first question, consider adding:
+        > "We also implemented a comprehensive offline queue with exponential backoff for retries. Users could continue editing seamlessly, and changes would sync automatically when connectivity resumed. We tested this extensively with network link conditioner to simulate various conditions."
+        
+        For testing, consider adding:
+        > "We maintain about 80% code coverage on critical paths. I also set up a CI pipeline that runs tests on every PR, blocking merges if coverage drops below threshold."
+        
+        ## Follow-up Questions
+        
+        1. How did you handle conflict resolution when multiple users edited the same section?
+        2. What metrics did you track to measure the success of the feature post-launch?
+        3. How would you approach this differently if you had to rebuild it from scratch?
+        4. Can you walk through your debugging process when sync issues occurred in production?
+        """
+        return session
+    }
+}
+

@@ -1,0 +1,129 @@
+//
+//  MockAIClient.swift
+//  Resignal
+//
+//  Mock AI client that returns deterministic sample feedback for development and testing.
+//
+
+import Foundation
+
+/// Mock AI client for development and testing
+/// Returns deterministic responses without requiring network access
+actor MockAIClient: AIClient {
+
+    // MARK: - Properties
+
+    private var _isAnalyzing: Bool = false
+
+    nonisolated var isAnalyzing: Bool {
+        get async {
+            await getIsAnalyzing()
+        }
+    }
+
+    private func getIsAnalyzing() -> Bool {
+        _isAnalyzing
+    }
+
+    private func setIsAnalyzing(_ value: Bool) {
+        _isAnalyzing = value
+    }
+
+    // MARK: - AIClient Implementation
+
+    nonisolated func analyze(_ request: AnalysisRequest) async throws -> AnalysisResponse {
+        // Validate input
+        let trimmedInput = request.inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmedInput.count >= 20 else {
+            throw AIClientError.invalidInput("Input text must be at least 20 characters")
+        }
+
+        // Generate deterministic feedback based on input
+        let feedback = Self.generateFeedback(for: request)
+
+        // Simulate network delay (1-2 seconds)
+        try await Task.sleep(for: .milliseconds(Int.random(in: 1000...2000)))
+
+        // Check for cancellation
+        try Task.checkCancellation()
+
+        return AnalysisResponse(feedback: feedback)
+    }
+
+    nonisolated func cancel() {
+        // Mock client doesn't track cancellable tasks
+    }
+    
+    // MARK: - Private Methods
+
+    private nonisolated static func generateFeedback(for request: AnalysisRequest) -> String {
+        let roleText = request.role.map { " for the \($0) position" } ?? ""
+        let questionCount = countQuestions(in: request.inputText)
+        let wordCount = request.inputText.split(separator: " ").count
+        
+        return """
+        ## Summary
+        
+        The candidate provided \(questionCount) response(s)\(roleText), demonstrating \
+        understanding of key concepts in \(request.rubric.description). The responses \
+        show a mix of strong technical knowledge and areas that could benefit from \
+        more specific examples.
+        
+        ## Strengths
+        
+        - **Clear Communication**: Responses are well-structured and easy to follow
+        - **Technical Foundation**: Shows solid understanding of core concepts
+        - **Concrete Examples**: Provided specific instances from past experience
+        - **Problem-Solving Mindset**: Demonstrated analytical thinking approach
+        - **Self-Awareness**: Acknowledged challenges and learning opportunities
+        
+        ## Weaknesses
+        
+        - **Depth of Detail**: Some responses could benefit from more technical specifics
+        - **Metrics and Outcomes**: Could include more quantifiable results and impact
+        - **Edge Cases**: Limited discussion of error handling and edge scenarios
+        - **Trade-offs**: Could better articulate decision-making trade-offs
+        
+        ## Suggested Improved Answers
+        
+        When discussing technical implementations, consider structuring your response as:
+        
+        > "In my previous role, I faced [specific challenge]. I evaluated [options considered] \
+        and chose [solution] because [reasoning]. The implementation involved [key technical \
+        details]. As a result, we achieved [quantifiable outcome], though in retrospect, \
+        I would have [lesson learned]."
+        
+        For behavioral questions, use the STAR method more explicitly:
+        
+        > "**Situation**: [Context with specific details]
+        > **Task**: [Your specific responsibility]
+        > **Action**: [Steps you personally took]
+        > **Result**: [Measurable outcomes and learnings]"
+        
+        ## Follow-up Questions
+        
+        1. Can you walk through a specific debugging session where you had to troubleshoot a production issue?
+        2. How do you approach technical decisions when there's no clear "right" answer?
+        3. Describe a time when you had to push back on a requirement. How did you handle it?
+        4. What's your process for staying current with industry trends and new technologies?
+        5. How would you onboard a new team member to a complex codebase you maintain?
+        
+        ---
+        
+        *Analysis based on \(wordCount) words across \(questionCount) Q&A pair(s).*
+        *Rubric: \(request.rubric.description)*
+        """
+    }
+    
+    private nonisolated static func countQuestions(in text: String) -> Int {
+        let patterns = ["Q:", "Question:", "?"]
+        var count = 0
+
+        for pattern in patterns {
+            count += text.components(separatedBy: pattern).count - 1
+        }
+
+        return max(1, min(count, 10)) // Return between 1 and 10
+    }
+}
+
