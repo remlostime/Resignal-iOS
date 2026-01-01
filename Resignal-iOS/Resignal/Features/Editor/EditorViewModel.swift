@@ -11,7 +11,7 @@ import SwiftUI
 /// ViewModel managing the editor screen state and logic
 @MainActor
 @Observable
-final class EditorViewModel {
+final class EditorViewModel: EditorViewModelProtocol {
     
     // MARK: - Properties
     
@@ -26,33 +26,41 @@ final class EditorViewModel {
     var inputText: String = ""
     
     // UI state
-    var isAnalyzing: Bool = false
-    var errorMessage: String?
-    var showError: Bool = false
+    var analysisState: ViewState<Session> = .idle
     var analysisProgress: Double = 0
     
     // Analysis result
     var analysisResult: String?
     
-    // Minimum character count for analysis
-    private let minimumCharacterCount = 20
-    
     // MARK: - Computed Properties
     
     var canAnalyze: Bool {
-        inputText.trimmingCharacters(in: .whitespacesAndNewlines).count >= minimumCharacterCount
+        inputText.trimmingCharacters(in: .whitespacesAndNewlines).count >= ValidationConstants.minimumInputCharacters
     }
     
     var characterCountMessage: String {
         let count = inputText.trimmingCharacters(in: .whitespacesAndNewlines).count
-        if count < minimumCharacterCount {
-            return "\(minimumCharacterCount - count) more characters needed"
+        if count < ValidationConstants.minimumInputCharacters {
+            return "\(ValidationConstants.minimumInputCharacters - count) more characters needed"
         }
         return "\(count) characters"
     }
     
     var isEditing: Bool {
         session != nil
+    }
+    
+    var isAnalyzing: Bool {
+        analysisState.isLoading
+    }
+    
+    var errorMessage: String? {
+        analysisState.error
+    }
+    
+    var showError: Bool {
+        get { analysisState.hasError }
+        set { if !newValue { clearError() } }
     }
     
     // MARK: - Initialization
@@ -81,8 +89,7 @@ final class EditorViewModel {
     func analyze() async -> Session? {
         guard canAnalyze else { return nil }
         
-        isAnalyzing = true
-        errorMessage = nil
+        analysisState = .loading
         analysisProgress = 0
         
         // Simulate progress updates
@@ -96,7 +103,6 @@ final class EditorViewModel {
         
         defer {
             progressTask.cancel()
-            isAnalyzing = false
             analysisProgress = 1.0
         }
         
@@ -112,16 +118,15 @@ final class EditorViewModel {
             
             // Save or update session
             let savedSession = try saveSession(with: response.feedback)
+            analysisState = .success(savedSession)
             return savedSession
             
         } catch let error as AIClientError {
-            errorMessage = error.localizedDescription
-            showError = true
+            analysisState = .error(error.localizedDescription)
             debugLog("Analysis error: \(error)")
             return nil
         } catch {
-            errorMessage = "An unexpected error occurred. Please try again."
-            showError = true
+            analysisState = .error("An unexpected error occurred. Please try again.")
             debugLog("Unexpected error: \(error)")
             return nil
         }
@@ -130,7 +135,7 @@ final class EditorViewModel {
     /// Cancels the ongoing analysis
     func cancelAnalysis() {
         aiClient.cancel()
-        isAnalyzing = false
+        analysisState = .idle
         analysisProgress = 0
     }
     
@@ -139,9 +144,15 @@ final class EditorViewModel {
         do {
             return try saveSession(with: "")
         } catch {
-            errorMessage = "Failed to save draft: \(error.localizedDescription)"
-            showError = true
+            analysisState = .error("Failed to save draft: \(error.localizedDescription)")
             return nil
+        }
+    }
+    
+    /// Clears any error state
+    func clearError() {
+        if analysisState.hasError {
+            analysisState = .idle
         }
     }
     
@@ -182,4 +193,3 @@ final class EditorViewModel {
         #endif
     }
 }
-

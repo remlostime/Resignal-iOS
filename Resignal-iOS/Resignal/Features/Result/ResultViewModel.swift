@@ -8,10 +8,19 @@
 import Foundation
 import SwiftUI
 
+/// Enum representing expandable feedback sections
+enum FeedbackSection: String, CaseIterable, Hashable {
+    case summary
+    case strengths
+    case weaknesses
+    case suggested
+    case followUp
+}
+
 /// ViewModel managing the result screen state
 @MainActor
 @Observable
-final class ResultViewModel {
+final class ResultViewModel: ResultViewModelProtocol {
     
     // MARK: - Properties
     
@@ -20,19 +29,26 @@ final class ResultViewModel {
     
     let session: Session
     var sections: FeedbackSections
-    var isRegenerating: Bool = false
-    var errorMessage: String?
-    var showError: Bool = false
+    var regenerateState: ViewState<FeedbackSections> = .idle
     var showShareSheet: Bool = false
     
-    // Expansion states
-    var isSummaryExpanded: Bool = true
-    var isStrengthsExpanded: Bool = true
-    var isWeaknessesExpanded: Bool = true
-    var isSuggestedExpanded: Bool = false
-    var isFollowUpExpanded: Bool = false
+    // Expansion states using Set
+    var expandedSections: Set<FeedbackSection> = [.summary, .strengths, .weaknesses]
     
     // MARK: - Computed Properties
+    
+    var isRegenerating: Bool {
+        regenerateState.isLoading
+    }
+    
+    var errorMessage: String? {
+        regenerateState.error
+    }
+    
+    var showError: Bool {
+        get { regenerateState.hasError }
+        set { if !newValue { clearError() } }
+    }
     
     var shareText: String {
         """
@@ -63,10 +79,31 @@ final class ResultViewModel {
     
     // MARK: - Public Methods
     
+    /// Checks if a section is expanded
+    func isExpanded(_ section: FeedbackSection) -> Bool {
+        expandedSections.contains(section)
+    }
+    
+    /// Toggles the expansion state of a section
+    func toggleExpansion(_ section: FeedbackSection) {
+        if expandedSections.contains(section) {
+            expandedSections.remove(section)
+        } else {
+            expandedSections.insert(section)
+        }
+    }
+    
+    /// Returns a binding for section expansion
+    func expansionBinding(for section: FeedbackSection) -> Binding<Bool> {
+        Binding(
+            get: { self.isExpanded(section) },
+            set: { _ in self.toggleExpansion(section) }
+        )
+    }
+    
     /// Regenerates the analysis
     func regenerate() async {
-        isRegenerating = true
-        errorMessage = nil
+        regenerateState = .loading
         
         do {
             let request = AnalysisRequest(
@@ -84,18 +121,13 @@ final class ResultViewModel {
             
             // Parse new feedback
             sections = FeedbackParser.parse(response.feedback)
-            
-            isRegenerating = false
+            regenerateState = .success(sections)
             
         } catch let error as AIClientError {
-            errorMessage = error.localizedDescription
-            showError = true
-            isRegenerating = false
+            regenerateState = .error(error.localizedDescription)
             debugLog("Regenerate error: \(error)")
         } catch {
-            errorMessage = "An unexpected error occurred."
-            showError = true
-            isRegenerating = false
+            regenerateState = .error("An unexpected error occurred.")
             debugLog("Unexpected error: \(error)")
         }
     }
@@ -103,6 +135,13 @@ final class ResultViewModel {
     /// Copies feedback to clipboard
     func copyToClipboard() {
         UIPasteboard.general.string = session.outputFeedback
+    }
+    
+    /// Clears any error state
+    func clearError() {
+        if regenerateState.hasError {
+            regenerateState = .idle
+        }
     }
     
     // MARK: - Private Methods
@@ -113,4 +152,3 @@ final class ResultViewModel {
         #endif
     }
 }
-

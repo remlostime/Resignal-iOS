@@ -11,19 +11,30 @@ import SwiftUI
 /// ViewModel managing the home screen state and logic
 @MainActor
 @Observable
-final class HomeViewModel {
+final class HomeViewModel: HomeViewModelProtocol {
     
     // MARK: - Properties
     
     private let sessionRepository: SessionRepositoryProtocol
     
     var sessions: [Session] = []
-    var isLoading: Bool = false
-    var errorMessage: String?
+    var state: ViewState<[Session]> = .idle
+    var searchText: String = ""
     var showDeleteConfirmation: Bool = false
     var sessionToDelete: Session?
     var sessionToRename: Session?
     var renameText: String = ""
+    
+    // MARK: - Computed Properties
+    
+    var filteredSessions: [Session] {
+        guard !searchText.isEmpty else { return sessions }
+        return sessions.filter { session in
+            session.displayTitle.localizedCaseInsensitiveContains(searchText) ||
+            session.tags.contains { $0.localizedCaseInsensitiveContains(searchText) } ||
+            (session.role?.localizedCaseInsensitiveContains(searchText) ?? false)
+        }
+    }
     
     // MARK: - Initialization
     
@@ -35,15 +46,13 @@ final class HomeViewModel {
     
     /// Loads all sessions from the repository
     func loadSessions() {
-        isLoading = true
-        errorMessage = nil
+        state = .loading
         
         do {
             sessions = try sessionRepository.fetchAll()
-            isLoading = false
+            state = .success(sessions)
         } catch {
-            errorMessage = "Failed to load sessions: \(error.localizedDescription)"
-            isLoading = false
+            state = .error("Failed to load sessions: \(error.localizedDescription)")
             debugLog("Error loading sessions: \(error)")
         }
     }
@@ -53,8 +62,9 @@ final class HomeViewModel {
         do {
             try sessionRepository.delete(session)
             sessions.removeAll { $0.id == session.id }
+            state = .success(sessions)
         } catch {
-            errorMessage = "Failed to delete session: \(error.localizedDescription)"
+            state = .error("Failed to delete session: \(error.localizedDescription)")
             debugLog("Error deleting session: \(error)")
         }
     }
@@ -93,7 +103,7 @@ final class HomeViewModel {
             try sessionRepository.update(session, title: renameText, tags: nil)
             loadSessions() // Refresh list
         } catch {
-            errorMessage = "Failed to rename session: \(error.localizedDescription)"
+            state = .error("Failed to rename session: \(error.localizedDescription)")
             debugLog("Error renaming session: \(error)")
         }
         
@@ -107,6 +117,13 @@ final class HomeViewModel {
         renameText = ""
     }
     
+    /// Clears any error state
+    func clearError() {
+        if state.hasError {
+            state = .success(sessions)
+        }
+    }
+    
     // MARK: - Private Methods
     
     private func debugLog(_ message: String) {
@@ -115,4 +132,3 @@ final class HomeViewModel {
         #endif
     }
 }
-

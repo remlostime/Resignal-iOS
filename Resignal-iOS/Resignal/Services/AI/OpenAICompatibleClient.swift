@@ -59,6 +59,7 @@ actor OpenAICompatibleClient: AIClient {
     private let apiKey: String
     private let model: String
     private var _isAnalyzing: Bool = false
+    private var currentTask: Task<AnalysisResponse, Error>?
 
     nonisolated var isAnalyzing: Bool {
         get async {
@@ -87,8 +88,8 @@ actor OpenAICompatibleClient: AIClient {
     nonisolated func analyze(_ request: AnalysisRequest) async throws -> AnalysisResponse {
         // Validate input
         let trimmedInput = request.inputText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmedInput.count >= 20 else {
-            throw AIClientError.invalidInput("Input text must be at least 20 characters")
+        guard trimmedInput.count >= ValidationConstants.minimumInputCharacters else {
+            throw AIClientError.invalidInput("Input text must be at least \(ValidationConstants.minimumInputCharacters) characters")
         }
 
         // Get configuration from actor
@@ -99,6 +100,41 @@ actor OpenAICompatibleClient: AIClient {
             throw AIClientError.unauthorized
         }
 
+        // Create and store the task for cancellation support
+        let task = Task<AnalysisResponse, Error> {
+            try await performAnalysis(request: request, config: config)
+        }
+        
+        await setCurrentTask(task)
+        
+        do {
+            let result = try await task.value
+            await clearCurrentTask()
+            return result
+        } catch {
+            await clearCurrentTask()
+            if Task.isCancelled {
+                throw AIClientError.cancelled
+            }
+            throw error
+        }
+    }
+
+    nonisolated func cancel() {
+        Task {
+            await cancelCurrentTask()
+        }
+    }
+
+    // MARK: - Private Methods
+    
+    private func performAnalysis(
+        request: AnalysisRequest,
+        config: (baseURL: String, apiKey: String, model: String)
+    ) async throws -> AnalysisResponse {
+        await setIsAnalyzing(true)
+        defer { Task { await setIsAnalyzing(false) } }
+        
         // Build the prompt
         let userPrompt = PromptBuilder.buildPrompt(
             inputText: request.inputText,
@@ -166,13 +202,25 @@ actor OpenAICompatibleClient: AIClient {
         }
     }
 
-    nonisolated func cancel() {
-        // Cancellation is handled via Task cancellation at call site
-    }
-
-    // MARK: - Private Methods
-
     private func getConfiguration() -> (baseURL: String, apiKey: String, model: String) {
         (baseURL, apiKey, model)
+    }
+    
+    private func setCurrentTask(_ task: Task<AnalysisResponse, Error>) {
+        currentTask = task
+    }
+    
+    private func clearCurrentTask() {
+        currentTask = nil
+    }
+    
+    private func cancelCurrentTask() {
+        currentTask?.cancel()
+        currentTask = nil
+        _isAnalyzing = false
+    }
+    
+    private func setIsAnalyzing(_ value: Bool) {
+        _isAnalyzing = value
     }
 }

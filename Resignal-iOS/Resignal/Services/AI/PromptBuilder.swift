@@ -60,8 +60,9 @@ struct PromptBuilder: Sendable {
             prompt += "The candidate is interviewing for: \(role)\n"
         }
         
-        prompt += "Evaluation rubric: \(rubric.description)\n"
-        prompt += "\n---\n\n"
+        prompt += "Evaluation rubric: \(rubric.description)\n\n"
+        prompt += rubricGuidance(for: rubric)
+        prompt += "\n\n---\n\n"
         prompt += "INTERVIEW TRANSCRIPT:\n\n"
         prompt += inputText
         prompt += "\n\n---\n\n"
@@ -132,4 +133,3 @@ struct PromptBuilder: Sendable {
         }
     }
 }
-
