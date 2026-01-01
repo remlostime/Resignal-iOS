@@ -11,7 +11,7 @@ import SwiftUI
 /// ViewModel managing the settings screen state
 @MainActor
 @Observable
-final class SettingsViewModel {
+final class SettingsViewModel: SettingsViewModelProtocol {
     
     // MARK: - Properties
     
@@ -36,22 +36,33 @@ final class SettingsViewModel {
         }
     }
     
+    var aiModel: String {
+        didSet {
+            settingsService.aiModel = aiModel
+        }
+    }
+    
     var showClearConfirmation: Bool = false
     var showClearedMessage: Bool = false
-    var errorMessage: String?
-    var showError: Bool = false
+    var clearState: VoidState = .idle
     
     // MARK: - Computed Properties
     
     var appVersion: String {
-        if let service = settingsService as? SettingsService {
-            return service.appVersion
-        }
-        return "1.0"
+        settingsService.appVersion
     }
     
     var isAPIConfigured: Bool {
         !apiKey.isEmpty && !apiBaseURL.isEmpty
+    }
+    
+    var errorMessage: String? {
+        clearState.error
+    }
+    
+    var showError: Bool {
+        get { clearState.hasError }
+        set { if !newValue { clearError() } }
     }
     
     // MARK: - Initialization
@@ -65,6 +76,7 @@ final class SettingsViewModel {
         self.useMockAI = settingsService.useMockAI
         self.apiBaseURL = settingsService.apiBaseURL
         self.apiKey = settingsService.apiKey
+        self.aiModel = settingsService.aiModel
     }
     
     // MARK: - Public Methods
@@ -73,6 +85,7 @@ final class SettingsViewModel {
     func clearAllSessions() {
         do {
             try sessionRepository.deleteAll()
+            clearState = .success(.empty)
             showClearedMessage = true
             
             // Auto-dismiss after delay
@@ -81,8 +94,7 @@ final class SettingsViewModel {
                 showClearedMessage = false
             }
         } catch {
-            errorMessage = "Failed to clear sessions: \(error.localizedDescription)"
-            showError = true
+            clearState = .error("Failed to clear sessions: \(error.localizedDescription)")
             debugLog("Error clearing sessions: \(error)")
         }
     }
@@ -90,6 +102,13 @@ final class SettingsViewModel {
     /// Confirms clear all action
     func confirmClearAll() {
         showClearConfirmation = true
+    }
+    
+    /// Clears any error state
+    func clearError() {
+        if clearState.hasError {
+            clearState = .idle
+        }
     }
     
     // MARK: - Private Methods
@@ -100,4 +119,3 @@ final class SettingsViewModel {
         #endif
     }
 }
-

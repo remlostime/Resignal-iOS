@@ -79,7 +79,7 @@ struct ResultView: View {
             set: { viewModel?.showError = $0 }
         )) {
             Button("OK") {
-                viewModel?.showError = false
+                viewModel?.clearError()
             }
         } message: {
             Text(viewModel?.errorMessage ?? "An error occurred")
@@ -132,7 +132,6 @@ struct ResultView: View {
     
     @ViewBuilder
     private func feedbackSections(viewModel: ResultViewModel) -> some View {
-        @Bindable var bindableVM = viewModel
         let sections = viewModel.sections
 
         // Summary
@@ -141,7 +140,7 @@ struct ResultView: View {
                 title: "Summary",
                 icon: "doc.text",
                 content: sections.summary,
-                isExpanded: $bindableVM.isSummaryExpanded
+                isExpanded: viewModel.expansionBinding(for: .summary)
             )
         }
 
@@ -151,7 +150,7 @@ struct ResultView: View {
                 title: "Strengths",
                 icon: "star.fill",
                 content: sections.strengths,
-                isExpanded: $bindableVM.isStrengthsExpanded
+                isExpanded: viewModel.expansionBinding(for: .strengths)
             )
         }
 
@@ -161,7 +160,7 @@ struct ResultView: View {
                 title: "Weaknesses",
                 icon: "exclamationmark.triangle",
                 content: sections.weaknesses,
-                isExpanded: $bindableVM.isWeaknessesExpanded
+                isExpanded: viewModel.expansionBinding(for: .weaknesses)
             )
         }
 
@@ -171,7 +170,7 @@ struct ResultView: View {
                 title: "Suggested Improved Answers",
                 icon: "lightbulb.fill",
                 content: sections.suggestedAnswers,
-                isExpanded: $bindableVM.isSuggestedExpanded
+                isExpanded: viewModel.expansionBinding(for: .suggested)
             )
         }
 
@@ -181,7 +180,7 @@ struct ResultView: View {
                 title: "Follow-up Questions",
                 icon: "questionmark.circle",
                 content: sections.followUpQuestions,
-                isExpanded: $bindableVM.isFollowUpExpanded
+                isExpanded: viewModel.expansionBinding(for: .followUp)
             )
         }
     }
@@ -302,4 +301,3 @@ struct ShareSheet: UIViewControllerRepresentable {
     .environment(Router())
     .environment(DependencyContainer.preview())
 }
-

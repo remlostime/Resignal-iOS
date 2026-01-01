@@ -14,6 +14,8 @@ protocol SettingsServiceProtocol: AnyObject, Sendable {
     var useMockAI: Bool { get set }
     var apiBaseURL: String { get set }
     var apiKey: String { get set }
+    var aiModel: String { get set }
+    var appVersion: String { get }
 }
 
 /// Service for managing app settings
@@ -26,7 +28,15 @@ final class SettingsService: SettingsServiceProtocol {
     private enum Keys {
         static let useMockAI = "useMockAI"
         static let apiBaseURL = "apiBaseURL"
+        static let aiModel = "aiModel"
         static let apiKeyService = "com.resignal.apikey"
+    }
+    
+    // MARK: - Default Values
+    
+    private enum Defaults {
+        static let apiBaseURL = "https://api.openai.com/v1"
+        static let aiModel = "gpt-4o-mini"
     }
     
     // MARK: - Properties
@@ -51,6 +61,12 @@ final class SettingsService: SettingsServiceProtocol {
         }
     }
     
+    var aiModel: String {
+        didSet {
+            defaults.set(aiModel, forKey: Keys.aiModel)
+        }
+    }
+    
     // MARK: - Computed Properties
     
     /// App version string
@@ -67,7 +83,8 @@ final class SettingsService: SettingsServiceProtocol {
         
         // Load settings
         self.useMockAI = defaults.object(forKey: Keys.useMockAI) as? Bool ?? true
-        self.apiBaseURL = defaults.string(forKey: Keys.apiBaseURL) ?? "https://api.openai.com/v1"
+        self.apiBaseURL = defaults.string(forKey: Keys.apiBaseURL) ?? Defaults.apiBaseURL
+        self.aiModel = defaults.string(forKey: Keys.aiModel) ?? Defaults.aiModel
         self.apiKey = Self.loadAPIKeyFromKeychain() ?? ""
     }
     
@@ -128,4 +145,3 @@ final class SettingsService: SettingsServiceProtocol {
         #endif
     }
 }
-

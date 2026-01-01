@@ -51,14 +51,18 @@ struct HomeView: View {
     
     @ViewBuilder
     private func contentView(viewModel: HomeViewModel) -> some View {
+        @Bindable var bindableVM = viewModel
+        
         ZStack {
             AppTheme.Colors.background
                 .ignoresSafeArea()
             
-            if viewModel.isLoading {
+            if viewModel.state.isLoading {
                 ProgressView()
-            } else if viewModel.sessions.isEmpty {
+            } else if viewModel.filteredSessions.isEmpty && viewModel.searchText.isEmpty {
                 emptyStateView
+            } else if viewModel.filteredSessions.isEmpty {
+                noSearchResultsView
             } else {
                 sessionListView(viewModel: viewModel)
             }
@@ -73,10 +77,8 @@ struct HomeView: View {
             }
             .padding(AppTheme.Spacing.lg)
         }
-        .alert("Delete Session?", isPresented: Binding(
-            get: { viewModel.showDeleteConfirmation },
-            set: { if !$0 { viewModel.cancelDelete() } }
-        )) {
+        .searchable(text: $bindableVM.searchText, prompt: "Search sessions")
+        .alert("Delete Session?", isPresented: $bindableVM.showDeleteConfirmation) {
             Button("Cancel", role: .cancel) {
                 viewModel.cancelDelete()
             }
@@ -90,16 +92,23 @@ struct HomeView: View {
             get: { viewModel.sessionToRename != nil },
             set: { if !$0 { viewModel.cancelRename() } }
         )) {
-            TextField("Session title", text: Binding(
-                get: { viewModel.renameText },
-                set: { viewModel.renameText = $0 }
-            ))
+            TextField("Session title", text: $bindableVM.renameText)
             Button("Cancel", role: .cancel) {
                 viewModel.cancelRename()
             }
             Button("Save") {
                 viewModel.executeRename()
             }
+        }
+        .alert("Error", isPresented: Binding(
+            get: { viewModel.state.hasError },
+            set: { if !$0 { viewModel.clearError() } }
+        )) {
+            Button("OK") {
+                viewModel.clearError()
+            }
+        } message: {
+            Text(viewModel.state.error ?? "An error occurred")
         }
     }
     
@@ -120,9 +129,26 @@ struct HomeView: View {
         .accessibilityIdentifier(HomeAccessibility.emptyStateView)
     }
     
+    private var noSearchResultsView: some View {
+        VStack(spacing: AppTheme.Spacing.md) {
+            Spacer()
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 48))
+                .foregroundStyle(AppTheme.Colors.textTertiary)
+            Text("No Results")
+                .font(AppTheme.Typography.headline)
+                .foregroundStyle(AppTheme.Colors.textPrimary)
+            Text("No sessions match your search.")
+                .font(AppTheme.Typography.body)
+                .foregroundStyle(AppTheme.Colors.textSecondary)
+            Spacer()
+            Spacer()
+        }
+    }
+    
     private func sessionListView(viewModel: HomeViewModel) -> some View {
         List {
-            ForEach(viewModel.sessions, id: \.id) { session in
+            ForEach(viewModel.filteredSessions, id: \.id) { session in
                 SessionRowView(session: session)
                     .contentShape(Rectangle())
                     .onTapGesture {
@@ -166,6 +192,7 @@ struct HomeView: View {
         .refreshable {
             viewModel.loadSessions()
         }
+        .accessibilityIdentifier(HomeAccessibility.sessionList)
     }
     
     private var newSessionButton: some View {
@@ -180,7 +207,7 @@ struct HomeView: View {
                 .clipShape(Circle())
                 .mediumShadow()
         }
-        .accessibilityIdentifier("newSessionButton")
+        .accessibilityIdentifier(HomeAccessibility.newSessionButton)
     }
 }
 
@@ -240,6 +267,7 @@ struct SessionRowView: View {
         }
         .padding(AppTheme.Spacing.md)
         .cardStyle()
+        .accessibilityIdentifier(HomeAccessibility.sessionRow)
     }
 }
 
@@ -252,4 +280,3 @@ struct SessionRowView: View {
     .environment(Router())
     .environment(DependencyContainer.preview())
 }
-

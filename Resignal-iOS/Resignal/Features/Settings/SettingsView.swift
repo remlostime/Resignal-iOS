@@ -43,15 +43,14 @@ struct SettingsView: View {
     
     @ViewBuilder
     private func settingsContent(viewModel: SettingsViewModel) -> some View {
+        @Bindable var bindableVM = viewModel
+        
         List {
             // AI Configuration Section
             Section {
-                Toggle("Use Mock AI", isOn: Binding(
-                    get: { viewModel.useMockAI },
-                    set: { viewModel.useMockAI = $0 }
-                ))
-                .tint(AppTheme.Colors.primary)
-                .accessibilityIdentifier(SettingsAccessibility.mockAIToggle)
+                Toggle("Use Mock AI", isOn: $bindableVM.useMockAI)
+                    .tint(AppTheme.Colors.primary)
+                    .accessibilityIdentifier(SettingsAccessibility.mockAIToggle)
                 
                 if !viewModel.useMockAI {
                     apiConfigurationSection(viewModel: viewModel)
@@ -105,10 +104,7 @@ struct SettingsView: View {
             }
         }
         .listStyle(.insetGrouped)
-        .alert("Clear All Sessions?", isPresented: Binding(
-            get: { viewModel.showClearConfirmation },
-            set: { viewModel.showClearConfirmation = $0 }
-        )) {
+        .alert("Clear All Sessions?", isPresented: $bindableVM.showClearConfirmation) {
             Button("Cancel", role: .cancel) {}
             Button("Clear All", role: .destructive) {
                 viewModel.clearAllSessions()
@@ -118,9 +114,11 @@ struct SettingsView: View {
         }
         .alert("Error", isPresented: Binding(
             get: { viewModel.showError },
-            set: { viewModel.showError = $0 }
+            set: { if !$0 { viewModel.clearError() } }
         )) {
-            Button("OK") {}
+            Button("OK") {
+                viewModel.clearError()
+            }
         } message: {
             Text(viewModel.errorMessage ?? "An error occurred")
         }
@@ -133,20 +131,19 @@ struct SettingsView: View {
     
     @ViewBuilder
     private func apiConfigurationSection(viewModel: SettingsViewModel) -> some View {
+        @Bindable var bindableVM = viewModel
+        
         VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
             Text("Base URL")
                 .font(AppTheme.Typography.caption)
                 .foregroundStyle(AppTheme.Colors.textSecondary)
             
-            TextField("https://api.openai.com/v1", text: Binding(
-                get: { viewModel.apiBaseURL },
-                set: { viewModel.apiBaseURL = $0 }
-            ))
-            .font(AppTheme.Typography.body)
-            .textInputAutocapitalization(.never)
-            .autocorrectionDisabled()
-            .keyboardType(.URL)
-            .accessibilityIdentifier(SettingsAccessibility.apiBaseURLField)
+            TextField("https://api.openai.com/v1", text: $bindableVM.apiBaseURL)
+                .font(AppTheme.Typography.body)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .keyboardType(.URL)
+                .accessibilityIdentifier(SettingsAccessibility.apiBaseURLField)
         }
         .listRowSeparator(.hidden, edges: .bottom)
         
@@ -155,14 +152,24 @@ struct SettingsView: View {
                 .font(AppTheme.Typography.caption)
                 .foregroundStyle(AppTheme.Colors.textSecondary)
             
-            SecureField("sk-...", text: Binding(
-                get: { viewModel.apiKey },
-                set: { viewModel.apiKey = $0 }
-            ))
-            .font(AppTheme.Typography.body)
-            .textInputAutocapitalization(.never)
-            .autocorrectionDisabled()
-            .accessibilityIdentifier(SettingsAccessibility.apiKeyField)
+            SecureField("sk-...", text: $bindableVM.apiKey)
+                .font(AppTheme.Typography.body)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .accessibilityIdentifier(SettingsAccessibility.apiKeyField)
+        }
+        .listRowSeparator(.hidden, edges: .bottom)
+        
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
+            Text("Model")
+                .font(AppTheme.Typography.caption)
+                .foregroundStyle(AppTheme.Colors.textSecondary)
+            
+            TextField("gpt-4o-mini", text: $bindableVM.aiModel)
+                .font(AppTheme.Typography.body)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .accessibilityIdentifier(SettingsAccessibility.aiModelField)
         }
         
         if viewModel.isAPIConfigured {
@@ -204,6 +211,7 @@ enum SettingsAccessibility {
     static let clearAllButton = "clearAllButton"
     static let apiBaseURLField = "apiBaseURLField"
     static let apiKeyField = "apiKeyField"
+    static let aiModelField = "aiModelField"
 }
 
 // MARK: - Preview
@@ -214,4 +222,3 @@ enum SettingsAccessibility {
     }
     .environment(DependencyContainer.preview())
 }
-

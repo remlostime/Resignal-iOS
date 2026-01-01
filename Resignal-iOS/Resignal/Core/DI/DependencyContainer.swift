@@ -28,21 +28,47 @@ final class DependencyContainer: DependencyContainerProtocol {
     let settingsService: SettingsServiceProtocol
     let sessionRepository: SessionRepositoryProtocol
     
-    private let _aiClientFactory: () -> any AIClient
+    // Cached AI client with invalidation tracking
+    private var _cachedAIClient: (any AIClient)?
+    private var _lastUseMockAI: Bool?
+    private var _lastAPIKey: String?
+    private var _lastBaseURL: String?
+    private var _lastModel: String?
     
     var aiClient: any AIClient {
-        _aiClientFactory()
+        let settings = settingsService
+        let currentUseMock = settings.useMockAI
+        let currentAPIKey = settings.apiKey
+        let currentBaseURL = settings.apiBaseURL
+        let currentModel = settings.aiModel
+        
+        // Check if we need to recreate the client
+        let needsRecreation = _cachedAIClient == nil ||
+            _lastUseMockAI != currentUseMock ||
+            _lastAPIKey != currentAPIKey ||
+            _lastBaseURL != currentBaseURL ||
+            _lastModel != currentModel
+        
+        if needsRecreation {
+            _cachedAIClient = createAIClient()
+            _lastUseMockAI = currentUseMock
+            _lastAPIKey = currentAPIKey
+            _lastBaseURL = currentBaseURL
+            _lastModel = currentModel
+        }
+        
+        return _cachedAIClient!
     }
     
     // MARK: - Initialization
     
-    init() {
+    init(isPreview: Bool = false) {
         // Initialize SwiftData model container
         do {
             let schema = Schema([Session.self])
             let modelConfiguration = ModelConfiguration(
                 schema: schema,
-                isStoredInMemoryOnly: false
+                isStoredInMemoryOnly: isPreview
             )
             self.modelContainer = try ModelContainer(
                 for: schema,
@@ -56,24 +82,24 @@ final class DependencyContainer: DependencyContainerProtocol {
         let settings = SettingsService()
         self.settingsService = settings
         self.sessionRepository = SessionRepository(modelContext: modelContainer.mainContext)
-        
-        // Create AI client factory that checks settings each time
-        self._aiClientFactory = { [settings] in
-            if settings.useMockAI {
-                return MockAIClient()
-            } else {
-                return OpenAICompatibleClient(
-                    baseURL: settings.apiBaseURL,
-                    apiKey: settings.apiKey
-                )
-            }
+    }
+    
+    // MARK: - Private Methods
+    
+    private func createAIClient() -> any AIClient {
+        if settingsService.useMockAI {
+            return MockAIClient()
+        } else {
+            return OpenAICompatibleClient(
+                baseURL: settingsService.apiBaseURL,
+                apiKey: settingsService.apiKey,
+                model: settingsService.aiModel
+            )
         }
     }
     
-    /// Creates a container for previews and testing
+    /// Creates a container for previews and testing with in-memory storage
     static func preview() -> DependencyContainer {
-        let container = DependencyContainer()
-        return container
+        DependencyContainer(isPreview: true)
     }
 }
-

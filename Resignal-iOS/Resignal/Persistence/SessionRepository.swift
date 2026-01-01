@@ -12,11 +12,13 @@ import SwiftData
 @MainActor
 protocol SessionRepositoryProtocol: Sendable {
     func fetchAll() throws -> [Session]
+    func fetch(limit: Int, offset: Int) throws -> [Session]
     func fetch(id: UUID) throws -> Session?
     func save(_ session: Session) throws
     func delete(_ session: Session) throws
     func deleteAll() throws
     func update(_ session: Session, title: String?, tags: [String]?) throws
+    func count() throws -> Int
 }
 
 /// Repository for Session CRUD operations using SwiftData
@@ -40,6 +42,20 @@ final class SessionRepository: SessionRepositoryProtocol {
         let descriptor = FetchDescriptor<Session>(
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
         )
+        return try modelContext.fetch(descriptor)
+    }
+    
+    /// Fetches sessions with pagination support
+    /// - Parameters:
+    ///   - limit: Maximum number of sessions to fetch
+    ///   - offset: Number of sessions to skip (for pagination)
+    /// - Returns: Array of sessions sorted by creation date (newest first)
+    func fetch(limit: Int, offset: Int = 0) throws -> [Session] {
+        var descriptor = FetchDescriptor<Session>(
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
+        descriptor.fetchLimit = limit
+        descriptor.fetchOffset = offset
         return try modelContext.fetch(descriptor)
     }
     
@@ -90,6 +106,12 @@ final class SessionRepository: SessionRepositoryProtocol {
         debugLog("Session updated: \(session.id)")
     }
     
+    /// Returns the total count of sessions
+    func count() throws -> Int {
+        let descriptor = FetchDescriptor<Session>()
+        return try modelContext.fetchCount(descriptor)
+    }
+    
     // MARK: - Private Methods
     
     private func debugLog(_ message: String) {
@@ -98,4 +120,3 @@ final class SessionRepository: SessionRepositoryProtocol {
         #endif
     }
 }
-
