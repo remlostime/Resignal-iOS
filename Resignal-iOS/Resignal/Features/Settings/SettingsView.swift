@@ -51,6 +51,7 @@ struct SettingsView: View {
                     set: { viewModel.useMockAI = $0 }
                 ))
                 .tint(AppTheme.Colors.primary)
+                .accessibilityIdentifier(SettingsAccessibility.mockAIToggle)
                 
                 if !viewModel.useMockAI {
                     apiConfigurationSection(viewModel: viewModel)
@@ -74,6 +75,7 @@ struct SettingsView: View {
                         Text("Clear All Sessions")
                     }
                 }
+                .accessibilityIdentifier(SettingsAccessibility.clearAllButton)
             } header: {
                 Text("Data")
             } footer: {
@@ -144,6 +146,7 @@ struct SettingsView: View {
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
             .keyboardType(.URL)
+            .accessibilityIdentifier(SettingsAccessibility.apiBaseURLField)
         }
         .listRowSeparator(.hidden, edges: .bottom)
         
@@ -159,6 +162,7 @@ struct SettingsView: View {
             .font(AppTheme.Typography.body)
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
+            .accessibilityIdentifier(SettingsAccessibility.apiKeyField)
         }
         
         if viewModel.isAPIConfigured {
@@ -191,6 +195,15 @@ struct SettingsView: View {
         .transition(.move(edge: .bottom).combined(with: .opacity))
         .animation(AppTheme.Animation.spring, value: viewModel?.showClearedMessage)
     }
+}
+
+// MARK: - Accessibility Identifiers
+
+enum SettingsAccessibility {
+    static let mockAIToggle = "mockAIToggle"
+    static let clearAllButton = "clearAllButton"
+    static let apiBaseURLField = "apiBaseURLField"
+    static let apiKeyField = "apiKeyField"
 }
 
 // MARK: - Preview

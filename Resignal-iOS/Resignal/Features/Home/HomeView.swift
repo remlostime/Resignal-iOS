@@ -117,6 +117,7 @@ struct HomeView: View {
             Spacer()
             Spacer()
         }
+        .accessibilityIdentifier(HomeAccessibility.emptyStateView)
     }
     
     private func sessionListView(viewModel: HomeViewModel) -> some View {

@@ -101,6 +101,7 @@ struct EditorView: View {
                 .padding(AppTheme.Spacing.sm)
                 .background(AppTheme.Colors.surface)
                 .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small))
+                .accessibilityIdentifier(EditorAccessibility.roleTextField)
             }
             
             // Rubric picker
@@ -131,6 +132,7 @@ struct EditorView: View {
                     .background(AppTheme.Colors.surface)
                     .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small))
                 }
+                .accessibilityIdentifier(EditorAccessibility.rubricPicker)
             }
             
             // Tags input
@@ -179,6 +181,7 @@ struct EditorView: View {
             .scrollContentBackground(.hidden)
             .background(AppTheme.Colors.surface)
             .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small))
+            .accessibilityIdentifier(EditorAccessibility.textEditor)
             .overlay(
                 RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small)
                     .strokeBorder(
@@ -229,8 +232,19 @@ struct EditorView: View {
                     }
                 }
             }
+            .accessibilityIdentifier(EditorAccessibility.analyzeButton)
         }
     }
+}
+
+// MARK: - Accessibility Identifiers
+
+enum EditorAccessibility {
+    static let roleTextField = "roleTextField"
+    static let rubricPicker = "rubricPicker"
+    static let textEditor = "textEditor"
+    static let analyzeButton = "analyzeButton"
+    static let characterCount = "characterCount"
 }
 
 // MARK: - Preview
