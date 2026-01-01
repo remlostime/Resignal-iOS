@@ -8,16 +8,6 @@
 import Foundation
 import SwiftUI
 
-/// Parsed sections from the AI feedback
-struct FeedbackSections: Sendable {
-    var summary: String = ""
-    var strengths: String = ""
-    var weaknesses: String = ""
-    var suggestedAnswers: String = ""
-    var followUpQuestions: String = ""
-    var raw: String = ""
-}
-
 /// ViewModel managing the result screen state
 @MainActor
 @Observable
@@ -68,7 +58,7 @@ final class ResultViewModel {
         self.session = session
         self.aiClient = aiClient
         self.sessionRepository = sessionRepository
-        self.sections = Self.parseFeedback(session.outputFeedback)
+        self.sections = FeedbackParser.parse(session.outputFeedback)
     }
     
     // MARK: - Public Methods
@@ -93,7 +83,7 @@ final class ResultViewModel {
             try sessionRepository.update(session, title: nil, tags: nil)
             
             // Parse new feedback
-            sections = Self.parseFeedback(response.feedback)
+            sections = FeedbackParser.parse(response.feedback)
             
             isRegenerating = false
             
@@ -116,42 +106,7 @@ final class ResultViewModel {
     }
     
     // MARK: - Private Methods
-    
-    private static func parseFeedback(_ feedback: String) -> FeedbackSections {
-        var sections = FeedbackSections()
-        sections.raw = feedback
-        
-        // Parse markdown sections
-        let patterns: [(String, WritableKeyPath<FeedbackSections, String>)] = [
-            ("## Summary", \.summary),
-            ("## Strengths", \.strengths),
-            ("## Weaknesses", \.weaknesses),
-            ("## Suggested Improved Answers", \.suggestedAnswers),
-            ("## Follow-up Questions", \.followUpQuestions)
-        ]
-        
-        for (index, (header, keyPath)) in patterns.enumerated() {
-            if let startRange = feedback.range(of: header) {
-                let startIndex = feedback.index(startRange.upperBound, offsetBy: 0)
-                
-                // Find the end (next header or end of string)
-                var endIndex = feedback.endIndex
-                for nextIndex in (index + 1)..<patterns.count {
-                    if let nextRange = feedback.range(of: patterns[nextIndex].0) {
-                        endIndex = nextRange.lowerBound
-                        break
-                    }
-                }
-                
-                let content = String(feedback[startIndex..<endIndex])
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-                sections[keyPath: keyPath] = content
-            }
-        }
-        
-        return sections
-    }
-    
+
     private func debugLog(_ message: String) {
         #if DEBUG
         print("[ResultViewModel] \(message)")
