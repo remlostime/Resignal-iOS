@@ -27,6 +27,19 @@ final class MockSessionRepository: SessionRepositoryProtocol {
         return savedSessions.first { $0.id == id }
     }
 
+    func fetch(limit: Int, offset: Int) throws -> [Session] {
+        if shouldThrowError { throw TestError.mockError }
+        let sorted = savedSessions.sorted { $0.createdAt > $1.createdAt }
+        let start = min(offset, sorted.count)
+        let end = min(offset + limit, sorted.count)
+        return Array(sorted[start..<end])
+    }
+
+    func count() throws -> Int {
+        if shouldThrowError { throw TestError.mockError }
+        return savedSessions.count
+    }
+
     func save(_ session: Session) throws {
         if shouldThrowError { throw TestError.mockError }
         savedSessions.append(session)
