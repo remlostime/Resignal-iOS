@@ -1,0 +1,4 @@
+<_TtGC7SwiftUI14_UIHostingViewGVS_15ModifiedContentV8Resignal14EmptyStateViewVS_12_FrameLayout__; frame = (0 0; 350 350); autoresize = W+H; gestureRecognizers = <NSArray>; backgroundColor = <UIDynamicSystemColor; name = systemBackgroundColor>; layer = <CALayer>>
+   | <_TtC7SwiftUIP33_863CCF9D49B535DAEB1C7D61BEE53B5914CGDrawingLayer> (layer)
+   | <_TtC7SwiftUIP33_863CCF9D49B535DAEB1C7D61BEE53B5914CGDrawingLayer> (layer)
+   | <_TtC7SwiftUIP33_863CCF9D49B535DAEB1C7D61BEE53B5914CGDrawingLayer> (layer)
