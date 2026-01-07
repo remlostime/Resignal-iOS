@@ -28,17 +28,6 @@ struct HomeView: View {
         }
         .navigationTitle("Resignal")
         .navigationBarTitleDisplayMode(.large)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    router.navigate(to: .settings)
-                } label: {
-                    Image(systemName: "gearshape")
-                        .foregroundStyle(AppTheme.Colors.primary)
-                }
-                .accessibilityIdentifier(HomeAccessibility.settingsButton)
-            }
-        }
         .onAppear {
             if viewModel == nil {
                 viewModel = HomeViewModel(sessionRepository: container.sessionRepository)
@@ -59,25 +48,12 @@ struct HomeView: View {
             
             if viewModel.state.isLoading {
                 ProgressView()
-            } else if viewModel.filteredSessions.isEmpty && viewModel.searchText.isEmpty {
+            } else if viewModel.sessions.isEmpty {
                 emptyStateView
-            } else if viewModel.filteredSessions.isEmpty {
-                noSearchResultsView
             } else {
                 sessionListView(viewModel: viewModel)
             }
-            
-            // Floating action button
-            VStack {
-                Spacer()
-                HStack {
-                    Spacer()
-                    newSessionButton
-                }
-            }
-            .padding(AppTheme.Spacing.lg)
         }
-        .searchable(text: $bindableVM.searchText, prompt: "Search sessions")
         .alert("Delete Session?", isPresented: $bindableVM.showDeleteConfirmation) {
             Button("Cancel", role: .cancel) {
                 viewModel.cancelDelete()
@@ -129,26 +105,9 @@ struct HomeView: View {
         .accessibilityIdentifier(HomeAccessibility.emptyStateView)
     }
     
-    private var noSearchResultsView: some View {
-        VStack(spacing: AppTheme.Spacing.md) {
-            Spacer()
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 48))
-                .foregroundStyle(AppTheme.Colors.textTertiary)
-            Text("No Results")
-                .font(AppTheme.Typography.headline)
-                .foregroundStyle(AppTheme.Colors.textPrimary)
-            Text("No sessions match your search.")
-                .font(AppTheme.Typography.body)
-                .foregroundStyle(AppTheme.Colors.textSecondary)
-            Spacer()
-            Spacer()
-        }
-    }
-    
     private func sessionListView(viewModel: HomeViewModel) -> some View {
         List {
-            ForEach(viewModel.filteredSessions, id: \.id) { session in
+            ForEach(viewModel.sessions, id: \.id) { session in
                 SessionRowView(session: session)
                     .contentShape(Rectangle())
                     .onTapGesture {
@@ -181,12 +140,6 @@ struct HomeView: View {
                 bottom: AppTheme.Spacing.xs,
                 trailing: AppTheme.Spacing.md
             ))
-            
-            // Bottom spacer for FAB
-            Color.clear
-                .frame(height: 80)
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
         }
         .listStyle(.plain)
         .refreshable {
@@ -194,28 +147,11 @@ struct HomeView: View {
         }
         .accessibilityIdentifier(HomeAccessibility.sessionList)
     }
-    
-    private var newSessionButton: some View {
-        Button {
-            router.navigate(to: .editor(session: nil))
-        } label: {
-            Image(systemName: "plus")
-                .font(.title2.weight(.semibold))
-                .foregroundStyle(.white)
-                .frame(width: 56, height: 56)
-                .background(AppTheme.Colors.primary)
-                .clipShape(Circle())
-                .mediumShadow()
-        }
-        .accessibilityIdentifier(HomeAccessibility.newSessionButton)
-    }
 }
 
 // MARK: - Accessibility Identifiers
 
 enum HomeAccessibility {
-    static let newSessionButton = "newSessionButton"
-    static let settingsButton = "settingsButton"
     static let emptyStateView = "emptyStateView"
     static let sessionList = "sessionList"
     static let sessionRow = "sessionRow"

@@ -12,7 +12,6 @@ enum Route: Hashable {
     case home
     case editor(session: Session?)
     case result(session: Session)
-    case settings
     
     func hash(into hasher: inout Hasher) {
         switch self {
@@ -24,8 +23,6 @@ enum Route: Hashable {
         case .result(let session):
             hasher.combine("result")
             hasher.combine(session.id)
-        case .settings:
-            hasher.combine("settings")
         }
     }
     
@@ -37,8 +34,6 @@ enum Route: Hashable {
             return lhsSession?.id == rhsSession?.id
         case (.result(let lhsSession), .result(let rhsSession)):
             return lhsSession.id == rhsSession.id
-        case (.settings, .settings):
-            return true
         default:
             return false
         }

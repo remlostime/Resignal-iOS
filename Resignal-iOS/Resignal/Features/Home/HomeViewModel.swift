@@ -19,22 +19,10 @@ final class HomeViewModel: HomeViewModelProtocol {
     
     var sessions: [Session] = []
     var state: ViewState<[Session]> = .idle
-    var searchText: String = ""
     var showDeleteConfirmation: Bool = false
     var sessionToDelete: Session?
     var sessionToRename: Session?
     var renameText: String = ""
-    
-    // MARK: - Computed Properties
-    
-    var filteredSessions: [Session] {
-        guard !searchText.isEmpty else { return sessions }
-        return sessions.filter { session in
-            session.displayTitle.localizedCaseInsensitiveContains(searchText) ||
-            session.tags.contains { $0.localizedCaseInsensitiveContains(searchText) } ||
-            (session.role?.localizedCaseInsensitiveContains(searchText) ?? false)
-        }
-    }
     
     // MARK: - Initialization
     

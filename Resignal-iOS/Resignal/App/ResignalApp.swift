@@ -59,9 +59,6 @@ struct RootView: View {
             
         case .result(let session):
             ResultView(session: session)
-            
-        case .settings:
-            SettingsView()
         }
     }
 }
