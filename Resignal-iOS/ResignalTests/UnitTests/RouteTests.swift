@@ -16,11 +16,6 @@ struct RouteTests {
         #expect(Route.home == Route.home)
     }
 
-    @Test("Route.settings equals Route.settings")
-    func settingsEqualsSettings() async throws {
-        #expect(Route.settings == Route.settings)
-    }
-
     @Test("Route.editor with nil equals Route.editor with nil")
     func editorNilEqualsEditorNil() async throws {
         #expect(Route.editor(session: nil) == Route.editor(session: nil))
@@ -38,12 +33,6 @@ struct RouteTests {
         #expect(Route.result(session: session) == Route.result(session: session))
     }
 
-    @Test("Different routes are not equal")
-    func differentRoutesNotEqual() async throws {
-        #expect(Route.home != Route.settings)
-        #expect(Route.editor(session: nil) != Route.settings)
-    }
-
     @Test("Route.home is hashable")
     func homeIsHashable() async throws {
         var set: Set<Route> = []
@@ -52,21 +41,12 @@ struct RouteTests {
         #expect(set.count == 1)
     }
 
-    @Test("Route.settings is hashable")
-    func settingsIsHashable() async throws {
-        var set: Set<Route> = []
-        set.insert(.settings)
-        set.insert(.settings)
-        #expect(set.count == 1)
-    }
-
     @Test("Different routes hash differently")
     func differentRoutesHashDifferently() async throws {
         var set: Set<Route> = []
         set.insert(.home)
-        set.insert(.settings)
         set.insert(.editor(session: nil))
-        #expect(set.count == 3)
+        #expect(set.count == 2)
     }
 }
 

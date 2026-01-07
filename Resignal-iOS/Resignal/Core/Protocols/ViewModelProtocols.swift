@@ -15,8 +15,6 @@ import SwiftUI
 protocol HomeViewModelProtocol: AnyObject, Observable {
     var sessions: [Session] { get }
     var state: ViewState<[Session]> { get }
-    var searchText: String { get set }
-    var filteredSessions: [Session] { get }
     var showDeleteConfirmation: Bool { get set }
     var sessionToDelete: Session? { get set }
     var sessionToRename: Session? { get set }
@@ -79,28 +77,6 @@ protocol ResultViewModelProtocol: AnyObject, Observable {
     func expansionBinding(for section: FeedbackSection) -> Binding<Bool>
     func regenerate() async
     func copyToClipboard()
-    func clearError()
-}
-
-// MARK: - SettingsViewModelProtocol
-
-/// Protocol defining the SettingsViewModel interface
-@MainActor
-protocol SettingsViewModelProtocol: AnyObject, Observable {
-    var useMockAI: Bool { get set }
-    var apiBaseURL: String { get set }
-    var apiKey: String { get set }
-    var aiModel: String { get set }
-    var showClearConfirmation: Bool { get set }
-    var showClearedMessage: Bool { get }
-    var clearState: VoidState { get }
-    var appVersion: String { get }
-    var isAPIConfigured: Bool { get }
-    var errorMessage: String? { get }
-    var showError: Bool { get set }
-    
-    func clearAllSessions()
-    func confirmClearAll()
     func clearError()
 }
 

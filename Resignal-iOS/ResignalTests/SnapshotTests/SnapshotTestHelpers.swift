@@ -19,3 +19,5 @@ enum SnapshotDevice {
     static let iPadMini = ViewImageConfig.iPadMini
 }
 
+
+
