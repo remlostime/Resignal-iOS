@@ -8,6 +8,13 @@
 import Foundation
 import SwiftUI
 
+/// Tab selection for result view
+enum ResultTab: String, CaseIterable {
+    case feedback = "Feedback"
+    case transcript = "Transcript"
+    case ask = "Ask"
+}
+
 /// Enum representing expandable feedback sections
 enum FeedbackSection: String, CaseIterable, Hashable {
     case summary
@@ -26,14 +33,24 @@ final class ResultViewModel: ResultViewModelProtocol {
     
     private let aiClient: any AIClient
     private let sessionRepository: SessionRepositoryProtocol
+    private let chatService: ChatService
     
     let session: Session
     var sections: FeedbackSections
     var regenerateState: ViewState<FeedbackSections> = .idle
     var showShareSheet: Bool = false
     
+    // Tab state
+    var selectedTab: ResultTab = .feedback
+    
     // Expansion states using Set
     var expandedSections: Set<FeedbackSection> = [.summary, .strengths, .weaknesses]
+    
+    // Chat state
+    var chatMessages: [ChatMessage] = []
+    var askMessage: String = ""
+    var isSendingMessage: Bool = false
+    var chatError: String?
     
     // MARK: - Computed Properties
     
@@ -69,12 +86,15 @@ final class ResultViewModel: ResultViewModelProtocol {
     init(
         session: Session,
         aiClient: any AIClient,
-        sessionRepository: SessionRepositoryProtocol
+        sessionRepository: SessionRepositoryProtocol,
+        chatService: ChatService
     ) {
         self.session = session
         self.aiClient = aiClient
         self.sessionRepository = sessionRepository
+        self.chatService = chatService
         self.sections = FeedbackParser.parse(session.outputFeedback)
+        self.chatMessages = session.chatHistory
     }
     
     // MARK: - Public Methods
@@ -141,6 +161,61 @@ final class ResultViewModel: ResultViewModelProtocol {
     func clearError() {
         if regenerateState.hasError {
             regenerateState = .idle
+        }
+        chatError = nil
+    }
+    
+    /// Sends a chat message
+    func sendAskMessage() async {
+        let trimmedMessage = askMessage.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedMessage.isEmpty else { return }
+        
+        // Add user message
+        let userMessage = ChatMessage(role: .user, content: trimmedMessage)
+        chatMessages.append(userMessage)
+        
+        // Save user message
+        do {
+            try sessionRepository.saveChatMessage(userMessage, to: session)
+        } catch {
+            debugLog("Failed to save user message: \(error)")
+        }
+        
+        // Clear input
+        askMessage = ""
+        isSendingMessage = true
+        
+        do {
+            let response = try await chatService.sendMessage(
+                trimmedMessage,
+                session: session,
+                conversationHistory: chatMessages
+            )
+            
+            // Add assistant message
+            let assistantMessage = ChatMessage(role: .assistant, content: response)
+            chatMessages.append(assistantMessage)
+            
+            // Save assistant message
+            try sessionRepository.saveChatMessage(assistantMessage, to: session)
+            
+            isSendingMessage = false
+            
+        } catch {
+            chatError = error.localizedDescription
+            isSendingMessage = false
+            debugLog("Chat error: \(error)")
+        }
+    }
+    
+    /// Clears chat history
+    func clearChatHistory() {
+        do {
+            try sessionRepository.deleteChatHistory(from: session)
+            chatMessages.removeAll()
+        } catch {
+            chatError = "Failed to clear chat history"
+            debugLog("Clear chat error: \(error)")
         }
     }
     

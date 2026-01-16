@@ -91,14 +91,41 @@ struct HomeView: View {
     private var emptyStateView: some View {
         VStack {
             Spacer()
-            EmptyStateView(
-                icon: "bubble.left.and.bubble.right",
-                title: "No Sessions Yet",
-                description: "Start analyzing your interview responses to get actionable feedback.",
-                actionTitle: "New Session"
-            ) {
-                router.navigate(to: .editor(session: nil))
+            
+            VStack(spacing: AppTheme.Spacing.lg) {
+                Image(systemName: "mic.circle")
+                    .font(.system(size: 80))
+                    .foregroundStyle(AppTheme.Colors.textSecondary)
+                
+                Text("No Sessions Yet")
+                    .font(AppTheme.Typography.title)
+                    .foregroundStyle(AppTheme.Colors.textPrimary)
+                
+                Text("Record your interview practice or type your responses to get AI-powered feedback")
+                    .font(AppTheme.Typography.body)
+                    .foregroundStyle(AppTheme.Colors.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, AppTheme.Spacing.xl)
+                
+                VStack(spacing: AppTheme.Spacing.sm) {
+                    PrimaryButton(
+                        "Start Recording",
+                        icon: "mic.fill"
+                    ) {
+                        router.navigate(to: .recording(session: nil))
+                    }
+                    
+                    PrimaryButton(
+                        "Type Instead",
+                        icon: "keyboard",
+                        style: .outlined
+                    ) {
+                        router.navigate(to: .editor(session: nil))
+                    }
+                }
+                .padding(.horizontal, AppTheme.Spacing.xl)
             }
+            
             Spacer()
             Spacer()
         }
@@ -188,6 +215,20 @@ struct SessionRowView: View {
             
             // Tags and status
             HStack(spacing: AppTheme.Spacing.xs) {
+                // Audio indicator
+                if session.hasAudioRecording {
+                    Label("Audio", systemImage: "waveform")
+                        .font(AppTheme.Typography.caption)
+                        .foregroundStyle(AppTheme.Colors.textSecondary)
+                }
+                
+                // Attachment indicator
+                if session.hasAttachments {
+                    Label("\(session.attachments.count)", systemImage: "paperclip")
+                        .font(AppTheme.Typography.caption)
+                        .foregroundStyle(AppTheme.Colors.textSecondary)
+                }
+                
                 if !session.tags.isEmpty {
                     TagChipsView(tags: Array(session.tags.prefix(3)))
                 }

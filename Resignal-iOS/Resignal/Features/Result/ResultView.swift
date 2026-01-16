@@ -62,7 +62,8 @@ struct ResultView: View {
                 viewModel = ResultViewModel(
                     session: session,
                     aiClient: container.aiClient,
-                    sessionRepository: container.sessionRepository
+                    sessionRepository: container.sessionRepository,
+                    chatService: container.chatService
                 )
             }
         }
@@ -90,6 +91,39 @@ struct ResultView: View {
     
     @ViewBuilder
     private func resultContent(viewModel: ResultViewModel) -> some View {
+        VStack(spacing: 0) {
+            // Tab selector
+            Picker("View", selection: Binding(
+                get: { viewModel.selectedTab },
+                set: { viewModel.selectedTab = $0 }
+            )) {
+                ForEach(ResultTab.allCases, id: \.self) { tab in
+                    Text(tab.rawValue).tag(tab)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding(AppTheme.Spacing.md)
+            
+            // Tab content
+            TabView(selection: Binding(
+                get: { viewModel.selectedTab },
+                set: { viewModel.selectedTab = $0 }
+            )) {
+                feedbackTabContent(viewModel: viewModel)
+                    .tag(ResultTab.feedback)
+                
+                transcriptTabContent(viewModel: viewModel)
+                    .tag(ResultTab.transcript)
+                
+                askTabContent(viewModel: viewModel)
+                    .tag(ResultTab.ask)
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+        }
+        .background(AppTheme.Colors.background)
+    }
+    
+    private func feedbackTabContent(viewModel: ResultViewModel) -> some View {
         ScrollView {
             VStack(spacing: AppTheme.Spacing.md) {
                 // Session info
@@ -103,7 +137,91 @@ struct ResultView: View {
             }
             .padding(AppTheme.Spacing.md)
         }
-        .background(AppTheme.Colors.background)
+    }
+    
+    private func transcriptTabContent(viewModel: ResultViewModel) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
+                Text("Original Interview")
+                    .font(AppTheme.Typography.headline)
+                    .foregroundStyle(AppTheme.Colors.textPrimary)
+                
+                Text(session.inputText)
+                    .font(AppTheme.Typography.body)
+                    .foregroundStyle(AppTheme.Colors.textSecondary)
+                    .textSelection(.enabled)
+                    .padding(AppTheme.Spacing.md)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(AppTheme.Colors.surface)
+                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.medium))
+                
+                if session.hasAudioRecording {
+                    HStack {
+                        Image(systemName: "waveform.circle.fill")
+                            .foregroundStyle(AppTheme.Colors.primary)
+                        
+                        Text("Audio recording available")
+                            .font(AppTheme.Typography.callout)
+                            .foregroundStyle(AppTheme.Colors.textSecondary)
+                    }
+                    .padding(AppTheme.Spacing.sm)
+                    .frame(maxWidth: .infinity)
+                    .background(AppTheme.Colors.surface)
+                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small))
+                }
+                
+                if session.hasAttachments {
+                    VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
+                        Text("Attachments")
+                            .font(AppTheme.Typography.caption)
+                            .foregroundStyle(AppTheme.Colors.textSecondary)
+                        
+                        ForEach(session.attachments, id: \.id) { attachment in
+                            HStack {
+                                Image(systemName: attachment.attachmentType == .image ? "photo" : "doc")
+                                    .foregroundStyle(AppTheme.Colors.textSecondary)
+                                
+                                Text(attachment.filename)
+                                    .font(AppTheme.Typography.body)
+                                    .foregroundStyle(AppTheme.Colors.textPrimary)
+                                
+                                Spacer()
+                                
+                                Text(attachment.fileSizeFormatted)
+                                    .font(AppTheme.Typography.caption)
+                                    .foregroundStyle(AppTheme.Colors.textTertiary)
+                            }
+                            .padding(AppTheme.Spacing.sm)
+                            .background(AppTheme.Colors.surface)
+                            .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small))
+                        }
+                    }
+                }
+            }
+            .padding(AppTheme.Spacing.md)
+        }
+    }
+    
+    private func askTabContent(viewModel: ResultViewModel) -> some View {
+        AskChatView(
+            messages: Binding(
+                get: { viewModel.chatMessages },
+                set: { viewModel.chatMessages = $0 }
+            ),
+            inputText: Binding(
+                get: { viewModel.askMessage },
+                set: { viewModel.askMessage = $0 }
+            ),
+            isSending: Binding(
+                get: { viewModel.isSendingMessage },
+                set: { viewModel.isSendingMessage = $0 }
+            ),
+            onSend: {
+                Task {
+                    await viewModel.sendAskMessage()
+                }
+            }
+        )
     }
     
     private var sessionInfoView: some View {

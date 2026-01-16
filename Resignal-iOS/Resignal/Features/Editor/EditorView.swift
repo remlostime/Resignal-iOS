@@ -66,15 +66,37 @@ struct EditorView: View {
     
     // MARK: - Subviews
     
+    private func inputModeSelector(viewModel: EditorViewModel) -> some View {
+        Picker("Input Mode", selection: Binding(
+            get: { viewModel.inputMode },
+            set: { viewModel.inputMode = $0 }
+        )) {
+            ForEach(InputMode.allCases, id: \.self) { mode in
+                Text(mode.rawValue).tag(mode)
+            }
+        }
+        .pickerStyle(.segmented)
+    }
+    
     @ViewBuilder
     private func editorContent(viewModel: EditorViewModel) -> some View {
         ScrollView {
             VStack(spacing: AppTheme.Spacing.lg) {
+                // Input mode selector
+                inputModeSelector(viewModel: viewModel)
+                
                 // Configuration section
                 configurationSection(viewModel: viewModel)
                 
-                // Text input section
-                textInputSection(viewModel: viewModel)
+                // Input section (text or recording)
+                if viewModel.inputMode == .text {
+                    textInputSection(viewModel: viewModel)
+                } else {
+                    recordingSection(viewModel: viewModel)
+                }
+                
+                // Attachments section
+                attachmentsSection(viewModel: viewModel)
                 
                 // Action buttons
                 actionSection(viewModel: viewModel)
@@ -83,6 +105,18 @@ struct EditorView: View {
         }
         .background(AppTheme.Colors.background)
         .scrollDismissesKeyboard(.interactively)
+        .sheet(isPresented: Binding(
+            get: { viewModel.showAttachmentPicker },
+            set: { viewModel.showAttachmentPicker = $0 }
+        )) {
+            AttachmentPickerView(
+                selectedAttachments: Binding(
+                    get: { viewModel.attachments },
+                    set: { viewModel.attachments = $0 }
+                ),
+                attachmentService: container.attachmentService
+            )
+        }
     }
     
     private func configurationSection(viewModel: EditorViewModel) -> some View {
@@ -204,6 +238,108 @@ struct EditorView: View {
         }
     }
     
+    private func recordingSection(viewModel: EditorViewModel) -> some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
+            Text("Recording")
+                .font(AppTheme.Typography.caption)
+                .foregroundStyle(AppTheme.Colors.textSecondary)
+            
+            if let audioURL = viewModel.audioURL {
+                VStack(spacing: AppTheme.Spacing.sm) {
+                    HStack {
+                        Image(systemName: "waveform.circle.fill")
+                            .font(.title)
+                            .foregroundStyle(AppTheme.Colors.primary)
+                        
+                        VStack(alignment: .leading, spacing: AppTheme.Spacing.xxs) {
+                            Text("Recording saved")
+                                .font(AppTheme.Typography.body)
+                                .foregroundStyle(AppTheme.Colors.textPrimary)
+                            
+                            Text(audioURL.lastPathComponent)
+                                .font(AppTheme.Typography.caption)
+                                .foregroundStyle(AppTheme.Colors.textTertiary)
+                        }
+                        
+                        Spacer()
+                    }
+                    .padding(AppTheme.Spacing.sm)
+                    .background(AppTheme.Colors.surface)
+                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small))
+                    
+                    // Show transcript if available
+                    if !viewModel.inputText.isEmpty {
+                        VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
+                            Text("Transcript")
+                                .font(AppTheme.Typography.caption)
+                                .foregroundStyle(AppTheme.Colors.textSecondary)
+                            
+                            Text(viewModel.inputText)
+                                .font(AppTheme.Typography.body)
+                                .foregroundStyle(AppTheme.Colors.textPrimary)
+                                .padding(AppTheme.Spacing.sm)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(AppTheme.Colors.surface)
+                                .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small))
+                        }
+                    }
+                }
+            } else {
+                Button {
+                    router.navigate(to: .recording(session: existingSession))
+                } label: {
+                    Label("Start Recording", systemImage: "mic.circle")
+                        .font(AppTheme.Typography.body)
+                        .foregroundStyle(AppTheme.Colors.primary)
+                        .frame(maxWidth: .infinity)
+                        .padding(AppTheme.Spacing.md)
+                        .background(AppTheme.Colors.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small))
+                }
+            }
+        }
+    }
+    
+    private func attachmentsSection(viewModel: EditorViewModel) -> some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
+            HStack {
+                Text("Attachments")
+                    .font(AppTheme.Typography.caption)
+                    .foregroundStyle(AppTheme.Colors.textSecondary)
+                
+                Spacer()
+                
+                Button {
+                    viewModel.toggleAttachmentPicker()
+                } label: {
+                    Label("Add", systemImage: "plus.circle")
+                        .font(AppTheme.Typography.caption)
+                        .foregroundStyle(AppTheme.Colors.primary)
+                }
+            }
+            
+            if !viewModel.attachments.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: AppTheme.Spacing.sm) {
+                        ForEach(viewModel.attachments, id: \.id) { attachment in
+                            AttachmentChipView(attachment: attachment) {
+                                viewModel.removeAttachment(attachment)
+                            }
+                        }
+                    }
+                }
+            } else {
+                Text("No attachments")
+                    .font(AppTheme.Typography.callout)
+                    .foregroundStyle(AppTheme.Colors.textTertiary)
+                    .frame(maxWidth: .infinity)
+                    .padding(AppTheme.Spacing.md)
+                    .background(AppTheme.Colors.surface)
+                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small))
+            }
+        }
+    }
+    
     private func actionSection(viewModel: EditorViewModel) -> some View {
         VStack(spacing: AppTheme.Spacing.sm) {
             if viewModel.isAnalyzing {
@@ -234,6 +370,37 @@ struct EditorView: View {
             }
             .accessibilityIdentifier(EditorAccessibility.analyzeButton)
         }
+    }
+}
+
+/// Chip view for displaying attachments
+struct AttachmentChipView: View {
+    let attachment: SessionAttachment
+    let onRemove: () -> Void
+    
+    var body: some View {
+        HStack(spacing: AppTheme.Spacing.xxs) {
+            Image(systemName: attachment.attachmentType == .image ? "photo" : "doc")
+                .font(.caption)
+                .foregroundStyle(AppTheme.Colors.textSecondary)
+            
+            Text(attachment.filename)
+                .font(AppTheme.Typography.caption)
+                .foregroundStyle(AppTheme.Colors.textPrimary)
+                .lineLimit(1)
+            
+            Button {
+                onRemove()
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.Colors.textTertiary)
+            }
+        }
+        .padding(.horizontal, AppTheme.Spacing.sm)
+        .padding(.vertical, AppTheme.Spacing.xs)
+        .background(AppTheme.Colors.surface)
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.full))
     }
 }
 
