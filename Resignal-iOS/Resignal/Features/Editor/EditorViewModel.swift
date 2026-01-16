@@ -8,6 +8,12 @@
 import Foundation
 import SwiftUI
 
+/// Input mode for the editor
+enum InputMode: String, CaseIterable {
+    case text = "Type"
+    case recording = "Record"
+}
+
 /// ViewModel managing the editor screen state and logic
 @MainActor
 @Observable
@@ -25,9 +31,15 @@ final class EditorViewModel: EditorViewModelProtocol {
     var tags: [String] = []
     var inputText: String = ""
     
+    // Input mode
+    var inputMode: InputMode = .text
+    var audioURL: URL?
+    var attachments: [SessionAttachment] = []
+    
     // UI state
     var analysisState: ViewState<Session> = .idle
     var analysisProgress: Double = 0
+    var showAttachmentPicker: Bool = false
     
     // Analysis result
     var analysisResult: String?
@@ -80,6 +92,13 @@ final class EditorViewModel: EditorViewModelProtocol {
             self.rubric = session.rubricType
             self.tags = session.tags
             self.inputText = session.inputText
+            self.audioURL = session.audioURL
+            self.attachments = session.attachments
+            
+            // Set input mode based on session data
+            if session.hasAudioRecording {
+                self.inputMode = .recording
+            }
         }
     }
     
@@ -156,6 +175,28 @@ final class EditorViewModel: EditorViewModelProtocol {
         }
     }
     
+    /// Sets recording data from RecordingView
+    func setRecording(url: URL, transcript: String) {
+        self.audioURL = url
+        self.inputText = transcript
+        self.inputMode = .recording
+    }
+    
+    /// Adds an attachment
+    func addAttachment(_ attachment: SessionAttachment) {
+        attachments.append(attachment)
+    }
+    
+    /// Removes an attachment
+    func removeAttachment(_ attachment: SessionAttachment) {
+        attachments.removeAll { $0.id == attachment.id }
+    }
+    
+    /// Toggles attachment picker
+    func toggleAttachmentPicker() {
+        showAttachmentPicker.toggle()
+    }
+    
     // MARK: - Private Methods
     
     private func saveSession(with feedback: String) throws -> Session {
@@ -168,6 +209,18 @@ final class EditorViewModel: EditorViewModelProtocol {
             existingSession.tags = tags
             existingSession.version += 1
             
+            // Update audio URL if set
+            if let audioURL = audioURL {
+                existingSession.audioFileURL = audioURL.path
+            }
+            
+            // Save attachments
+            for attachment in attachments {
+                if !existingSession.attachments.contains(where: { $0.id == attachment.id }) {
+                    try sessionRepository.saveAttachment(attachment, to: existingSession)
+                }
+            }
+            
             try sessionRepository.update(existingSession, title: nil, tags: tags)
             return existingSession
         } else {
@@ -178,7 +231,9 @@ final class EditorViewModel: EditorViewModelProtocol {
                 inputText: inputText,
                 outputFeedback: feedback,
                 rubric: rubric,
-                tags: tags
+                tags: tags,
+                audioFileURL: audioURL,
+                attachments: attachments
             )
             
             try sessionRepository.save(newSession)

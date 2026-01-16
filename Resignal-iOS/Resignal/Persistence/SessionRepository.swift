@@ -19,6 +19,14 @@ protocol SessionRepositoryProtocol: Sendable {
     func deleteAll() throws
     func update(_ session: Session, title: String?, tags: [String]?) throws
     func count() throws -> Int
+    
+    // Attachment operations
+    func saveAttachment(_ attachment: SessionAttachment, to session: Session) throws
+    func deleteAttachment(_ attachment: SessionAttachment, from session: Session) throws
+    
+    // Chat history operations
+    func saveChatMessage(_ message: ChatMessage, to session: Session) throws
+    func deleteChatHistory(from session: Session) throws
 }
 
 /// Repository for Session CRUD operations using SwiftData
@@ -110,6 +118,46 @@ final class SessionRepository: SessionRepositoryProtocol {
     func count() throws -> Int {
         let descriptor = FetchDescriptor<Session>()
         return try modelContext.fetchCount(descriptor)
+    }
+    
+    // MARK: - Attachment Operations
+    
+    /// Saves an attachment and associates it with a session
+    func saveAttachment(_ attachment: SessionAttachment, to session: Session) throws {
+        session.attachments.append(attachment)
+        modelContext.insert(attachment)
+        try modelContext.save()
+        debugLog("Attachment saved to session: \(session.id)")
+    }
+    
+    /// Deletes an attachment from a session
+    func deleteAttachment(_ attachment: SessionAttachment, from session: Session) throws {
+        if let index = session.attachments.firstIndex(where: { $0.id == attachment.id }) {
+            session.attachments.remove(at: index)
+        }
+        modelContext.delete(attachment)
+        try modelContext.save()
+        debugLog("Attachment deleted from session: \(session.id)")
+    }
+    
+    // MARK: - Chat History Operations
+    
+    /// Saves a chat message to a session
+    func saveChatMessage(_ message: ChatMessage, to session: Session) throws {
+        session.chatHistory.append(message)
+        modelContext.insert(message)
+        try modelContext.save()
+        debugLog("Chat message saved to session: \(session.id)")
+    }
+    
+    /// Deletes all chat history from a session
+    func deleteChatHistory(from session: Session) throws {
+        for message in session.chatHistory {
+            modelContext.delete(message)
+        }
+        session.chatHistory.removeAll()
+        try modelContext.save()
+        debugLog("Chat history deleted from session: \(session.id)")
     }
     
     // MARK: - Private Methods
