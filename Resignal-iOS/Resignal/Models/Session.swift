@@ -20,6 +20,12 @@ enum Rubric: String, CaseIterable, Codable, Sendable {
     nonisolated var description: String { rawValue }
 }
 
+/// Transcription mode for sessions
+enum TranscriptionMode: String, Codable, Sendable {
+    case manual
+    case automatic
+}
+
 /// Represents a single interview analysis session
 @Model
 final class Session {
@@ -36,6 +42,12 @@ final class Session {
     var tags: [String]
     var version: Int
     
+    // New properties for audio recording and attachments
+    var audioFileURL: String?
+    var transcriptionMode: String
+    @Relationship(deleteRule: .cascade) var attachments: [SessionAttachment]
+    @Relationship(deleteRule: .cascade) var chatHistory: [ChatMessage]
+    
     // MARK: - Initialization
     
     init(
@@ -47,7 +59,11 @@ final class Session {
         outputFeedback: String = "",
         rubric: Rubric = .softwareEngineering,
         tags: [String] = [],
-        version: Int = 1
+        version: Int = 2,
+        audioFileURL: URL? = nil,
+        transcriptionMode: TranscriptionMode = .manual,
+        attachments: [SessionAttachment] = [],
+        chatHistory: [ChatMessage] = []
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -58,6 +74,10 @@ final class Session {
         self.rubric = rubric.rawValue
         self.tags = tags
         self.version = version
+        self.audioFileURL = audioFileURL?.path
+        self.transcriptionMode = transcriptionMode.rawValue
+        self.attachments = attachments
+        self.chatHistory = chatHistory
     }
     
     // MARK: - Computed Properties
@@ -66,6 +86,28 @@ final class Session {
     var rubricType: Rubric {
         get { Rubric(rawValue: rubric) ?? .general }
         set { rubric = newValue.rawValue }
+    }
+    
+    /// Returns the transcription mode as an enum type
+    var transcriptionModeType: TranscriptionMode {
+        get { TranscriptionMode(rawValue: transcriptionMode) ?? .manual }
+        set { transcriptionMode = newValue.rawValue }
+    }
+    
+    /// Returns the audio file URL as a URL object if available
+    var audioURL: URL? {
+        guard let audioFileURL = audioFileURL else { return nil }
+        return URL(fileURLWithPath: audioFileURL)
+    }
+    
+    /// Returns true if the session has an audio recording
+    var hasAudioRecording: Bool {
+        audioFileURL != nil
+    }
+    
+    /// Returns true if the session has attachments
+    var hasAttachments: Bool {
+        !attachments.isEmpty
     }
     
     /// Returns a preview of the input text (first 100 characters)

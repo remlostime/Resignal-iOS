@@ -59,6 +59,13 @@ struct RootView: View {
             
         case .result(let session):
             ResultView(session: session)
+            
+        case .recording(let session):
+            RecordingView(existingSession: session) { url, transcript in
+                // Handle recording completion
+                // Navigate back to editor or create new session
+                router.pop()
+            }
         }
     }
 }

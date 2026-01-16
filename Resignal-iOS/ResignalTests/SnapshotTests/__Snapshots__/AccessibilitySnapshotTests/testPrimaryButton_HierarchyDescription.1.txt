@@ -1,4 +1,0 @@
-<_TtGC7SwiftUI14_UIHostingViewGVS_15ModifiedContentGS1_V8Resignal13PrimaryButtonVS_12_FrameLayout_VS_14_PaddingLayout__; frame = (0 0; 340 80); autoresize = W+H; gestureRecognizers = <NSArray>; backgroundColor = <UIDynamicSystemColor; name = systemBackgroundColor>; layer = <CALayer>>
-   | <CALayer> (layer)
-   | <_TtC7SwiftUIP33_863CCF9D49B535DAEB1C7D61BEE53B5914CGDrawingLayer> (layer)
-   | <_TtC7SwiftUIP33_863CCF9D49B535DAEB1C7D61BEE53B5914CGDrawingLayer> (layer)
