@@ -140,46 +140,73 @@ struct HomeView: View {
     }
     
     private func sessionListView(viewModel: HomeViewModel) -> some View {
-        List {
-            ForEach(viewModel.sessions, id: \.id) { session in
-                SessionRowView(session: session)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        if session.hasAnalysis {
-                            router.navigate(to: .result(session: session))
-                        } else {
-                            router.navigate(to: .editor(session: session))
+        ZStack(alignment: .bottomTrailing) {
+            List {
+                ForEach(viewModel.sessions, id: \.id) { session in
+                    SessionRowView(session: session)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            if session.hasAnalysis {
+                                router.navigate(to: .result(session: session))
+                            } else {
+                                router.navigate(to: .editor(session: session))
+                            }
                         }
-                    }
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        Button(role: .destructive) {
-                            viewModel.confirmDelete(session)
-                        } label: {
-                            Label("Delete", systemImage: "trash")
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button(role: .destructive) {
+                                viewModel.confirmDelete(session)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                            
+                            Button {
+                                viewModel.startRename(session)
+                            } label: {
+                                Label("Rename", systemImage: "pencil")
+                            }
+                            .tint(AppTheme.Colors.secondary)
                         }
-                        
-                        Button {
-                            viewModel.startRename(session)
-                        } label: {
-                            Label("Rename", systemImage: "pencil")
-                        }
-                        .tint(AppTheme.Colors.secondary)
-                    }
+                }
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(
+                    top: AppTheme.Spacing.xs,
+                    leading: AppTheme.Spacing.md,
+                    bottom: AppTheme.Spacing.xs,
+                    trailing: AppTheme.Spacing.md
+                ))
             }
-            .listRowSeparator(.hidden)
-            .listRowBackground(Color.clear)
-            .listRowInsets(EdgeInsets(
-                top: AppTheme.Spacing.xs,
-                leading: AppTheme.Spacing.md,
-                bottom: AppTheme.Spacing.xs,
-                trailing: AppTheme.Spacing.md
-            ))
+            .listStyle(.plain)
+            .refreshable {
+                viewModel.loadSessions()
+            }
+            .accessibilityIdentifier(HomeAccessibility.sessionList)
+            
+            // Floating Action Button
+            Button {
+                showCreateSessionSheet = true
+            } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 24, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 64, height: 64)
+                    .background(AppTheme.Colors.primary)
+                    .clipShape(Circle())
+                    .mediumShadow()
+            }
+            .padding(.trailing, AppTheme.Spacing.md)
+            .padding(.bottom, AppTheme.Spacing.md)
         }
-        .listStyle(.plain)
-        .refreshable {
-            viewModel.loadSessions()
+        .sheet(isPresented: $showCreateSessionSheet) {
+            CreateSessionSheet(
+                onRecordSelected: {
+                    router.navigate(to: .recording(session: nil))
+                },
+                onTypeSelected: {
+                    router.navigate(to: .editor(session: nil))
+                }
+            )
         }
-        .accessibilityIdentifier(HomeAccessibility.sessionList)
     }
 }
 
