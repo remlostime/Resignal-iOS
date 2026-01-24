@@ -41,13 +41,9 @@ enum AIClientError: Error, LocalizedError, Sendable {
 /// Nonisolated to allow use from any actor context
 struct AnalysisRequest: Sendable {
     nonisolated let inputText: String
-    nonisolated let role: String?
-    nonisolated let rubric: Rubric
 
-    nonisolated init(inputText: String, role: String? = nil, rubric: Rubric = .softwareEngineering) {
+    nonisolated init(inputText: String) {
         self.inputText = inputText
-        self.role = role
-        self.rubric = rubric
     }
 }
 

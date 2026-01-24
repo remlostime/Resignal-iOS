@@ -136,11 +136,7 @@ actor OpenAICompatibleClient: AIClient {
         defer { Task { await setIsAnalyzing(false) } }
         
         // Build the prompt
-        let userPrompt = PromptBuilder.buildPrompt(
-            inputText: request.inputText,
-            role: request.role,
-            rubric: request.rubric
-        )
+        let userPrompt = PromptBuilder.buildPrompt(inputText: request.inputText)
 
         // Create the request
         let chatRequest = ChatRequest(

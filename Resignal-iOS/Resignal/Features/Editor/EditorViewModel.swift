@@ -8,12 +8,6 @@
 import Foundation
 import SwiftUI
 
-/// Input mode for the editor
-enum InputMode: String, CaseIterable {
-    case text = "Type"
-    case recording = "Record"
-}
-
 /// ViewModel managing the editor screen state and logic
 @MainActor
 @Observable
@@ -26,14 +20,7 @@ final class EditorViewModel: EditorViewModelProtocol {
     
     // Session data
     var session: Session?
-    var role: String = ""
-    var rubric: Rubric = .softwareEngineering
-    var tags: [String] = []
     var inputText: String = ""
-    
-    // Input mode
-    var inputMode: InputMode = .text
-    var audioURL: URL?
     var attachments: [SessionAttachment] = []
     
     // UI state
@@ -88,17 +75,8 @@ final class EditorViewModel: EditorViewModelProtocol {
         
         // Pre-populate from existing session
         if let session = session {
-            self.role = session.role ?? ""
-            self.rubric = session.rubricType
-            self.tags = session.tags
             self.inputText = session.inputText
-            self.audioURL = session.audioURL
             self.attachments = session.attachments
-            
-            // Set input mode based on session data
-            if session.hasAudioRecording {
-                self.inputMode = .recording
-            }
         }
     }
     
@@ -126,11 +104,7 @@ final class EditorViewModel: EditorViewModelProtocol {
         }
         
         do {
-            let request = AnalysisRequest(
-                inputText: inputText,
-                role: role.isEmpty ? nil : role,
-                rubric: rubric
-            )
+            let request = AnalysisRequest(inputText: inputText)
             
             let response = try await aiClient.analyze(request)
             analysisResult = response.feedback
@@ -175,13 +149,6 @@ final class EditorViewModel: EditorViewModelProtocol {
         }
     }
     
-    /// Sets recording data from RecordingView
-    func setRecording(url: URL, transcript: String) {
-        self.audioURL = url
-        self.inputText = transcript
-        self.inputMode = .recording
-    }
-    
     /// Adds an attachment
     func addAttachment(_ attachment: SessionAttachment) {
         attachments.append(attachment)
@@ -204,15 +171,7 @@ final class EditorViewModel: EditorViewModelProtocol {
             // Update existing session
             existingSession.inputText = inputText
             existingSession.outputFeedback = feedback
-            existingSession.role = role.isEmpty ? nil : role
-            existingSession.rubricType = rubric
-            existingSession.tags = tags
             existingSession.version += 1
-            
-            // Update audio URL if set
-            if let audioURL = audioURL {
-                existingSession.audioFileURL = audioURL.path
-            }
             
             // Save attachments
             for attachment in attachments {
@@ -221,18 +180,18 @@ final class EditorViewModel: EditorViewModelProtocol {
                 }
             }
             
-            try sessionRepository.update(existingSession, title: nil, tags: tags)
+            try sessionRepository.update(existingSession, title: nil, tags: nil)
             return existingSession
         } else {
             // Create new session
             let newSession = Session(
                 title: "",
-                role: role.isEmpty ? nil : role,
+                role: nil,
                 inputText: inputText,
                 outputFeedback: feedback,
-                rubric: rubric,
-                tags: tags,
-                audioFileURL: audioURL,
+                rubric: .general,
+                tags: [],
+                audioFileURL: nil,
                 attachments: attachments
             )
             

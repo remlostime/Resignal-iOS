@@ -57,17 +57,15 @@ actor MockAIClient: AIClient {
     // MARK: - Private Methods
 
     private nonisolated static func generateFeedback(for request: AnalysisRequest) -> String {
-        let roleText = request.role.map { " for the \($0) position" } ?? ""
         let questionCount = countQuestions(in: request.inputText)
         let wordCount = request.inputText.split(separator: " ").count
         
         return """
         ## Summary
         
-        The candidate provided \(questionCount) response(s)\(roleText), demonstrating \
-        understanding of key concepts in \(request.rubric.description). The responses \
-        show a mix of strong technical knowledge and areas that could benefit from \
-        more specific examples.
+        The candidate provided \(questionCount) response(s), demonstrating \
+        understanding of key concepts. The responses show a mix of strong \
+        knowledge and areas that could benefit from more specific examples.
         
         ## Strengths
         
@@ -111,7 +109,6 @@ actor MockAIClient: AIClient {
         ---
         
         *Analysis based on \(wordCount) words across \(questionCount) Q&A pair(s).*
-        *Rubric: \(request.rubric.description)*
         """
     }
     

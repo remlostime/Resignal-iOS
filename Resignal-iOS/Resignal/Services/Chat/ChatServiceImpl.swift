@@ -44,11 +44,7 @@ actor ChatServiceImpl: ChatService {
         )
         
         // Use AIClient to get response
-        let request = AnalysisRequest(
-            inputText: prompt,
-            role: session.role,
-            rubric: session.rubricType
-        )
+        let request = AnalysisRequest(inputText: prompt)
         
         do {
             let response = try await aiClient.analyze(request)
@@ -76,7 +72,7 @@ actor ChatServiceImpl: ChatService {
         Summary:
         """
         
-        let request = AnalysisRequest(inputText: prompt, rubric: .general)
+        let request = AnalysisRequest(inputText: prompt)
         
         do {
             let response = try await aiClient.analyze(request)

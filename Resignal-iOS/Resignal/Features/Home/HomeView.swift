@@ -15,6 +15,7 @@ struct HomeView: View {
     @Environment(Router.self) private var router
     @Environment(DependencyContainer.self) private var container
     @State private var viewModel: HomeViewModel?
+    @State private var showCreateSessionSheet = false
     
     // MARK: - Body
     
@@ -107,27 +108,33 @@ struct HomeView: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, AppTheme.Spacing.xl)
                 
-                VStack(spacing: AppTheme.Spacing.sm) {
-                    PrimaryButton(
-                        "Start Recording",
-                        icon: "mic.fill"
-                    ) {
-                        router.navigate(to: .recording(session: nil))
-                    }
-                    
-                    PrimaryButton(
-                        "Type Instead",
-                        icon: "keyboard",
-                        style: .outlined
-                    ) {
-                        router.navigate(to: .editor(session: nil))
-                    }
+                // Floating action button
+                Button {
+                    showCreateSessionSheet = true
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 64, height: 64)
+                        .background(AppTheme.Colors.primary)
+                        .clipShape(Circle())
+                        .mediumShadow()
                 }
-                .padding(.horizontal, AppTheme.Spacing.xl)
+                .padding(.top, AppTheme.Spacing.sm)
             }
             
             Spacer()
             Spacer()
+        }
+        .sheet(isPresented: $showCreateSessionSheet) {
+            CreateSessionSheet(
+                onRecordSelected: {
+                    router.navigate(to: .recording(session: nil))
+                },
+                onTypeSelected: {
+                    router.navigate(to: .editor(session: nil))
+                }
+            )
         }
         .accessibilityIdentifier(HomeAccessibility.emptyStateView)
     }
