@@ -67,18 +67,15 @@ protocol ResultViewModelProtocol: AnyObject, Observable {
     var session: Session { get }
     var sections: FeedbackSections { get }
     var regenerateState: ViewState<FeedbackSections> { get }
-    var showShareSheet: Bool { get set }
     var expandedSections: Set<FeedbackSection> { get set }
     var isRegenerating: Bool { get }
     var errorMessage: String? { get }
     var showError: Bool { get set }
-    var shareText: String { get }
     
     func isExpanded(_ section: FeedbackSection) -> Bool
     func toggleExpansion(_ section: FeedbackSection)
     func expansionBinding(for section: FeedbackSection) -> Binding<Bool>
     func regenerate() async
-    func copyToClipboard()
     func clearError()
 }
 

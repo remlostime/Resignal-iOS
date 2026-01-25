@@ -33,26 +33,10 @@ struct ResultView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Button {
-                        viewModel?.copyToClipboard()
-                    } label: {
-                        Label("Copy", systemImage: "doc.on.doc")
-                    }
-                    
-                    Button {
-                        viewModel?.showShareSheet = true
-                    } label: {
-                        Label("Share", systemImage: "square.and.arrow.up")
-                    }
-                    
-                    Button {
-                        router.navigate(to: .editor(session: session))
-                    } label: {
-                        Label("Edit", systemImage: "pencil")
-                    }
+                Button {
+                    router.navigate(to: .editor(session: session))
                 } label: {
-                    Image(systemName: "ellipsis.circle")
+                    Text("Edit")
                         .foregroundStyle(AppTheme.Colors.primary)
                 }
             }
@@ -65,14 +49,6 @@ struct ResultView: View {
                     sessionRepository: container.sessionRepository,
                     chatService: container.chatService
                 )
-            }
-        }
-        .sheet(isPresented: Binding(
-            get: { viewModel?.showShareSheet ?? false },
-            set: { viewModel?.showShareSheet = $0 }
-        )) {
-            if let viewModel = viewModel {
-                ShareSheet(items: [viewModel.shareText])
             }
         }
         .alert("Error", isPresented: Binding(
@@ -316,18 +292,6 @@ struct ResultView: View {
                 }
             }
             .accessibilityIdentifier(ResultAccessibility.regenerateButton)
-
-            HStack(spacing: AppTheme.Spacing.sm) {
-                PrimaryButton("Copy", icon: "doc.on.doc", style: .text) {
-                    viewModel.copyToClipboard()
-                }
-                .accessibilityIdentifier(ResultAccessibility.copyButton)
-
-                PrimaryButton("Share", icon: "square.and.arrow.up", style: .text) {
-                    viewModel.showShareSheet = true
-                }
-                .accessibilityIdentifier(ResultAccessibility.shareButton)
-            }
         }
         .padding(.top, AppTheme.Spacing.md)
     }
@@ -394,20 +358,7 @@ enum ResultAccessibility {
     static let weaknessesSection = "feedbackSection_Weaknesses"
     static let suggestedSection = "feedbackSection_SuggestedImprovedAnswers"
     static let followUpSection = "feedbackSection_Follow-upQuestions"
-    static let copyButton = "copyButton"
-    static let shareButton = "shareButton"
     static let regenerateButton = "regenerateButton"
-}
-
-/// Share sheet wrapper
-struct ShareSheet: UIViewControllerRepresentable {
-    let items: [Any]
-    
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: items, applicationActivities: nil)
-    }
-    
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 // MARK: - Preview
