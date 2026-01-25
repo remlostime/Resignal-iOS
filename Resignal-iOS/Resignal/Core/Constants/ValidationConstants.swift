@@ -10,6 +10,6 @@ import Foundation
 /// Validation constants for input validation
 enum ValidationConstants {
     /// Minimum number of characters required for input text analysis
-    static let minimumInputCharacters = 20
+    static let minimumInputCharacters = 1
 }
 
