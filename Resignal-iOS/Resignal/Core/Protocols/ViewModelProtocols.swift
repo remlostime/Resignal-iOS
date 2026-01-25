@@ -37,10 +37,8 @@ protocol HomeViewModelProtocol: AnyObject, Observable {
 @MainActor
 protocol EditorViewModelProtocol: AnyObject, Observable {
     var session: Session? { get }
-    var role: String { get set }
-    var rubric: Rubric { get set }
-    var tags: [String] { get set }
     var inputText: String { get set }
+    var attachments: [SessionAttachment] { get set }
     var analysisState: ViewState<Session> { get }
     var analysisProgress: Double { get }
     var analysisResult: String? { get }
@@ -50,11 +48,15 @@ protocol EditorViewModelProtocol: AnyObject, Observable {
     var isAnalyzing: Bool { get }
     var errorMessage: String? { get }
     var showError: Bool { get set }
+    var showAttachmentPicker: Bool { get set }
     
     func analyze() async -> Session?
     func cancelAnalysis()
     func saveDraft() -> Session?
     func clearError()
+    func addAttachment(_ attachment: SessionAttachment)
+    func removeAttachment(_ attachment: SessionAttachment)
+    func toggleAttachmentPicker()
 }
 
 // MARK: - ResultViewModelProtocol

@@ -126,11 +126,7 @@ final class ResultViewModel: ResultViewModelProtocol {
         regenerateState = .loading
         
         do {
-            let request = AnalysisRequest(
-                inputText: session.inputText,
-                role: session.role,
-                rubric: session.rubricType
-            )
+            let request = AnalysisRequest(inputText: session.inputText)
             
             let response = try await aiClient.analyze(request)
             

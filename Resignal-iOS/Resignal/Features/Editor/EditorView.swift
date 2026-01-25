@@ -66,34 +66,12 @@ struct EditorView: View {
     
     // MARK: - Subviews
     
-    private func inputModeSelector(viewModel: EditorViewModel) -> some View {
-        Picker("Input Mode", selection: Binding(
-            get: { viewModel.inputMode },
-            set: { viewModel.inputMode = $0 }
-        )) {
-            ForEach(InputMode.allCases, id: \.self) { mode in
-                Text(mode.rawValue).tag(mode)
-            }
-        }
-        .pickerStyle(.segmented)
-    }
-    
     @ViewBuilder
     private func editorContent(viewModel: EditorViewModel) -> some View {
         ScrollView {
             VStack(spacing: AppTheme.Spacing.lg) {
-                // Input mode selector
-                inputModeSelector(viewModel: viewModel)
-                
-                // Configuration section
-                configurationSection(viewModel: viewModel)
-                
-                // Input section (text or recording)
-                if viewModel.inputMode == .text {
-                    textInputSection(viewModel: viewModel)
-                } else {
-                    recordingSection(viewModel: viewModel)
-                }
+                // Text input section
+                textInputSection(viewModel: viewModel)
                 
                 // Attachments section
                 attachmentsSection(viewModel: viewModel)
@@ -116,73 +94,6 @@ struct EditorView: View {
                 ),
                 attachmentService: container.attachmentService
             )
-        }
-    }
-    
-    private func configurationSection(viewModel: EditorViewModel) -> some View {
-        VStack(spacing: AppTheme.Spacing.md) {
-            // Role input
-            VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
-                Text("Role (Optional)")
-                    .font(AppTheme.Typography.caption)
-                    .foregroundStyle(AppTheme.Colors.textSecondary)
-                
-                TextField("e.g., iOS Engineer, Product Manager", text: Binding(
-                    get: { viewModel.role },
-                    set: { viewModel.role = $0 }
-                ))
-                .font(AppTheme.Typography.body)
-                .padding(AppTheme.Spacing.sm)
-                .background(AppTheme.Colors.surface)
-                .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small))
-                .accessibilityIdentifier(EditorAccessibility.roleTextField)
-            }
-            
-            // Rubric picker
-            VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
-                Text("Evaluation Rubric")
-                    .font(AppTheme.Typography.caption)
-                    .foregroundStyle(AppTheme.Colors.textSecondary)
-                
-                Menu {
-                    ForEach(Rubric.allCases, id: \.self) { rubric in
-                        Button(rubric.description) {
-                            viewModel.rubric = rubric
-                        }
-                    }
-                } label: {
-                    HStack {
-                        Text(viewModel.rubric.description)
-                            .font(AppTheme.Typography.body)
-                            .foregroundStyle(AppTheme.Colors.textPrimary)
-                        
-                        Spacer()
-                        
-                        Image(systemName: "chevron.down")
-                            .font(.caption)
-                            .foregroundStyle(AppTheme.Colors.textSecondary)
-                    }
-                    .padding(AppTheme.Spacing.sm)
-                    .background(AppTheme.Colors.surface)
-                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small))
-                }
-                .accessibilityIdentifier(EditorAccessibility.rubricPicker)
-            }
-            
-            // Tags input
-            VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
-                Text("Tags")
-                    .font(AppTheme.Typography.caption)
-                    .foregroundStyle(AppTheme.Colors.textSecondary)
-                
-                TagInputField(tags: Binding(
-                    get: { viewModel.tags },
-                    set: { viewModel.tags = $0 }
-                ))
-                .padding(AppTheme.Spacing.sm)
-                .background(AppTheme.Colors.surface)
-                .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small))
-            }
         }
     }
     
@@ -233,68 +144,6 @@ struct EditorView: View {
                         .padding(AppTheme.Spacing.sm)
                         .padding(.top, 8)
                         .allowsHitTesting(false)
-                }
-            }
-        }
-    }
-    
-    private func recordingSection(viewModel: EditorViewModel) -> some View {
-        VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
-            Text("Recording")
-                .font(AppTheme.Typography.caption)
-                .foregroundStyle(AppTheme.Colors.textSecondary)
-            
-            if let audioURL = viewModel.audioURL {
-                VStack(spacing: AppTheme.Spacing.sm) {
-                    HStack {
-                        Image(systemName: "waveform.circle.fill")
-                            .font(.title)
-                            .foregroundStyle(AppTheme.Colors.primary)
-                        
-                        VStack(alignment: .leading, spacing: AppTheme.Spacing.xxs) {
-                            Text("Recording saved")
-                                .font(AppTheme.Typography.body)
-                                .foregroundStyle(AppTheme.Colors.textPrimary)
-                            
-                            Text(audioURL.lastPathComponent)
-                                .font(AppTheme.Typography.caption)
-                                .foregroundStyle(AppTheme.Colors.textTertiary)
-                        }
-                        
-                        Spacer()
-                    }
-                    .padding(AppTheme.Spacing.sm)
-                    .background(AppTheme.Colors.surface)
-                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small))
-                    
-                    // Show transcript if available
-                    if !viewModel.inputText.isEmpty {
-                        VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
-                            Text("Transcript")
-                                .font(AppTheme.Typography.caption)
-                                .foregroundStyle(AppTheme.Colors.textSecondary)
-                            
-                            Text(viewModel.inputText)
-                                .font(AppTheme.Typography.body)
-                                .foregroundStyle(AppTheme.Colors.textPrimary)
-                                .padding(AppTheme.Spacing.sm)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(AppTheme.Colors.surface)
-                                .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small))
-                        }
-                    }
-                }
-            } else {
-                Button {
-                    router.navigate(to: .recording(session: existingSession))
-                } label: {
-                    Label("Start Recording", systemImage: "mic.circle")
-                        .font(AppTheme.Typography.body)
-                        .foregroundStyle(AppTheme.Colors.primary)
-                        .frame(maxWidth: .infinity)
-                        .padding(AppTheme.Spacing.md)
-                        .background(AppTheme.Colors.surface)
-                        .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small))
                 }
             }
         }
