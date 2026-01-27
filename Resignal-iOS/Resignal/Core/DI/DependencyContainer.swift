@@ -40,30 +40,18 @@ final class DependencyContainer: DependencyContainerProtocol {
     // Cached AI client with invalidation tracking
     private var _cachedAIClient: (any AIClient)?
     private var _lastUseMockAI: Bool?
-    private var _lastAPIKey: String?
-    private var _lastBaseURL: String?
-    private var _lastModel: String?
     
     var aiClient: any AIClient {
         let settings = settingsService
         let currentUseMock = settings.useMockAI
-        let currentAPIKey = settings.apiKey
-        let currentBaseURL = settings.apiBaseURL
-        let currentModel = settings.aiModel
         
         // Check if we need to recreate the client
         let needsRecreation = _cachedAIClient == nil ||
-            _lastUseMockAI != currentUseMock ||
-            _lastAPIKey != currentAPIKey ||
-            _lastBaseURL != currentBaseURL ||
-            _lastModel != currentModel
+            _lastUseMockAI != currentUseMock
         
         if needsRecreation {
             _cachedAIClient = createAIClient()
             _lastUseMockAI = currentUseMock
-            _lastAPIKey = currentAPIKey
-            _lastBaseURL = currentBaseURL
-            _lastModel = currentModel
         }
         
         return _cachedAIClient!
@@ -130,15 +118,7 @@ final class DependencyContainer: DependencyContainerProtocol {
     // MARK: - Private Methods
     
     private func createAIClient() -> any AIClient {
-        if settingsService.useMockAI {
-            return MockAIClient()
-        } else {
-            return OpenAICompatibleClient(
-                baseURL: settingsService.apiBaseURL,
-                apiKey: settingsService.apiKey,
-                model: settingsService.aiModel
-            )
-        }
+        return ResignalAIClient()
     }
     
     /// Creates a container for previews and testing with in-memory storage
