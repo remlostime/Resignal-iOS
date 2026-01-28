@@ -14,6 +14,7 @@ struct FeedbackSections: Sendable, Equatable {
     var weaknesses: String
     var suggestedAnswers: String
     var followUpQuestions: String
+    var hiringSignal: String
     var raw: String
 
     nonisolated init(
@@ -22,6 +23,7 @@ struct FeedbackSections: Sendable, Equatable {
         weaknesses: String = "",
         suggestedAnswers: String = "",
         followUpQuestions: String = "",
+        hiringSignal: String = "",
         raw: String = ""
     ) {
         self.summary = summary
@@ -29,6 +31,7 @@ struct FeedbackSections: Sendable, Equatable {
         self.weaknesses = weaknesses
         self.suggestedAnswers = suggestedAnswers
         self.followUpQuestions = followUpQuestions
+        self.hiringSignal = hiringSignal
         self.raw = raw
     }
 }
@@ -38,11 +41,12 @@ enum FeedbackParser {
     
     /// Section header patterns with their variations
     private static let sectionPatterns: [(headers: [String], keyPath: WritableKeyPath<FeedbackSections, String>)] = [
-        (["## Summary", "## summary", "**Summary**", "Summary:"], \.summary),
-        (["## Strengths", "## strengths", "**Strengths**", "Strengths:"], \.strengths),
-        (["## Weaknesses", "## weaknesses", "## Areas for Improvement", "**Weaknesses**", "Weaknesses:"], \.weaknesses),
-        (["## Suggested Improved Answers", "## Suggested Answers", "## Improvements", "**Suggested Improved Answers**"], \.suggestedAnswers),
-        (["## Follow-up Questions", "## Follow Up Questions", "## Followup Questions", "**Follow-up Questions**"], \.followUpQuestions)
+        (["## Summary", "## summary", "**Summary**", "Summary:", "### 1. Interview Summary", "## Interview Summary", "## 1. Interview Summary", "### Interview Summary"], \.summary),
+        (["## Strengths", "## strengths", "**Strengths**", "Strengths:", "### 2. Key Strengths", "## Key Strengths", "## 2. Key Strengths", "### Key Strengths"], \.strengths),
+        (["## Weaknesses", "## weaknesses", "## Areas for Improvement", "**Weaknesses**", "Weaknesses:", "### 3. Areas for Improvement", "## 3. Areas for Improvement", "### Areas for Improvement"], \.weaknesses),
+        (["### 4. Hiring Signal Assessment", "## Hiring Signal Assessment", "## 4. Hiring Signal Assessment", "### Hiring Signal", "## Hiring Signal"], \.hiringSignal),
+        (["## Suggested Improved Answers", "## Suggested Answers", "## Improvements", "**Suggested Improved Answers**", "### 5. Actionable Feedback for the Candidate", "## Actionable Feedback for the Candidate", "## 5. Actionable Feedback for the Candidate", "### Actionable Feedback"], \.suggestedAnswers),
+        (["## Follow-up Questions", "## Follow Up Questions", "## Followup Questions", "**Follow-up Questions**", "### Follow-up Questions"], \.followUpQuestions)
     ]
 
     /// Parses markdown feedback into FeedbackSections

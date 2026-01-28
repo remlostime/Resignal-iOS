@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import MarkdownUI
 
 /// Result screen showing structured feedback
 struct ResultView: View {
@@ -258,6 +259,16 @@ struct ResultView: View {
             )
         }
 
+        // Hiring Signal
+        if !sections.hiringSignal.isEmpty {
+            FeedbackSectionView(
+                title: "Hiring Signal Assessment",
+                icon: "checkmark.seal.fill",
+                content: sections.hiringSignal,
+                isExpanded: viewModel.expansionBinding(for: .hiringSignal)
+            )
+        }
+
         // Suggested Answers
         if !sections.suggestedAnswers.isEmpty {
             FeedbackSectionView(
@@ -338,11 +349,80 @@ struct FeedbackSectionView: View {
                 Divider()
                     .background(AppTheme.Colors.divider)
 
-                Text(content)
-                    .font(AppTheme.Typography.body)
-                    .foregroundStyle(AppTheme.Colors.textSecondary)
-                    .padding(AppTheme.Spacing.md)
+                Markdown(content)
+                    .markdownTheme(.basic)
+                    .markdownTextStyle(\.text) {
+                        ForegroundColor(.init(AppTheme.Colors.textSecondary))
+                        FontSize(.em(1.0))
+                    }
+                    .markdownTextStyle(\.code) {
+                        FontFamilyVariant(.monospaced)
+                        FontSize(.em(0.9))
+                        ForegroundColor(.init(AppTheme.Colors.textPrimary))
+                        BackgroundColor(.init(AppTheme.Colors.surface))
+                    }
+                    .markdownTextStyle(\.strong) {
+                        FontWeight(.semibold)
+                        ForegroundColor(.init(AppTheme.Colors.textPrimary))
+                    }
+                    .markdownTextStyle(\.emphasis) {
+                        FontStyle(.italic)
+                    }
+                    .markdownBlockStyle(\.paragraph) { configuration in
+                        configuration.label
+                            .relativeLineSpacing(.em(0.2))
+                            .markdownMargin(top: .zero, bottom: .em(0.8))
+                    }
+                    .markdownBlockStyle(\.heading1) { configuration in
+                        configuration.label
+                            .markdownTextStyle {
+                                FontSize(.em(1.5))
+                                FontWeight(.bold)
+                                ForegroundColor(.init(AppTheme.Colors.textPrimary))
+                            }
+                            .markdownMargin(top: .em(0.5), bottom: .em(0.5))
+                    }
+                    .markdownBlockStyle(\.heading2) { configuration in
+                        configuration.label
+                            .markdownTextStyle {
+                                FontSize(.em(1.3))
+                                FontWeight(.semibold)
+                                ForegroundColor(.init(AppTheme.Colors.textPrimary))
+                            }
+                            .markdownMargin(top: .em(0.5), bottom: .em(0.4))
+                    }
+                    .markdownBlockStyle(\.heading3) { configuration in
+                        configuration.label
+                            .markdownTextStyle {
+                                FontSize(.em(1.15))
+                                FontWeight(.semibold)
+                                ForegroundColor(.init(AppTheme.Colors.textPrimary))
+                            }
+                            .markdownMargin(top: .em(0.4), bottom: .em(0.3))
+                    }
+                    .markdownBlockStyle(\.listItem) { configuration in
+                        configuration.label
+                            .markdownMargin(top: .em(0.2), bottom: .em(0.2))
+                    }
+                    .markdownBlockStyle(\.blockquote) { configuration in
+                        configuration.label
+                            .padding(.leading, AppTheme.Spacing.sm)
+                            .overlay(alignment: .leading) {
+                                Rectangle()
+                                    .fill(AppTheme.Colors.border)
+                                    .frame(width: 3)
+                            }
+                            .markdownMargin(top: .em(0.5), bottom: .em(0.5))
+                    }
+                    .markdownBlockStyle(\.codeBlock) { configuration in
+                        configuration.label
+                            .padding(AppTheme.Spacing.sm)
+                            .background(AppTheme.Colors.surface)
+                            .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small))
+                            .markdownMargin(top: .em(0.5), bottom: .em(0.5))
+                    }
                     .textSelection(.enabled)
+                    .padding(AppTheme.Spacing.md)
             }
         }
         .cardStyle()
