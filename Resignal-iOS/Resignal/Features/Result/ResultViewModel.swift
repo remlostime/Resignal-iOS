@@ -20,6 +20,7 @@ enum FeedbackSection: String, CaseIterable, Hashable {
     case summary
     case strengths
     case weaknesses
+    case hiringSignal
     case suggested
     case followUp
 }
@@ -43,7 +44,7 @@ final class ResultViewModel: ResultViewModelProtocol {
     var selectedTab: ResultTab = .feedback
     
     // Expansion states using Set
-    var expandedSections: Set<FeedbackSection> = [.summary, .strengths, .weaknesses]
+    var expandedSections: Set<FeedbackSection> = [.summary, .strengths, .weaknesses, .hiringSignal]
     
     // Chat state
     var chatMessages: [ChatMessage] = []
