@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		475C88812F29C8D10011DF17 /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = 475C88802F29C8D10011DF17 /* MarkdownUI */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		478A5C832F05EFC00022ACD9 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +56,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				475C88812F29C8D10011DF17 /* MarkdownUI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -103,6 +108,7 @@
 			);
 			name = Resignal;
 			packageProductDependencies = (
+				475C88802F29C8D10011DF17 /* MarkdownUI */,
 			);
 			productName = Resignal;
 			productReference = 478A5C752F05EFBF0022ACD9 /* Resignal.app */;
@@ -161,6 +167,7 @@
 			mainGroup = 478A5C6C2F05EFBF0022ACD9;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				475C887F2F29C8D10011DF17 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 478A5C762F05EFBF0022ACD9 /* Products */;
@@ -483,6 +490,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		475C887F2F29C8D10011DF17 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/gonzalezreal/swift-markdown-ui";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.4.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		475C88802F29C8D10011DF17 /* MarkdownUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 475C887F2F29C8D10011DF17 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */;
+			productName = MarkdownUI;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 478A5C6D2F05EFBF0022ACD9 /* Project object */;
 }

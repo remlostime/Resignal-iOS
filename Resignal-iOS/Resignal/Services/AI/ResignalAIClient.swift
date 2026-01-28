@@ -89,17 +89,8 @@ actor ResignalAIClient: AIClient {
         await setIsAnalyzing(true)
         defer { Task { await setIsAnalyzing(false) } }
         
-        // Build the complete input combining system prompt and user prompt
-        let systemPrompt = PromptBuilder.systemPrompt
-        let userPrompt = PromptBuilder.buildPrompt(inputText: request.inputText)
-        
-        let completeInput = """
-        \(systemPrompt)
-        
-        ---
-        
-        \(userPrompt)
-        """
+        // Send only the raw transcript
+        let completeInput = request.inputText
 
         // Create the request
         let chatRequest = ChatRequest(input: completeInput)
