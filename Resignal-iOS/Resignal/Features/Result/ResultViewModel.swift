@@ -15,16 +15,6 @@ enum ResultTab: String, CaseIterable {
     case ask = "Ask"
 }
 
-/// Enum representing expandable feedback sections
-enum FeedbackSection: String, CaseIterable, Hashable {
-    case summary
-    case strengths
-    case weaknesses
-    case hiringSignal
-    case suggested
-    case followUp
-}
-
 /// ViewModel managing the result screen state
 @MainActor
 @Observable
@@ -37,14 +27,10 @@ final class ResultViewModel: ResultViewModelProtocol {
     private let chatService: ChatService
     
     let session: Session
-    var sections: FeedbackSections
-    var regenerateState: ViewState<FeedbackSections> = .idle
+    var regenerateState: VoidState = .idle
     
     // Tab state
     var selectedTab: ResultTab = .feedback
-    
-    // Expansion states using Set
-    var expandedSections: Set<FeedbackSection> = [.summary, .strengths, .weaknesses, .hiringSignal]
     
     // Chat state
     var chatMessages: [ChatMessage] = []
@@ -79,33 +65,10 @@ final class ResultViewModel: ResultViewModelProtocol {
         self.aiClient = aiClient
         self.sessionRepository = sessionRepository
         self.chatService = chatService
-        self.sections = FeedbackParser.parse(session.outputFeedback)
         self.chatMessages = session.chatHistory
     }
     
     // MARK: - Public Methods
-    
-    /// Checks if a section is expanded
-    func isExpanded(_ section: FeedbackSection) -> Bool {
-        expandedSections.contains(section)
-    }
-    
-    /// Toggles the expansion state of a section
-    func toggleExpansion(_ section: FeedbackSection) {
-        if expandedSections.contains(section) {
-            expandedSections.remove(section)
-        } else {
-            expandedSections.insert(section)
-        }
-    }
-    
-    /// Returns a binding for section expansion
-    func expansionBinding(for section: FeedbackSection) -> Binding<Bool> {
-        Binding(
-            get: { self.isExpanded(section) },
-            set: { _ in self.toggleExpansion(section) }
-        )
-    }
     
     /// Regenerates the analysis
     func regenerate() async {
@@ -121,9 +84,7 @@ final class ResultViewModel: ResultViewModelProtocol {
             session.version += 1
             try sessionRepository.update(session, title: nil, tags: nil)
             
-            // Parse new feedback
-            sections = FeedbackParser.parse(response.feedback)
-            regenerateState = .success(sections)
+            regenerateState = .success(.empty)
             
         } catch let error as AIClientError {
             regenerateState = .error(error.localizedDescription)

@@ -65,16 +65,11 @@ protocol EditorViewModelProtocol: AnyObject, Observable {
 @MainActor
 protocol ResultViewModelProtocol: AnyObject, Observable {
     var session: Session { get }
-    var sections: FeedbackSections { get }
-    var regenerateState: ViewState<FeedbackSections> { get }
-    var expandedSections: Set<FeedbackSection> { get set }
+    var regenerateState: VoidState { get }
     var isRegenerating: Bool { get }
     var errorMessage: String? { get }
     var showError: Bool { get set }
     
-    func isExpanded(_ section: FeedbackSection) -> Bool
-    func toggleExpansion(_ section: FeedbackSection)
-    func expansionBinding(for section: FeedbackSection) -> Binding<Bool>
     func regenerate() async
     func clearError()
 }
