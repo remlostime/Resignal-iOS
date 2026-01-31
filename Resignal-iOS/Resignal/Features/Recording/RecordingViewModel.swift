@@ -31,6 +31,8 @@ final class RecordingViewModel {
     private var durationTimer: Timer?
     private var levelTimer: Timer?
     private var recordingURL: URL?
+    /// Transcript saved before pausing, to preserve when resuming
+    private var savedTranscriptBeforePause: String = ""
     
     // MARK: - Computed Properties
     
@@ -111,6 +113,9 @@ final class RecordingViewModel {
             recordingURL = try await recordingService.startRecording()
             recordingState = recordingService.state
             
+            // Reset saved transcript for fresh recording
+            savedTranscriptBeforePause = ""
+            
             startTimers()
             
             // Start live transcription
@@ -122,13 +127,17 @@ final class RecordingViewModel {
         }
     }
     
-    func pauseRecording() {
+    func pauseRecording() async {
         guard canPause else { return }
         
         do {
             try recordingService.pauseRecording()
             recordingState = recordingService.state
             stopTimers()
+            
+            // Stop live transcription and save current transcript
+            savedTranscriptBeforePause = transcriptText
+            await transcriptionService.stopLiveTranscription()
         } catch {
             showError(message: error.localizedDescription)
         }
@@ -141,6 +150,11 @@ final class RecordingViewModel {
             try recordingService.resumeRecording()
             recordingState = recordingService.state
             startTimers()
+            
+            // Restart live transcription
+            Task {
+                await startLiveTranscription()
+            }
         } catch {
             showError(message: error.localizedDescription)
         }
@@ -151,6 +165,9 @@ final class RecordingViewModel {
         
         stopTimers()
         
+        // Stop live transcription
+        await transcriptionService.stopLiveTranscription()
+        
         do {
             let url = try await recordingService.stopRecording()
             recordingState = .processing
@@ -159,6 +176,7 @@ final class RecordingViewModel {
             await transcribeRecording(url: url)
             
             recordingState = .idle
+            savedTranscriptBeforePause = ""
             return url
         } catch {
             showError(message: error.localizedDescription)
@@ -170,6 +188,9 @@ final class RecordingViewModel {
     func cancelRecording() async {
         stopTimers()
         
+        // Stop live transcription
+        await transcriptionService.stopLiveTranscription()
+        
         do {
             try await recordingService.cancelRecording()
             recordingState = .idle
@@ -177,6 +198,7 @@ final class RecordingViewModel {
             transcriptText = ""
             audioLevel = 0
             recordingURL = nil
+            savedTranscriptBeforePause = ""
         } catch {
             showError(message: error.localizedDescription)
         }
@@ -189,7 +211,12 @@ final class RecordingViewModel {
             let stream = try await transcriptionService.startLiveTranscription()
             
             for await partialTranscript in stream {
-                transcriptText = partialTranscript
+                // Combine with any transcript saved before pause
+                if savedTranscriptBeforePause.isEmpty {
+                    transcriptText = partialTranscript
+                } else {
+                    transcriptText = savedTranscriptBeforePause + " " + partialTranscript
+                }
             }
         } catch {
             // Live transcription failed, will fall back to post-recording transcription

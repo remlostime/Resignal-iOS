@@ -224,10 +224,10 @@ struct RecordingView: View {
                 if viewModel.isRecording || viewModel.isPaused {
                     // Pause/Resume button
                     Button {
-                        if viewModel.isRecording {
-                            viewModel.pauseRecording()
-                        } else {
-                            Task {
+                        Task {
+                            if viewModel.isRecording {
+                                await viewModel.pauseRecording()
+                            } else {
                                 await viewModel.resumeRecording()
                             }
                         }
