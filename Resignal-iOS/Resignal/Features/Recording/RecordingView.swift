@@ -224,10 +224,10 @@ struct RecordingView: View {
                 if viewModel.isRecording || viewModel.isPaused {
                     // Pause/Resume button
                     Button {
-                        if viewModel.isRecording {
-                            viewModel.pauseRecording()
-                        } else {
-                            Task {
+                        Task {
+                            if viewModel.isRecording {
+                                await viewModel.pauseRecording()
+                            } else {
                                 await viewModel.resumeRecording()
                             }
                         }
@@ -244,8 +244,12 @@ struct RecordingView: View {
                     Task {
                         if viewModel.isRecording || viewModel.isPaused {
                             if let url = await viewModel.stopRecording() {
-                                onComplete?(url, viewModel.transcriptText)
-                                dismiss()
+                                if let onComplete = onComplete {
+                                    // Let the completion handler manage navigation
+                                    onComplete(url, viewModel.transcriptText)
+                                } else {
+                                    dismiss()
+                                }
                             }
                         } else {
                             await viewModel.startRecording()

@@ -44,11 +44,14 @@ actor ChatServiceImpl: ChatService {
         )
         
         // Use AIClient to get response
+        // Note: This uses the analysis endpoint which returns StructuredFeedback.
+        // For chat, we use the summary field as the response text.
+        // TODO: Consider a dedicated chat endpoint for plain text responses.
         let request = AnalysisRequest(inputText: prompt)
         
         do {
             let response = try await aiClient.analyze(request)
-            return response.feedback
+            return formatChatResponse(response.feedback)
         } catch {
             throw ChatError.aiRequestFailed
         }
@@ -76,10 +79,26 @@ actor ChatServiceImpl: ChatService {
         
         do {
             let response = try await aiClient.analyze(request)
-            return response.feedback
+            return formatChatResponse(response.feedback)
         } catch {
             throw ChatError.aiRequestFailed
         }
+    }
+    
+    /// Formats StructuredFeedback into a chat-friendly text response
+    private func formatChatResponse(_ feedback: StructuredFeedback) -> String {
+        // For chat responses, combine relevant parts into readable text
+        var parts: [String] = []
+        
+        if !feedback.summary.isEmpty {
+            parts.append(feedback.summary)
+        }
+        
+        if !feedback.keyObservations.isEmpty {
+            parts.append("Key observations:\n" + feedback.keyObservations.map { "• \($0)" }.joined(separator: "\n"))
+        }
+        
+        return parts.isEmpty ? "I couldn't generate a response." : parts.joined(separator: "\n\n")
     }
     
     // MARK: - Private Helpers
@@ -89,6 +108,8 @@ actor ChatServiceImpl: ChatService {
         session: Session,
         history: [ChatMessage]
     ) -> String {
+        let feedbackContext = formatFeedbackForPrompt(session.structuredFeedback)
+        
         var prompt = """
         You are an interview coach assistant helping a candidate understand their interview analysis.
         
@@ -103,7 +124,7 @@ actor ChatServiceImpl: ChatService {
         
         ## Analysis Feedback
         
-        \(session.outputFeedback)
+        \(feedbackContext)
         
         """
         
@@ -130,6 +151,29 @@ actor ChatServiceImpl: ChatService {
         """
         
         return prompt
+    }
+    
+    private func formatFeedbackForPrompt(_ feedback: StructuredFeedback?) -> String {
+        guard let feedback = feedback else {
+            return "No analysis available yet."
+        }
+        
+        var result = """
+        Summary: \(feedback.summary)
+        
+        Strengths:
+        \(feedback.strengths.map { "- \($0)" }.joined(separator: "\n"))
+        
+        Areas for Improvement:
+        \(feedback.improvement.map { "- \($0)" }.joined(separator: "\n"))
+        
+        Hiring Signal: \(feedback.hiringSignal)
+        
+        Key Observations:
+        \(feedback.keyObservations.map { "- \($0)" }.joined(separator: "\n"))
+        """
+        
+        return result
     }
 }
 

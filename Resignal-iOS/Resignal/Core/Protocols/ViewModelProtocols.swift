@@ -41,7 +41,7 @@ protocol EditorViewModelProtocol: AnyObject, Observable {
     var attachments: [SessionAttachment] { get set }
     var analysisState: ViewState<Session> { get }
     var analysisProgress: Double { get }
-    var analysisResult: String? { get }
+    var analysisResult: StructuredFeedback? { get }
     var canAnalyze: Bool { get }
     var characterCountMessage: String { get }
     var isEditing: Bool { get }

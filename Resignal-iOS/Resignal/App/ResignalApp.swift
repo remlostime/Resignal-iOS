@@ -54,17 +54,16 @@ struct RootView: View {
         case .home:
             HomeView()
             
-        case .editor(let session):
-            EditorView(existingSession: session)
+        case .editor(let session, let initialTranscript, let audioURL):
+            EditorView(existingSession: session, initialTranscript: initialTranscript, audioURL: audioURL)
             
         case .result(let session):
             ResultView(session: session)
             
         case .recording(let session):
             RecordingView(existingSession: session) { url, transcript in
-                // Handle recording completion
-                // Navigate back to editor or create new session
-                router.pop()
+                // Navigate to editor with the recorded transcript and audio URL
+                router.replace(with: .editor(session: session, initialTranscript: transcript, audioURL: url))
             }
         }
     }

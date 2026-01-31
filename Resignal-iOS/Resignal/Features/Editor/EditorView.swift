@@ -17,9 +17,19 @@ struct EditorView: View {
     @Environment(\.dismiss) private var dismiss
     
     let existingSession: Session?
+    let initialTranscript: String?
+    let audioURL: URL?
     
     @State private var viewModel: EditorViewModel?
     @FocusState private var isTextEditorFocused: Bool
+    
+    // MARK: - Initialization
+    
+    init(existingSession: Session? = nil, initialTranscript: String? = nil, audioURL: URL? = nil) {
+        self.existingSession = existingSession
+        self.initialTranscript = initialTranscript
+        self.audioURL = audioURL
+    }
     
     // MARK: - Body
     
@@ -48,7 +58,9 @@ struct EditorView: View {
                 viewModel = EditorViewModel(
                     aiClient: container.aiClient,
                     sessionRepository: container.sessionRepository,
-                    session: existingSession
+                    session: existingSession,
+                    initialTranscript: initialTranscript,
+                    audioURL: audioURL
                 )
             }
         }

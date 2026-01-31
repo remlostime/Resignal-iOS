@@ -37,7 +37,7 @@ final class Session {
     var title: String
     var role: String?
     var inputText: String
-    var outputFeedback: String
+    var feedbackData: Data?
     var rubric: String
     var tags: [String]
     var version: Int
@@ -56,7 +56,7 @@ final class Session {
         title: String = "",
         role: String? = nil,
         inputText: String = "",
-        outputFeedback: String = "",
+        structuredFeedback: StructuredFeedback? = nil,
         rubric: Rubric = .softwareEngineering,
         tags: [String] = [],
         version: Int = 2,
@@ -70,7 +70,7 @@ final class Session {
         self.title = title
         self.role = role
         self.inputText = inputText
-        self.outputFeedback = outputFeedback
+        self.feedbackData = try? JSONEncoder().encode(structuredFeedback)
         self.rubric = rubric.rawValue
         self.tags = tags
         self.version = version
@@ -81,6 +81,17 @@ final class Session {
     }
     
     // MARK: - Computed Properties
+    
+    /// Type-safe access to structured feedback (stored as JSON Data)
+    var structuredFeedback: StructuredFeedback? {
+        get {
+            guard let data = feedbackData else { return nil }
+            return try? JSONDecoder().decode(StructuredFeedback.self, from: data)
+        }
+        set {
+            feedbackData = try? JSONEncoder().encode(newValue)
+        }
+    }
     
     /// Returns the rubric as an enum type
     var rubricType: Rubric {
@@ -144,7 +155,7 @@ final class Session {
     
     /// Checks if the session has been analyzed
     var hasAnalysis: Bool {
-        !outputFeedback.isEmpty
+        feedbackData != nil
     }
 }
 
@@ -172,7 +183,6 @@ extension Session {
             
             I also advocate for snapshot testing for UI components to catch visual regressions early.
             """,
-            outputFeedback: "",
             rubric: .softwareEngineering,
             tags: ["iOS", "Technical", "Senior"],
             version: 1
@@ -181,39 +191,27 @@ extension Session {
     
     static var sampleWithAnalysis: Session {
         let session = sample
-        session.outputFeedback = """
-        ## Summary
-        
-        The candidate demonstrated strong technical knowledge in iOS development, particularly in real-time synchronization and testing practices. Answers were well-structured with concrete examples.
-        
-        ## Strengths
-        
-        - **Technical Depth**: Showed deep understanding of CRDTs and Operational Transformation for real-time sync
-        - **Quantifiable Results**: Provided specific metrics (40% reduction, 99.9% consistency)
-        - **Cross-functional Collaboration**: Mentioned working with backend team
-        - **Testing Philosophy**: Clear understanding of testing pyramid and practical trade-offs
-        
-        ## Weaknesses
-        
-        - **Limited Scope**: Could have mentioned more about error handling and edge cases
-        - **No Mention of User Experience**: Didn't discuss how technical decisions impacted UX
-        - **Offline Handling**: Briefly mentioned but didn't elaborate on the strategy
-        
-        ## Suggested Improved Answers
-        
-        For the first question, consider adding:
-        > "We also implemented a comprehensive offline queue with exponential backoff for retries. Users could continue editing seamlessly, and changes would sync automatically when connectivity resumed. We tested this extensively with network link conditioner to simulate various conditions."
-        
-        For testing, consider adding:
-        > "We maintain about 80% code coverage on critical paths. I also set up a CI pipeline that runs tests on every PR, blocking merges if coverage drops below threshold."
-        
-        ## Follow-up Questions
-        
-        1. How did you handle conflict resolution when multiple users edited the same section?
-        2. What metrics did you track to measure the success of the feature post-launch?
-        3. How would you approach this differently if you had to rebuild it from scratch?
-        4. Can you walk through your debugging process when sync issues occurred in production?
-        """
+        session.structuredFeedback = StructuredFeedback(
+            summary: "The candidate demonstrated strong technical knowledge in iOS development, particularly in real-time synchronization and testing practices. Answers were well-structured with concrete examples.",
+            strengths: [
+                "Technical Depth: Showed deep understanding of CRDTs and Operational Transformation for real-time sync",
+                "Quantifiable Results: Provided specific metrics (40% reduction, 99.9% consistency)",
+                "Cross-functional Collaboration: Mentioned working with backend team",
+                "Testing Philosophy: Clear understanding of testing pyramid and practical trade-offs"
+            ],
+            improvement: [
+                "Limited Scope: Could have mentioned more about error handling and edge cases",
+                "No Mention of User Experience: Didn't discuss how technical decisions impacted UX",
+                "Offline Handling: Briefly mentioned but didn't elaborate on the strategy"
+            ],
+            hiringSignal: "Strong Hire - The candidate demonstrates excellent technical depth, clear communication, and practical experience with complex systems.",
+            keyObservations: [
+                "Strong understanding of distributed systems concepts (CRDTs, Operational Transformation)",
+                "Practical approach to testing with clear trade-off awareness",
+                "Good collaboration skills evidenced by cross-team work",
+                "Could improve on discussing user experience implications of technical decisions"
+            ]
+        )
         return session
     }
 }

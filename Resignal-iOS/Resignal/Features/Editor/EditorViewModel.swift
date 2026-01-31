@@ -22,6 +22,7 @@ final class EditorViewModel: EditorViewModelProtocol {
     var session: Session?
     var inputText: String = ""
     var attachments: [SessionAttachment] = []
+    private var audioURL: URL?
     
     // UI state
     var analysisState: ViewState<Session> = .idle
@@ -29,7 +30,7 @@ final class EditorViewModel: EditorViewModelProtocol {
     var showAttachmentPicker: Bool = false
     
     // Analysis result
-    var analysisResult: String?
+    var analysisResult: StructuredFeedback?
     
     // MARK: - Computed Properties
     
@@ -67,16 +68,21 @@ final class EditorViewModel: EditorViewModelProtocol {
     init(
         aiClient: any AIClient,
         sessionRepository: SessionRepositoryProtocol,
-        session: Session? = nil
+        session: Session? = nil,
+        initialTranscript: String? = nil,
+        audioURL: URL? = nil
     ) {
         self.aiClient = aiClient
         self.sessionRepository = sessionRepository
         self.session = session
+        self.audioURL = audioURL
         
-        // Pre-populate from existing session
+        // Pre-populate from existing session or initial transcript
         if let session = session {
             self.inputText = session.inputText
             self.attachments = session.attachments
+        } else if let initialTranscript = initialTranscript, !initialTranscript.isEmpty {
+            self.inputText = initialTranscript
         }
     }
     
@@ -135,7 +141,7 @@ final class EditorViewModel: EditorViewModelProtocol {
     /// Saves the session without analysis (draft)
     func saveDraft() -> Session? {
         do {
-            return try saveSession(with: "")
+            return try saveSession(with: nil)
         } catch {
             analysisState = .error("Failed to save draft: \(error.localizedDescription)")
             return nil
@@ -166,11 +172,11 @@ final class EditorViewModel: EditorViewModelProtocol {
     
     // MARK: - Private Methods
     
-    private func saveSession(with feedback: String) throws -> Session {
+    private func saveSession(with feedback: StructuredFeedback?) throws -> Session {
         if let existingSession = session {
             // Update existing session
             existingSession.inputText = inputText
-            existingSession.outputFeedback = feedback
+            existingSession.structuredFeedback = feedback
             existingSession.version += 1
             
             // Save attachments
@@ -188,10 +194,10 @@ final class EditorViewModel: EditorViewModelProtocol {
                 title: "",
                 role: nil,
                 inputText: inputText,
-                outputFeedback: feedback,
+                structuredFeedback: feedback,
                 rubric: .general,
                 tags: [],
-                audioFileURL: nil,
+                audioFileURL: audioURL,
                 attachments: attachments
             )
             

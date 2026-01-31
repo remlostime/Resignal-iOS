@@ -19,7 +19,7 @@ actor ResignalAIClient: AIClient {
 
     struct ChatResponse: Decodable, Sendable {
         let provider: String
-        let reply: String
+        let reply: StructuredFeedback
     }
 
     struct ErrorResponse: Decodable, Sendable {
@@ -122,10 +122,6 @@ actor ResignalAIClient: AIClient {
         case 200...299:
             let decoder = JSONDecoder()
             let chatResponse = try decoder.decode(ChatResponse.self, from: data)
-
-            guard !chatResponse.reply.isEmpty else {
-                throw AIClientError.apiError("Empty response from API")
-            }
 
             return AnalysisResponse(feedback: chatResponse.reply)
 
