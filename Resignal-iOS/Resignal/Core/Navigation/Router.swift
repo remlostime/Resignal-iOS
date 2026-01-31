@@ -10,7 +10,7 @@ import SwiftUI
 /// Defines all possible navigation destinations in the app
 enum Route: Hashable {
     case home
-    case editor(session: Session?)
+    case editor(session: Session?, initialTranscript: String? = nil, audioURL: URL? = nil)
     case result(session: Session)
     case recording(session: Session?)
     
@@ -18,9 +18,11 @@ enum Route: Hashable {
         switch self {
         case .home:
             hasher.combine("home")
-        case .editor(let session):
+        case .editor(let session, let transcript, let audioURL):
             hasher.combine("editor")
             hasher.combine(session?.id)
+            hasher.combine(transcript)
+            hasher.combine(audioURL)
         case .result(let session):
             hasher.combine("result")
             hasher.combine(session.id)
@@ -34,8 +36,8 @@ enum Route: Hashable {
         switch (lhs, rhs) {
         case (.home, .home):
             return true
-        case (.editor(let lhsSession), .editor(let rhsSession)):
-            return lhsSession?.id == rhsSession?.id
+        case (.editor(let lhsSession, let lhsTranscript, let lhsURL), .editor(let rhsSession, let rhsTranscript, let rhsURL)):
+            return lhsSession?.id == rhsSession?.id && lhsTranscript == rhsTranscript && lhsURL == rhsURL
         case (.result(let lhsSession), .result(let rhsSession)):
             return lhsSession.id == rhsSession.id
         case (.recording(let lhsSession), .recording(let rhsSession)):

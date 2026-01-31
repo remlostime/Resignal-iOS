@@ -22,6 +22,7 @@ final class EditorViewModel: EditorViewModelProtocol {
     var session: Session?
     var inputText: String = ""
     var attachments: [SessionAttachment] = []
+    private var audioURL: URL?
     
     // UI state
     var analysisState: ViewState<Session> = .idle
@@ -67,16 +68,21 @@ final class EditorViewModel: EditorViewModelProtocol {
     init(
         aiClient: any AIClient,
         sessionRepository: SessionRepositoryProtocol,
-        session: Session? = nil
+        session: Session? = nil,
+        initialTranscript: String? = nil,
+        audioURL: URL? = nil
     ) {
         self.aiClient = aiClient
         self.sessionRepository = sessionRepository
         self.session = session
+        self.audioURL = audioURL
         
-        // Pre-populate from existing session
+        // Pre-populate from existing session or initial transcript
         if let session = session {
             self.inputText = session.inputText
             self.attachments = session.attachments
+        } else if let initialTranscript = initialTranscript, !initialTranscript.isEmpty {
+            self.inputText = initialTranscript
         }
     }
     
@@ -191,7 +197,7 @@ final class EditorViewModel: EditorViewModelProtocol {
                 structuredFeedback: feedback,
                 rubric: .general,
                 tags: [],
-                audioFileURL: nil,
+                audioFileURL: audioURL,
                 attachments: attachments
             )
             
