@@ -80,21 +80,18 @@ struct EditorView: View {
     
     @ViewBuilder
     private func editorContent(viewModel: EditorViewModel) -> some View {
-        ScrollView {
-            VStack(spacing: AppTheme.Spacing.lg) {
-                // Text input section
-                textInputSection(viewModel: viewModel)
-                
-                // Attachments section
-                attachmentsSection(viewModel: viewModel)
-                
-                // Action buttons
-                actionSection(viewModel: viewModel)
-            }
-            .padding(AppTheme.Spacing.md)
+        VStack(spacing: AppTheme.Spacing.lg) {
+            // Text input section
+            textInputSection(viewModel: viewModel)
+            
+            // Attachments section
+            attachmentsSection(viewModel: viewModel)
+            
+            // Action buttons
+            actionSection(viewModel: viewModel)
         }
+        .padding(AppTheme.Spacing.md)
         .background(AppTheme.Colors.background)
-        .scrollDismissesKeyboard(.interactively)
         .sheet(isPresented: Binding(
             get: { viewModel.showAttachmentPicker },
             set: { viewModel.showAttachmentPicker = $0 }
@@ -133,7 +130,7 @@ struct EditorView: View {
             ))
             .font(AppTheme.Typography.body)
             .focused($isTextEditorFocused)
-            .frame(minHeight: 300)
+            .frame(maxHeight: .infinity)
             .padding(AppTheme.Spacing.sm)
             .scrollContentBackground(.hidden)
             .background(AppTheme.Colors.surface)
