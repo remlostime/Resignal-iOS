@@ -31,21 +31,10 @@ struct ResultView: View {
         }
         .navigationTitle(session.displayTitle)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    router.navigate(to: .editor(session: session))
-                } label: {
-                    Text("Edit")
-                        .foregroundStyle(AppTheme.Colors.primary)
-                }
-            }
-        }
         .onAppear {
             if viewModel == nil {
                 viewModel = ResultViewModel(
                     session: session,
-                    aiClient: container.aiClient,
                     sessionRepository: container.sessionRepository,
                     chatService: container.chatService
                 )
@@ -111,9 +100,6 @@ struct ResultView: View {
                 } else {
                     emptyFeedbackView
                 }
-                
-                // Action buttons
-                actionButtons(viewModel: viewModel)
             }
             .padding(AppTheme.Spacing.md)
         }
@@ -238,7 +224,7 @@ struct ResultView: View {
                 .font(AppTheme.Typography.headline)
                 .foregroundStyle(AppTheme.Colors.textPrimary)
             
-            Text("Tap 'Regenerate' to analyze this session")
+            Text("This session has not been analyzed")
                 .font(AppTheme.Typography.body)
                 .foregroundStyle(AppTheme.Colors.textSecondary)
                 .multilineTextAlignment(.center)
@@ -247,29 +233,11 @@ struct ResultView: View {
         .frame(maxWidth: .infinity)
         .cardStyle()
     }
-    
-    private func actionButtons(viewModel: ResultViewModel) -> some View {
-        VStack(spacing: AppTheme.Spacing.sm) {
-            PrimaryButton(
-                "Regenerate",
-                icon: "arrow.clockwise",
-                isLoading: viewModel.isRegenerating,
-                style: .outlined
-            ) {
-                Task {
-                    await viewModel.regenerate()
-                }
-            }
-            .accessibilityIdentifier(ResultAccessibility.regenerateButton)
-        }
-        .padding(.top, AppTheme.Spacing.md)
-    }
 }
 
 // MARK: - Accessibility Identifiers
 
 enum ResultAccessibility {
-    static let regenerateButton = "regenerateButton"
     static let emptyFeedbackView = "emptyFeedbackView"
 }
 

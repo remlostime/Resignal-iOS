@@ -95,12 +95,24 @@ final class EditorViewModel: EditorViewModelProtocol {
         analysisState = .loading
         analysisProgress = 0
         
-        // Simulate progress updates
+        // Simulate progress with ease-out curve over ~15 seconds
         let progressTask = Task {
-            for step in 1...9 {
-                try? await Task.sleep(for: .milliseconds(200))
+            let totalSteps = 30
+            let totalDuration: Double = 15.0  // seconds
+            
+            for step in 1...totalSteps {
+                // Ease-out: faster at start, slower at end
+                let linearProgress = Double(step) / Double(totalSteps)
+                let easedProgress = 1.0 - pow(1.0 - linearProgress, 2)  // quadratic ease-out
+                
+                // Cap at 95% so it doesn't feel "stuck" if API takes longer
+                analysisProgress = min(easedProgress * 0.95, 0.95)
+                
+                // Variable delay: shorter at start, longer at end
+                let stepDuration = totalDuration / Double(totalSteps)
+                try? await Task.sleep(for: .milliseconds(Int(stepDuration * 1000)))
+                
                 if Task.isCancelled { break }
-                analysisProgress = Double(step) / 10.0
             }
         }
         

@@ -22,12 +22,10 @@ final class ResultViewModel: ResultViewModelProtocol {
     
     // MARK: - Properties
     
-    private let aiClient: any AIClient
     private let sessionRepository: SessionRepositoryProtocol
     private let chatService: ChatService
     
     let session: Session
-    var regenerateState: VoidState = .idle
     
     // Tab state
     var selectedTab: ResultTab = .feedback
@@ -40,16 +38,12 @@ final class ResultViewModel: ResultViewModelProtocol {
     
     // MARK: - Computed Properties
     
-    var isRegenerating: Bool {
-        regenerateState.isLoading
-    }
-    
     var errorMessage: String? {
-        regenerateState.error
+        chatError
     }
     
     var showError: Bool {
-        get { regenerateState.hasError }
+        get { chatError != nil }
         set { if !newValue { clearError() } }
     }
     
@@ -57,12 +51,10 @@ final class ResultViewModel: ResultViewModelProtocol {
     
     init(
         session: Session,
-        aiClient: any AIClient,
         sessionRepository: SessionRepositoryProtocol,
         chatService: ChatService
     ) {
         self.session = session
-        self.aiClient = aiClient
         self.sessionRepository = sessionRepository
         self.chatService = chatService
         self.chatMessages = session.chatHistory
@@ -70,36 +62,8 @@ final class ResultViewModel: ResultViewModelProtocol {
     
     // MARK: - Public Methods
     
-    /// Regenerates the analysis
-    func regenerate() async {
-        regenerateState = .loading
-        
-        do {
-            let request = AnalysisRequest(inputText: session.inputText)
-            
-            let response = try await aiClient.analyze(request)
-            
-            // Update session
-            session.structuredFeedback = response.feedback
-            session.version += 1
-            try sessionRepository.update(session, title: nil, tags: nil)
-            
-            regenerateState = .success(.empty)
-            
-        } catch let error as AIClientError {
-            regenerateState = .error(error.localizedDescription)
-            debugLog("Regenerate error: \(error)")
-        } catch {
-            regenerateState = .error("An unexpected error occurred.")
-            debugLog("Unexpected error: \(error)")
-        }
-    }
-    
     /// Clears any error state
     func clearError() {
-        if regenerateState.hasError {
-            regenerateState = .idle
-        }
         chatError = nil
     }
     
