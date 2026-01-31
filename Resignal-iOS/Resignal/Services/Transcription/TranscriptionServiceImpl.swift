@@ -20,6 +20,23 @@ actor TranscriptionServiceImpl: TranscriptionService {
     private var audioEngine: AVAudioEngine?
     private var liveContinuation: AsyncStream<String>.Continuation?
     
+    // MARK: - Chunking Properties
+    
+    /// Finalized text from completed recognition chunks
+    private var accumulatedTranscript: String = ""
+    /// Latest partial transcript from the current chunk (used when proactively restarting)
+    private var currentChunkTranscript: String = ""
+    /// Timer to trigger proactive restart before hitting the 60s limit
+    private var chunkRestartTask: Task<Void, Never>?
+    /// Flag to prevent concurrent restart operations
+    private var isRestarting: Bool = false
+    /// Duration before proactively restarting recognition (before 60s limit)
+    private let chunkDuration: TimeInterval = 50.0
+    /// Flag to track if transcription is actively running
+    private var isTranscriptionActive: Bool = false
+    /// Unique identifier for the current recognition task (to ignore stale callbacks)
+    private var currentTaskId: UUID?
+    
     // MARK: - Initialization
     
     init(locale: Locale = .current) {
@@ -83,13 +100,16 @@ actor TranscriptionServiceImpl: TranscriptionService {
         // Stop any existing transcription
         await stopLiveTranscription()
         
-        // Create audio engine and request
+        // Reset chunking state
+        accumulatedTranscript = ""
+        currentChunkTranscript = ""
+        currentTaskId = nil
+        isRestarting = false
+        isTranscriptionActive = true
+        
+        // Create audio engine
         let audioEngine = AVAudioEngine()
         self.audioEngine = audioEngine
-        
-        let request = SFSpeechAudioBufferRecognitionRequest()
-        request.shouldReportPartialResults = true
-        self.recognitionRequest = request
         
         // Configure audio session
         let audioSession = AVAudioSession.sharedInstance()
@@ -103,8 +123,10 @@ actor TranscriptionServiceImpl: TranscriptionService {
         return AsyncStream { continuation in
             self.liveContinuation = continuation
             
-            inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, _ in
-                request.append(buffer)
+            // Install audio tap - this runs continuously across chunk restarts
+            inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, _ in
+                // Append buffer to current recognition request
+                self?.recognitionRequest?.append(buffer)
             }
             
             audioEngine.prepare()
@@ -115,20 +137,8 @@ actor TranscriptionServiceImpl: TranscriptionService {
                 return
             }
             
-            self.recognitionTask = recognizer.recognitionTask(with: request) { result, error in
-                if let result = result {
-                    let transcription = result.bestTranscription.formattedString
-                    continuation.yield(transcription)
-                    
-                    if result.isFinal {
-                        continuation.finish()
-                    }
-                }
-                
-                if error != nil {
-                    continuation.finish()
-                }
-            }
+            // Start the first recognition chunk
+            self.startRecognitionChunk(recognizer: recognizer)
             
             continuation.onTermination = { @Sendable _ in
                 Task {
@@ -138,17 +148,153 @@ actor TranscriptionServiceImpl: TranscriptionService {
         }
     }
     
+    // MARK: - Chunked Recognition
+    
+    /// Starts a new recognition chunk, creating a fresh request and task
+    private func startRecognitionChunk(recognizer: SFSpeechRecognizer) {
+        guard isTranscriptionActive else { return }
+        
+        // Cancel previous task if exists
+        recognitionTask?.cancel()
+        recognitionRequest?.endAudio()
+        
+        // Generate new task ID to track this specific task
+        let taskId = UUID()
+        currentTaskId = taskId
+        
+        // Create new recognition request
+        let request = SFSpeechAudioBufferRecognitionRequest()
+        request.shouldReportPartialResults = true
+        self.recognitionRequest = request
+        
+        // Start new recognition task
+        recognitionTask = recognizer.recognitionTask(with: request) { [weak self, taskId] result, error in
+            guard let self = self else { return }
+            
+            Task {
+                await self.handleRecognitionResult(result: result, error: error, recognizer: recognizer, taskId: taskId)
+            }
+        }
+        
+        // Schedule proactive restart before hitting the 60s limit
+        scheduleChunkRestart(recognizer: recognizer)
+    }
+    
+    /// Handles recognition results and manages transcript accumulation
+    private func handleRecognitionResult(
+        result: SFSpeechRecognitionResult?,
+        error: Error?,
+        recognizer: SFSpeechRecognizer,
+        taskId: UUID
+    ) {
+        // Ignore callbacks from old/cancelled tasks
+        guard taskId == currentTaskId else { return }
+        guard isTranscriptionActive else { return }
+        
+        if let result = result {
+            let currentPartial = result.bestTranscription.formattedString
+            
+            // Track the current chunk's partial transcript for proactive restarts
+            currentChunkTranscript = currentPartial
+            
+            // Combine accumulated transcript with current partial result
+            let fullTranscript: String
+            if accumulatedTranscript.isEmpty {
+                fullTranscript = currentPartial
+            } else {
+                fullTranscript = accumulatedTranscript + " " + currentPartial
+            }
+            
+            // Yield the combined transcript
+            liveContinuation?.yield(fullTranscript)
+            
+            // When chunk completes naturally (isFinal), save and restart
+            if result.isFinal {
+                accumulatedTranscript = fullTranscript
+                currentChunkTranscript = ""
+                restartRecognitionChunk(recognizer: recognizer)
+            }
+        }
+        
+        // Handle errors by attempting restart (unless stopping)
+        if error != nil && isTranscriptionActive && !isRestarting {
+            restartRecognitionChunk(recognizer: recognizer)
+        }
+    }
+    
+    /// Schedules a proactive restart before hitting the 60s limit
+    private func scheduleChunkRestart(recognizer: SFSpeechRecognizer) {
+        // Cancel any existing restart task
+        chunkRestartTask?.cancel()
+        
+        // Schedule restart after chunkDuration seconds
+        chunkRestartTask = Task { [weak self] in
+            do {
+                try await Task.sleep(nanoseconds: UInt64(self?.chunkDuration ?? 50.0) * 1_000_000_000)
+                await self?.restartRecognitionChunk(recognizer: recognizer)
+            } catch {
+                // Task was cancelled, no action needed
+            }
+        }
+    }
+    
+    /// Restarts recognition by saving current transcript and starting a new chunk
+    private func restartRecognitionChunk(recognizer: SFSpeechRecognizer) {
+        guard isTranscriptionActive && !isRestarting else { return }
+        
+        isRestarting = true
+        
+        // Cancel the scheduled restart task since we're restarting now
+        chunkRestartTask?.cancel()
+        chunkRestartTask = nil
+        
+        // Save the current chunk's transcript before restarting
+        // This preserves text when proactively restarting (before isFinal)
+        if !currentChunkTranscript.isEmpty {
+            if accumulatedTranscript.isEmpty {
+                accumulatedTranscript = currentChunkTranscript
+            } else {
+                accumulatedTranscript = accumulatedTranscript + " " + currentChunkTranscript
+            }
+            currentChunkTranscript = ""
+        }
+        
+        // Start a new recognition chunk
+        startRecognitionChunk(recognizer: recognizer)
+        
+        isRestarting = false
+    }
+    
     func stopLiveTranscription() async {
+        // Mark transcription as inactive to prevent restarts
+        isTranscriptionActive = false
+        isRestarting = false
+        
+        // Cancel the chunk restart task
+        chunkRestartTask?.cancel()
+        chunkRestartTask = nil
+        
+        // Stop audio engine and remove tap
         audioEngine?.stop()
         audioEngine?.inputNode.removeTap(onBus: 0)
+        
+        // End recognition request and cancel task
         recognitionRequest?.endAudio()
         recognitionTask?.cancel()
         
+        // Clean up references
         audioEngine = nil
         recognitionRequest = nil
         recognitionTask = nil
+        
+        // Finish the continuation stream
         liveContinuation?.finish()
         liveContinuation = nil
+        
+        // Reset transcript and task state
+        accumulatedTranscript = ""
+        currentChunkTranscript = ""
+        currentTaskId = nil
         
         // Deactivate audio session
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
