@@ -37,7 +37,7 @@ final class Session {
     var title: String
     var role: String?
     var inputText: String
-    var structuredFeedback: StructuredFeedback?
+    var feedbackData: Data?
     var rubric: String
     var tags: [String]
     var version: Int
@@ -70,7 +70,7 @@ final class Session {
         self.title = title
         self.role = role
         self.inputText = inputText
-        self.structuredFeedback = structuredFeedback
+        self.feedbackData = try? JSONEncoder().encode(structuredFeedback)
         self.rubric = rubric.rawValue
         self.tags = tags
         self.version = version
@@ -81,6 +81,17 @@ final class Session {
     }
     
     // MARK: - Computed Properties
+    
+    /// Type-safe access to structured feedback (stored as JSON Data)
+    var structuredFeedback: StructuredFeedback? {
+        get {
+            guard let data = feedbackData else { return nil }
+            return try? JSONDecoder().decode(StructuredFeedback.self, from: data)
+        }
+        set {
+            feedbackData = try? JSONEncoder().encode(newValue)
+        }
+    }
     
     /// Returns the rubric as an enum type
     var rubricType: Rubric {
@@ -144,7 +155,7 @@ final class Session {
     
     /// Checks if the session has been analyzed
     var hasAnalysis: Bool {
-        structuredFeedback != nil
+        feedbackData != nil
     }
 }
 

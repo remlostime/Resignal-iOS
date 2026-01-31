@@ -118,7 +118,8 @@ final class DependencyContainer: DependencyContainerProtocol {
     // MARK: - Private Methods
     
     private func createAIClient() -> any AIClient {
-        return ResignalAIClient()
+//        return ResignalAIClient()
+        return MockAIClient()
     }
     
     /// Creates a container for previews and testing with in-memory storage
