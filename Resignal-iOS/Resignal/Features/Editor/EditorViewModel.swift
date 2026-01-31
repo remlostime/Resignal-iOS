@@ -29,7 +29,7 @@ final class EditorViewModel: EditorViewModelProtocol {
     var showAttachmentPicker: Bool = false
     
     // Analysis result
-    var analysisResult: String?
+    var analysisResult: StructuredFeedback?
     
     // MARK: - Computed Properties
     
@@ -135,7 +135,7 @@ final class EditorViewModel: EditorViewModelProtocol {
     /// Saves the session without analysis (draft)
     func saveDraft() -> Session? {
         do {
-            return try saveSession(with: "")
+            return try saveSession(with: nil)
         } catch {
             analysisState = .error("Failed to save draft: \(error.localizedDescription)")
             return nil
@@ -166,11 +166,11 @@ final class EditorViewModel: EditorViewModelProtocol {
     
     // MARK: - Private Methods
     
-    private func saveSession(with feedback: String) throws -> Session {
+    private func saveSession(with feedback: StructuredFeedback?) throws -> Session {
         if let existingSession = session {
             // Update existing session
             existingSession.inputText = inputText
-            existingSession.outputFeedback = feedback
+            existingSession.structuredFeedback = feedback
             existingSession.version += 1
             
             // Save attachments
@@ -188,7 +188,7 @@ final class EditorViewModel: EditorViewModelProtocol {
                 title: "",
                 role: nil,
                 inputText: inputText,
-                outputFeedback: feedback,
+                structuredFeedback: feedback,
                 rubric: .general,
                 tags: [],
                 audioFileURL: nil,

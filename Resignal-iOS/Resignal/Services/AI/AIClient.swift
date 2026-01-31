@@ -50,10 +50,10 @@ struct AnalysisRequest: Sendable {
 /// Response model for AI analysis
 /// Nonisolated to allow use from any actor context
 struct AnalysisResponse: Sendable {
-    nonisolated let feedback: String
+    nonisolated let feedback: StructuredFeedback
     nonisolated let timestamp: Date
 
-    nonisolated init(feedback: String, timestamp: Date = Date()) {
+    nonisolated init(feedback: StructuredFeedback, timestamp: Date = Date()) {
         self.feedback = feedback
         self.timestamp = timestamp
     }

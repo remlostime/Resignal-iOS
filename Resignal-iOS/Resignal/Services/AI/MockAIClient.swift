@@ -56,60 +56,32 @@ actor MockAIClient: AIClient {
     
     // MARK: - Private Methods
 
-    private nonisolated static func generateFeedback(for request: AnalysisRequest) -> String {
+    private nonisolated static func generateFeedback(for request: AnalysisRequest) -> StructuredFeedback {
         let questionCount = countQuestions(in: request.inputText)
-        let wordCount = request.inputText.split(separator: " ").count
         
-        return """
-        ## Summary
-        
-        The candidate provided \(questionCount) response(s), demonstrating \
-        understanding of key concepts. The responses show a mix of strong \
-        knowledge and areas that could benefit from more specific examples.
-        
-        ## Strengths
-        
-        - **Clear Communication**: Responses are well-structured and easy to follow
-        - **Technical Foundation**: Shows solid understanding of core concepts
-        - **Concrete Examples**: Provided specific instances from past experience
-        - **Problem-Solving Mindset**: Demonstrated analytical thinking approach
-        - **Self-Awareness**: Acknowledged challenges and learning opportunities
-        
-        ## Weaknesses
-        
-        - **Depth of Detail**: Some responses could benefit from more technical specifics
-        - **Metrics and Outcomes**: Could include more quantifiable results and impact
-        - **Edge Cases**: Limited discussion of error handling and edge scenarios
-        - **Trade-offs**: Could better articulate decision-making trade-offs
-        
-        ## Suggested Improved Answers
-        
-        When discussing technical implementations, consider structuring your response as:
-        
-        > "In my previous role, I faced [specific challenge]. I evaluated [options considered] \
-        and chose [solution] because [reasoning]. The implementation involved [key technical \
-        details]. As a result, we achieved [quantifiable outcome], though in retrospect, \
-        I would have [lesson learned]."
-        
-        For behavioral questions, use the STAR method more explicitly:
-        
-        > "**Situation**: [Context with specific details]
-        > **Task**: [Your specific responsibility]
-        > **Action**: [Steps you personally took]
-        > **Result**: [Measurable outcomes and learnings]"
-        
-        ## Follow-up Questions
-        
-        1. Can you walk through a specific debugging session where you had to troubleshoot a production issue?
-        2. How do you approach technical decisions when there's no clear "right" answer?
-        3. Describe a time when you had to push back on a requirement. How did you handle it?
-        4. What's your process for staying current with industry trends and new technologies?
-        5. How would you onboard a new team member to a complex codebase you maintain?
-        
-        ---
-        
-        *Analysis based on \(wordCount) words across \(questionCount) Q&A pair(s).*
-        """
+        return StructuredFeedback(
+            summary: "The candidate provided \(questionCount) response(s), demonstrating understanding of key concepts. The responses show a mix of strong knowledge and areas that could benefit from more specific examples.",
+            strengths: [
+                "Clear Communication: Responses are well-structured and easy to follow",
+                "Technical Foundation: Shows solid understanding of core concepts",
+                "Concrete Examples: Provided specific instances from past experience",
+                "Problem-Solving Mindset: Demonstrated analytical thinking approach",
+                "Self-Awareness: Acknowledged challenges and learning opportunities"
+            ],
+            improvement: [
+                "Depth of Detail: Some responses could benefit from more technical specifics",
+                "Metrics and Outcomes: Could include more quantifiable results and impact",
+                "Edge Cases: Limited discussion of error handling and edge scenarios",
+                "Trade-offs: Could better articulate decision-making trade-offs"
+            ],
+            hiringSignal: "Lean Hire - The candidate shows strong potential with solid technical foundation and communication skills. With some refinement in providing more detailed examples and metrics, they would be a strong addition to the team.",
+            keyObservations: [
+                "Candidate demonstrates good understanding of core technical concepts",
+                "Communication style is clear and well-organized",
+                "Shows practical experience with real-world implementations",
+                "Could improve on providing more quantifiable results and discussing edge cases"
+            ]
+        )
     }
     
     private nonisolated static func countQuestions(in text: String) -> Int {

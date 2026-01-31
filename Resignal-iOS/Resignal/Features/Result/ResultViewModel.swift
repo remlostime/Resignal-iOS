@@ -80,7 +80,7 @@ final class ResultViewModel: ResultViewModelProtocol {
             let response = try await aiClient.analyze(request)
             
             // Update session
-            session.outputFeedback = response.feedback
+            session.structuredFeedback = response.feedback
             session.version += 1
             try sessionRepository.update(session, title: nil, tags: nil)
             
