@@ -11,6 +11,7 @@ import Foundation
 @MainActor
 protocol SettingsServiceProtocol: AnyObject, Sendable {
     var useMockAI: Bool { get set }
+    var hasRegisteredUser: Bool { get set }
     var appVersion: String { get }
 }
 
@@ -23,6 +24,7 @@ final class SettingsService: SettingsServiceProtocol {
     
     private enum Keys {
         static let useMockAI = "useMockAI"
+        static let hasRegisteredUser = "hasRegisteredUser"
     }
     
     // MARK: - Properties
@@ -32,6 +34,12 @@ final class SettingsService: SettingsServiceProtocol {
     var useMockAI: Bool {
         didSet {
             defaults.set(useMockAI, forKey: Keys.useMockAI)
+        }
+    }
+    
+    var hasRegisteredUser: Bool {
+        didSet {
+            defaults.set(hasRegisteredUser, forKey: Keys.hasRegisteredUser)
         }
     }
     
@@ -51,6 +59,7 @@ final class SettingsService: SettingsServiceProtocol {
         
         // Load settings
         self.useMockAI = defaults.object(forKey: Keys.useMockAI) as? Bool ?? true
+        self.hasRegisteredUser = defaults.object(forKey: Keys.hasRegisteredUser) as? Bool ?? false
     }
     
 }

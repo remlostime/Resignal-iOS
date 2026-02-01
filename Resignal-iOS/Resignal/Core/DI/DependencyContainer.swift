@@ -19,6 +19,7 @@ protocol DependencyContainerProtocol {
     var transcriptionService: TranscriptionService { get }
     var attachmentService: AttachmentService { get }
     var chatService: ChatService { get }
+    var userClient: any UserClient { get }
 }
 
 /// Main dependency container that provides all app dependencies
@@ -35,6 +36,7 @@ final class DependencyContainer: DependencyContainerProtocol {
     let transcriptionService: TranscriptionService
     let attachmentService: AttachmentService
     private let _chatService: ChatService
+    let userClient: any UserClient
     private let isPreview: Bool
     
     // Cached AI client with invalidation tracking
@@ -96,6 +98,7 @@ final class DependencyContainer: DependencyContainerProtocol {
             self.transcriptionService = MockTranscriptionService()
             self.attachmentService = MockAttachmentService()
             self._chatService = MockChatService()
+            self.userClient = MockUserClient()
         } else {
             self.recordingService = RecordingServiceImpl()
             self.transcriptionService = TranscriptionServiceImpl()
@@ -103,6 +106,7 @@ final class DependencyContainer: DependencyContainerProtocol {
             // ChatService will use the AI client from this container
             // We create a mock initially and will replace it with real one after init
             self._chatService = MockChatService()
+            self.userClient = UserClientImpl()
         }
     }
     

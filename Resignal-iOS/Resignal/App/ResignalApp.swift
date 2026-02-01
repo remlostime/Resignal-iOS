@@ -33,6 +33,7 @@ struct ResignalApp: App {
 struct RootView: View {
     
     @Environment(Router.self) private var router
+    @Environment(DependencyContainer.self) private var container
     
     var body: some View {
         @Bindable var router = router
@@ -46,6 +47,38 @@ struct RootView: View {
         .tint(AppTheme.Colors.primary)
         .background(AppTheme.Colors.background)
         .scrollContentBackground(.hidden)
+        .task {
+            await registerUserIfNeeded()
+        }
+    }
+    
+    /// Registers user with backend on first app launch
+    private func registerUserIfNeeded() async {
+        // Check if user is already registered
+        guard !container.settingsService.hasRegisteredUser else {
+            return
+        }
+        
+        do {
+            // Attempt registration
+            let response = try await container.userClient.registerUser()
+            
+            if response.success {
+                // Mark as registered on success
+                container.settingsService.hasRegisteredUser = true
+                print("✅ User registration successful: \(response.message ?? "No message")")
+            } else {
+                // Don't mark as registered if response indicates failure
+                print("⚠️ User registration returned unsuccessful response: \(response.message ?? "No message")")
+            }
+        } catch UserClientError.alreadyRegistered {
+            // User already registered on backend, mark as registered locally
+            container.settingsService.hasRegisteredUser = true
+            print("ℹ️ User already registered on backend")
+        } catch {
+            // Log error but don't mark as registered - will retry next launch
+            print("❌ User registration failed: \(error.localizedDescription)")
+        }
     }
     
     @ViewBuilder
