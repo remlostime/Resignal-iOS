@@ -29,6 +29,7 @@ actor ResignalAIClient: AIClient {
     // MARK: - Properties
 
     private let baseURL: String
+    private let clientContextService: ClientContextServiceProtocol
     private var _isAnalyzing: Bool = false
     private var currentTask: Task<AnalysisResponse, Error>?
 
@@ -44,8 +45,12 @@ actor ResignalAIClient: AIClient {
 
     // MARK: - Initialization
 
-    init(baseURL: String = "https://resignal-backend.vercel.app") {
+    init(
+        baseURL: String = "https://resignal-backend.vercel.app",
+        clientContextService: ClientContextServiceProtocol = ClientContextService.shared
+    ) {
         self.baseURL = baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        self.clientContextService = clientContextService
     }
 
     // MARK: - AIClient Implementation
@@ -103,7 +108,10 @@ actor ResignalAIClient: AIClient {
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        urlRequest.setValue("client-xx", forHTTPHeaderField: "x-client-id")
+        urlRequest.setValue(clientContextService.clientId, forHTTPHeaderField: "x-client-id")
+        urlRequest.setValue(clientContextService.appVersion, forHTTPHeaderField: "x-client-version")
+        urlRequest.setValue(clientContextService.platform, forHTTPHeaderField: "x-client-platform")
+        urlRequest.setValue(clientContextService.deviceModel, forHTTPHeaderField: "x-device-model")
         urlRequest.timeoutInterval = 60
 
         let encoder = JSONEncoder()
