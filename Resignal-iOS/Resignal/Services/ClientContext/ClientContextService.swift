@@ -76,8 +76,12 @@ final class ClientContextService: ClientContextServiceProtocol, @unchecked Senda
     
     /// Device model identifier (e.g., "iPhone", "iPad")
     var deviceModel: String {
-        DispatchQueue.main.sync {
-            UIDevice.current.model
+        if Thread.isMainThread {
+            return UIDevice.current.model
+        } else {
+            return DispatchQueue.main.sync {
+                UIDevice.current.model
+            }
         }
     }
     
