@@ -95,12 +95,24 @@ final class EditorViewModel: EditorViewModelProtocol {
         analysisState = .loading
         analysisProgress = 0
         
-        // Simulate progress updates
+        // Simulate progress with ease-out curve over ~15 seconds
         let progressTask = Task {
-            for step in 1...9 {
-                try? await Task.sleep(for: .milliseconds(200))
+            let totalSteps = 30
+            let totalDuration: Double = 15.0  // seconds
+            
+            for step in 1...totalSteps {
+                // Ease-out: faster at start, slower at end
+                let linearProgress = Double(step) / Double(totalSteps)
+                let easedProgress = 1.0 - pow(1.0 - linearProgress, 2)  // quadratic ease-out
+                
+                // Cap at 95% so it doesn't feel "stuck" if API takes longer
+                analysisProgress = min(easedProgress * 0.95, 0.95)
+                
+                // Variable delay: shorter at start, longer at end
+                let stepDuration = totalDuration / Double(totalSteps)
+                try? await Task.sleep(for: .milliseconds(Int(stepDuration * 1000)))
+                
                 if Task.isCancelled { break }
-                analysisProgress = Double(step) / 10.0
             }
         }
         
@@ -173,11 +185,19 @@ final class EditorViewModel: EditorViewModelProtocol {
     // MARK: - Private Methods
     
     private func saveSession(with feedback: StructuredFeedback?) throws -> Session {
+        // Use server-provided title if available
+        let serverTitle = feedback?.title
+        
         if let existingSession = session {
             // Update existing session
             existingSession.inputText = inputText
             existingSession.structuredFeedback = feedback
             existingSession.version += 1
+            
+            // Update title from server if session has no custom title
+            if existingSession.title.isEmpty, let title = serverTitle {
+                existingSession.title = title
+            }
             
             // Save attachments
             for attachment in attachments {
@@ -189,9 +209,9 @@ final class EditorViewModel: EditorViewModelProtocol {
             try sessionRepository.update(existingSession, title: nil, tags: nil)
             return existingSession
         } else {
-            // Create new session
+            // Create new session with server-provided title
             let newSession = Session(
-                title: "",
+                title: serverTitle ?? "",
                 role: nil,
                 inputText: inputText,
                 structuredFeedback: feedback,

@@ -192,6 +192,7 @@ extension Session {
     static var sampleWithAnalysis: Session {
         let session = sample
         session.structuredFeedback = StructuredFeedback(
+            title: "iOS Real-time Sync & Testing Interview",
             summary: "The candidate demonstrated strong technical knowledge in iOS development, particularly in real-time synchronization and testing practices. Answers were well-structured with concrete examples.",
             strengths: [
                 "Technical Depth: Showed deep understanding of CRDTs and Operational Transformation for real-time sync",

@@ -65,12 +65,9 @@ protocol EditorViewModelProtocol: AnyObject, Observable {
 @MainActor
 protocol ResultViewModelProtocol: AnyObject, Observable {
     var session: Session { get }
-    var regenerateState: VoidState { get }
-    var isRegenerating: Bool { get }
     var errorMessage: String? { get }
     var showError: Bool { get set }
     
-    func regenerate() async
     func clearError()
 }
 
