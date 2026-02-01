@@ -101,7 +101,7 @@ actor ResignalAIClient: AIClient {
         let chatRequest = ChatRequest(input: completeInput)
 
         // Create URL request
-        guard let url = URL(string: "\(baseURL)/api/chat") else {
+        guard let url = URL(string: "\(baseURL)/api/interviews") else {
             throw AIClientError.networkError("Invalid URL")
         }
 
