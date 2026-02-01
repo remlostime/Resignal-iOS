@@ -185,11 +185,19 @@ final class EditorViewModel: EditorViewModelProtocol {
     // MARK: - Private Methods
     
     private func saveSession(with feedback: StructuredFeedback?) throws -> Session {
+        // Use server-provided title if available
+        let serverTitle = feedback?.title
+        
         if let existingSession = session {
             // Update existing session
             existingSession.inputText = inputText
             existingSession.structuredFeedback = feedback
             existingSession.version += 1
+            
+            // Update title from server if session has no custom title
+            if existingSession.title.isEmpty, let title = serverTitle {
+                existingSession.title = title
+            }
             
             // Save attachments
             for attachment in attachments {
@@ -201,9 +209,9 @@ final class EditorViewModel: EditorViewModelProtocol {
             try sessionRepository.update(existingSession, title: nil, tags: nil)
             return existingSession
         } else {
-            // Create new session
+            // Create new session with server-provided title
             let newSession = Session(
-                title: "",
+                title: serverTitle ?? "",
                 role: nil,
                 inputText: inputText,
                 structuredFeedback: feedback,

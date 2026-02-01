@@ -13,6 +13,9 @@ struct StructuredFeedback: Codable, Sendable, Equatable {
     
     // MARK: - Properties
     
+    /// Server-generated title for the session
+    let title: String
+    
     /// Overall summary of the interview performance
     let summary: String
     
@@ -31,6 +34,7 @@ struct StructuredFeedback: Codable, Sendable, Equatable {
     // MARK: - CodingKeys
     
     enum CodingKeys: String, CodingKey {
+        case title
         case summary
         case strengths
         case improvement
@@ -41,12 +45,14 @@ struct StructuredFeedback: Codable, Sendable, Equatable {
     // MARK: - Initialization
     
     init(
+        title: String,
         summary: String,
         strengths: [String],
         improvement: [String],
         hiringSignal: String,
         keyObservations: [String]
     ) {
+        self.title = title
         self.summary = summary
         self.strengths = strengths
         self.improvement = improvement
@@ -60,6 +66,7 @@ struct StructuredFeedback: Codable, Sendable, Equatable {
 extension StructuredFeedback {
     static var sample: StructuredFeedback {
         StructuredFeedback(
+            title: "iOS Development & Testing Practices",
             summary: "The candidate provided 2 response(s), demonstrating understanding of key concepts. The responses show a mix of strong knowledge and areas that could benefit from more specific examples.",
             strengths: [
                 "Clear Communication: Responses are well-structured and easy to follow",

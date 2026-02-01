@@ -60,6 +60,7 @@ actor MockAIClient: AIClient {
         let questionCount = countQuestions(in: request.inputText)
         
         return StructuredFeedback(
+            title: "Interview Analysis - \(questionCount) Q&A",
             summary: "The candidate provided \(questionCount) response(s), demonstrating understanding of key concepts. The responses show a mix of strong knowledge and areas that could benefit from more specific examples.",
             strengths: [
                 "Clear Communication: Responses are well-structured and easy to follow",
