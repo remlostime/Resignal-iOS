@@ -84,6 +84,13 @@ struct ResultView: View {
                     .tag(ResultTab.ask)
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
+            .onChange(of: viewModel.selectedTab) { _, newTab in
+                if newTab == .ask {
+                    Task {
+                        await viewModel.loadMessages()
+                    }
+                }
+            }
         }
         .background(AppTheme.Colors.background)
     }
@@ -181,6 +188,10 @@ struct ResultView: View {
             isSending: Binding(
                 get: { viewModel.isSendingMessage },
                 set: { viewModel.isSendingMessage = $0 }
+            ),
+            isLoading: Binding(
+                get: { viewModel.isLoadingMessages },
+                set: { _ in }
             ),
             onSend: {
                 Task {

@@ -19,7 +19,14 @@ actor ResignalAIClient: AIClient {
 
     struct ChatResponse: Decodable, Sendable {
         let provider: String
+        let interviewId: String
         let reply: StructuredFeedback
+        
+        enum CodingKeys: String, CodingKey {
+            case provider
+            case interviewId = "interview_id"
+            case reply
+        }
     }
 
     struct ErrorResponse: Decodable, Sendable {
@@ -131,7 +138,7 @@ actor ResignalAIClient: AIClient {
             let decoder = JSONDecoder()
             let chatResponse = try decoder.decode(ChatResponse.self, from: data)
 
-            return AnalysisResponse(feedback: chatResponse.reply)
+            return AnalysisResponse(feedback: chatResponse.reply, interviewId: chatResponse.interviewId)
 
         case 500:
             // Try to parse error response

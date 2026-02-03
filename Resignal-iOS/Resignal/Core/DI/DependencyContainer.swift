@@ -35,7 +35,7 @@ final class DependencyContainer: DependencyContainerProtocol {
     let recordingService: RecordingService
     let transcriptionService: TranscriptionService
     let attachmentService: AttachmentService
-    private let _chatService: ChatService
+    let chatService: ChatService
     let userClient: any UserClient
     private let isPreview: Bool
     
@@ -57,10 +57,6 @@ final class DependencyContainer: DependencyContainerProtocol {
         }
         
         return _cachedAIClient!
-    }
-    
-    var chatService: ChatService {
-        _chatService
     }
     
     // MARK: - Initialization
@@ -97,33 +93,21 @@ final class DependencyContainer: DependencyContainerProtocol {
             self.recordingService = MockRecordingService()
             self.transcriptionService = MockTranscriptionService()
             self.attachmentService = MockAttachmentService()
-            self._chatService = MockChatService()
+            self.chatService = MockChatService()
             self.userClient = MockUserClient()
         } else {
             self.recordingService = RecordingServiceImpl()
             self.transcriptionService = TranscriptionServiceImpl()
             self.attachmentService = AttachmentServiceImpl()
-            // ChatService will use the AI client from this container
-            // We create a mock initially and will replace it with real one after init
-            self._chatService = MockChatService()
+            self.chatService = ChatServiceImpl()
             self.userClient = UserClientImpl()
-        }
-    }
-    
-    /// Initialize ChatService with real AI client (call after container is created)
-    func initializeChatService() {
-        if !isPreview {
-            // In production, we'd replace the mock with real implementation
-            // For now, the mock will work for both cases since ChatServiceImpl
-            // will be created on-demand by ViewModels using container.aiClient
         }
     }
     
     // MARK: - Private Methods
     
     private func createAIClient() -> any AIClient {
-//        ResignalAIClient()
-        MockAIClient()
+        ResignalAIClient()
     }
     
     /// Creates a container for previews and testing with in-memory storage

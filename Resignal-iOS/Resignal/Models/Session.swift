@@ -42,6 +42,9 @@ final class Session {
     var tags: [String]
     var version: Int
     
+    /// Server-generated interview ID from the backend
+    var interviewId: String?
+    
     // New properties for audio recording and attachments
     var audioFileURL: String?
     var transcriptionMode: String
@@ -63,7 +66,8 @@ final class Session {
         audioFileURL: URL? = nil,
         transcriptionMode: TranscriptionMode = .manual,
         attachments: [SessionAttachment] = [],
-        chatHistory: [ChatMessage] = []
+        chatHistory: [ChatMessage] = [],
+        interviewId: String? = nil
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -78,6 +82,7 @@ final class Session {
         self.transcriptionMode = transcriptionMode.rawValue
         self.attachments = attachments
         self.chatHistory = chatHistory
+        self.interviewId = interviewId
     }
     
     // MARK: - Computed Properties
@@ -156,6 +161,11 @@ final class Session {
     /// Checks if the session has been analyzed
     var hasAnalysis: Bool {
         feedbackData != nil
+    }
+    
+    /// Returns true if the session is synced with the backend
+    var isSyncedWithBackend: Bool {
+        interviewId != nil
     }
 }
 

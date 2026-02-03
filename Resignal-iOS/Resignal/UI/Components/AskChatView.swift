@@ -13,6 +13,7 @@ struct AskChatView: View {
     @Binding var messages: [ChatMessage]
     @Binding var inputText: String
     @Binding var isSending: Bool
+    @Binding var isLoading: Bool
     
     let onSend: () -> Void
     
@@ -21,36 +22,40 @@ struct AskChatView: View {
     var body: some View {
         VStack(spacing: 0) {
             // Messages list
-            ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(spacing: AppTheme.Spacing.sm) {
-                        if messages.isEmpty {
-                            emptyStateView
-                        } else {
-                            ForEach(messages, id: \.id) { message in
-                                MessageBubbleView(message: message)
-                                    .id(message.id)
+            if isLoading {
+                loadingView
+            } else {
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(spacing: AppTheme.Spacing.sm) {
+                            if messages.isEmpty {
+                                emptyStateView
+                            } else {
+                                ForEach(messages, id: \.id) { message in
+                                    MessageBubbleView(message: message)
+                                        .id(message.id)
+                                }
+                            }
+                            
+                            if isSending {
+                                HStack {
+                                    ProgressView()
+                                        .padding(AppTheme.Spacing.sm)
+                                    Text("Thinking...")
+                                        .font(AppTheme.Typography.callout)
+                                        .foregroundStyle(AppTheme.Colors.textSecondary)
+                                    Spacer()
+                                }
+                                .padding(AppTheme.Spacing.sm)
                             }
                         }
-                        
-                        if isSending {
-                            HStack {
-                                ProgressView()
-                                    .padding(AppTheme.Spacing.sm)
-                                Text("Thinking...")
-                                    .font(AppTheme.Typography.callout)
-                                    .foregroundStyle(AppTheme.Colors.textSecondary)
-                                Spacer()
-                            }
-                            .padding(AppTheme.Spacing.sm)
-                        }
+                        .padding(AppTheme.Spacing.md)
                     }
-                    .padding(AppTheme.Spacing.md)
-                }
-                .onChange(of: messages.count) { _, _ in
-                    if let lastMessage = messages.last {
-                        withAnimation {
-                            proxy.scrollTo(lastMessage.id, anchor: .bottom)
+                    .onChange(of: messages.count) { _, _ in
+                        if let lastMessage = messages.last {
+                            withAnimation {
+                                proxy.scrollTo(lastMessage.id, anchor: .bottom)
+                            }
                         }
                     }
                 }
@@ -111,6 +116,22 @@ struct AskChatView: View {
         }
         .frame(maxWidth: .infinity)
     }
+    
+    private var loadingView: some View {
+        VStack(spacing: AppTheme.Spacing.md) {
+            Spacer()
+            
+            ProgressView()
+                .scaleEffect(1.5)
+            
+            Text("Loading messages...")
+                .font(AppTheme.Typography.body)
+                .foregroundStyle(AppTheme.Colors.textSecondary)
+            
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
 }
 
 /// Individual message bubble
@@ -158,6 +179,7 @@ struct MessageBubbleView: View {
         ]),
         inputText: .constant(""),
         isSending: .constant(false),
+        isLoading: .constant(false),
         onSend: {}
     )
 }
