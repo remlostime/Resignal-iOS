@@ -24,6 +24,7 @@ final class ResultViewModel: ResultViewModelProtocol {
     
     private let sessionRepository: SessionRepositoryProtocol
     private let chatService: ChatService
+    private let clientContextService: ClientContextServiceProtocol
     
     let session: Session
     
@@ -52,11 +53,13 @@ final class ResultViewModel: ResultViewModelProtocol {
     init(
         session: Session,
         sessionRepository: SessionRepositoryProtocol,
-        chatService: ChatService
+        chatService: ChatService,
+        clientContextService: ClientContextServiceProtocol = ClientContextService.shared
     ) {
         self.session = session
         self.sessionRepository = sessionRepository
         self.chatService = chatService
+        self.clientContextService = clientContextService
         self.chatMessages = session.chatHistory
     }
     
@@ -71,6 +74,12 @@ final class ResultViewModel: ResultViewModelProtocol {
     func sendAskMessage() async {
         let trimmedMessage = askMessage.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedMessage.isEmpty else { return }
+        
+        // Ensure session has an interview ID
+        guard let interviewId = session.interviewId else {
+            chatError = "Session not synced with server. Please analyze the interview first."
+            return
+        }
         
         // Add user message
         let userMessage = ChatMessage(role: .user, content: trimmedMessage)
@@ -88,14 +97,19 @@ final class ResultViewModel: ResultViewModelProtocol {
         isSendingMessage = true
         
         do {
-            let response = try await chatService.sendMessage(
+            let userId = clientContextService.clientId
+            let (reply, messageId) = try await chatService.sendMessage(
                 trimmedMessage,
-                session: session,
-                conversationHistory: chatMessages
+                interviewId: interviewId,
+                userId: userId
             )
             
-            // Add assistant message
-            let assistantMessage = ChatMessage(role: .assistant, content: response)
+            // Add assistant message with server ID
+            let assistantMessage = ChatMessage(
+                role: .ai,
+                content: reply,
+                serverId: messageId
+            )
             chatMessages.append(assistantMessage)
             
             // Save assistant message

@@ -13,6 +13,9 @@ enum ChatError: LocalizedError {
     case noAnalysisAvailable
     case aiRequestFailed
     case emptyMessage
+    case invalidInterviewId
+    case networkError(String)
+    case serverError(String)
     
     var errorDescription: String? {
         switch self {
@@ -24,26 +27,32 @@ enum ChatError: LocalizedError {
             return "Failed to get response from AI. Please try again."
         case .emptyMessage:
             return "Message cannot be empty."
+        case .invalidInterviewId:
+            return "Invalid interview ID. Please ensure the session is synced with the server."
+        case .networkError(let message):
+            return "Network error: \(message)"
+        case .serverError(let message):
+            return "Server error: \(message)"
         }
     }
 }
 
 /// Protocol defining chat service capabilities
 protocol ChatService: Actor {
-    /// Send a message about a session and get AI response
+    /// Load messages for an interview from the backend
+    /// - Parameter interviewId: The server-generated interview ID
+    /// - Returns: Array of chat messages
+    func loadMessages(interviewId: String) async throws -> [ChatMessage]
+    
+    /// Send a message about an interview and get AI response
     /// - Parameters:
     ///   - message: The user's question or message
-    ///   - session: The session to ask about
-    ///   - conversationHistory: Previous messages in the conversation
-    /// - Returns: AI's response message
+    ///   - interviewId: The server-generated interview ID
+    ///   - userId: The user's ID
+    /// - Returns: AI's response message and the server-generated message ID
     func sendMessage(
         _ message: String,
-        session: Session,
-        conversationHistory: [ChatMessage]
-    ) async throws -> String
-    
-    /// Generate a summary of the conversation
-    /// - Parameter messages: The conversation messages
-    /// - Returns: A summary of the conversation
-    func summarizeConversation(_ messages: [ChatMessage]) async throws -> String
+        interviewId: String,
+        userId: String
+    ) async throws -> (reply: String, messageId: String)
 }
