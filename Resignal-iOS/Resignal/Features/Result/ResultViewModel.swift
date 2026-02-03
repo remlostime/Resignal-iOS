@@ -35,6 +35,8 @@ final class ResultViewModel: ResultViewModelProtocol {
     var chatMessages: [ChatMessage] = []
     var askMessage: String = ""
     var isSendingMessage: Bool = false
+    var isLoadingMessages: Bool = false
+    var hasLoadedMessages: Bool = false
     var chatError: String?
     
     // MARK: - Computed Properties
@@ -68,6 +70,40 @@ final class ResultViewModel: ResultViewModelProtocol {
     /// Clears any error state
     func clearError() {
         chatError = nil
+    }
+    
+    /// Loads chat messages from the backend
+    func loadMessages() async {
+        // Skip if already loading or already loaded
+        guard !isLoadingMessages, !hasLoadedMessages else { return }
+        
+        // Ensure session has an interview ID
+        guard let interviewId = session.interviewId else {
+            // Fall back to local messages if no server ID
+            chatMessages = session.chatHistory
+            hasLoadedMessages = true
+            return
+        }
+        
+        isLoadingMessages = true
+        
+        do {
+            let serverMessages = try await chatService.loadMessages(interviewId: interviewId)
+            
+            // Replace local messages with server messages
+            chatMessages = serverMessages
+            hasLoadedMessages = true
+            isLoadingMessages = false
+            
+            debugLog("Loaded \(serverMessages.count) messages from server")
+            
+        } catch {
+            // On error, fall back to local messages
+            chatMessages = session.chatHistory
+            hasLoadedMessages = true
+            isLoadingMessages = false
+            debugLog("Failed to load messages from server: \(error)")
+        }
     }
     
     /// Sends a chat message
