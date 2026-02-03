@@ -51,10 +51,12 @@ struct AnalysisRequest: Sendable {
 /// Nonisolated to allow use from any actor context
 struct AnalysisResponse: Sendable {
     nonisolated let feedback: StructuredFeedback
+    nonisolated let interviewId: String?
     nonisolated let timestamp: Date
 
-    nonisolated init(feedback: StructuredFeedback, timestamp: Date = Date()) {
+    nonisolated init(feedback: StructuredFeedback, interviewId: String? = nil, timestamp: Date = Date()) {
         self.feedback = feedback
+        self.interviewId = interviewId
         self.timestamp = timestamp
     }
 }

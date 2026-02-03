@@ -47,7 +47,7 @@ actor MockAIClient: AIClient {
         // Check for cancellation
         try Task.checkCancellation()
 
-        return AnalysisResponse(feedback: feedback)
+        return AnalysisResponse(feedback: feedback, interviewId: "mock-interview-\(UUID().uuidString)")
     }
 
     nonisolated func cancel() {

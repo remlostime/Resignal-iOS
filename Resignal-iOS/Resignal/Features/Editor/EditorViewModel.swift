@@ -128,7 +128,7 @@ final class EditorViewModel: EditorViewModelProtocol {
             analysisResult = response.feedback
             
             // Save or update session
-            let savedSession = try saveSession(with: response.feedback)
+            let savedSession = try saveSession(with: response.feedback, interviewId: response.interviewId)
             analysisState = .success(savedSession)
             return savedSession
             
@@ -184,7 +184,7 @@ final class EditorViewModel: EditorViewModelProtocol {
     
     // MARK: - Private Methods
     
-    private func saveSession(with feedback: StructuredFeedback?) throws -> Session {
+    private func saveSession(with feedback: StructuredFeedback?, interviewId: String? = nil) throws -> Session {
         // Use server-provided title if available
         let serverTitle = feedback?.title
         
@@ -192,6 +192,7 @@ final class EditorViewModel: EditorViewModelProtocol {
             // Update existing session
             existingSession.inputText = inputText
             existingSession.structuredFeedback = feedback
+            existingSession.interviewId = interviewId
             existingSession.version += 1
             
             // Update title from server if session has no custom title
@@ -218,7 +219,8 @@ final class EditorViewModel: EditorViewModelProtocol {
                 rubric: .general,
                 tags: [],
                 audioFileURL: audioURL,
-                attachments: attachments
+                attachments: attachments,
+                interviewId: interviewId
             )
             
             try sessionRepository.save(newSession)
