@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import PhotosUI
 
 /// Editor screen for creating or editing interview sessions
 struct EditorView: View {
@@ -22,6 +23,8 @@ struct EditorView: View {
     
     @State private var viewModel: EditorViewModel?
     @FocusState private var isTextEditorFocused: Bool
+    @State private var selectedPhoto: PhotosPickerItem?
+    @State private var isProcessingImage = false
     
     // MARK: - Initialization
     
@@ -93,17 +96,30 @@ struct EditorView: View {
         }
         .padding(AppTheme.Spacing.md)
         .background(AppTheme.Colors.background)
-        .sheet(isPresented: Binding(
-            get: { viewModel.showAttachmentPicker },
-            set: { viewModel.showAttachmentPicker = $0 }
-        )) {
-            AttachmentPickerView(
-                selectedAttachments: Binding(
-                    get: { viewModel.attachments },
-                    set: { viewModel.attachments = $0 }
-                ),
-                attachmentService: container.attachmentService
-            )
+        .onChange(of: selectedPhoto) { _, newValue in
+            if let item = newValue {
+                Task {
+                    await processSelectedPhoto(item)
+                }
+            }
+        }
+        .overlay {
+            if isProcessingImage {
+                ZStack {
+                    Color.black.opacity(0.3)
+                        .ignoresSafeArea()
+                    
+                    VStack(spacing: AppTheme.Spacing.sm) {
+                        ProgressView()
+                        Text("Compressing image...")
+                            .font(AppTheme.Typography.caption)
+                            .foregroundStyle(AppTheme.Colors.textSecondary)
+                    }
+                    .padding(AppTheme.Spacing.lg)
+                    .background(AppTheme.Colors.surface)
+                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.medium))
+                }
+            }
         }
     }
     
@@ -178,9 +194,10 @@ struct EditorView: View {
                     viewModel.removeAttachment(imageAttachment)
                 }
             } else {
-                Button {
-                    viewModel.toggleAttachmentPicker()
-                } label: {
+                PhotosPicker(
+                    selection: $selectedPhoto,
+                    matching: .images
+                ) {
                     HStack {
                         Image(systemName: "photo")
                             .foregroundStyle(AppTheme.Colors.primary)
@@ -226,6 +243,50 @@ struct EditorView: View {
                 }
             }
             .accessibilityIdentifier(EditorAccessibility.analyzeButton)
+        }
+    }
+    
+    // MARK: - Image Processing
+    
+    private func processSelectedPhoto(_ item: PhotosPickerItem) async {
+        await MainActor.run {
+            isProcessingImage = true
+        }
+        
+        defer {
+            Task { @MainActor in
+                isProcessingImage = false
+                selectedPhoto = nil
+            }
+        }
+        
+        guard let data = try? await item.loadTransferable(type: Data.self),
+              let image = UIImage(data: data) else {
+            return
+        }
+        
+        // Compress image to fit within 2MB limit
+        guard let compressedData = await container.attachmentService.compressImageForUpload(
+            image,
+            maxBytes: ValidationConstants.maxImageSizeBytes
+        ) else {
+            return
+        }
+        
+        let filename = "image_\(UUID().uuidString).jpg"
+        
+        // Save compressed data as file
+        if let attachment = try? await container.attachmentService.saveFile(
+            data: compressedData,
+            filename: filename,
+            type: .image
+        ) {
+            await MainActor.run {
+                guard let viewModel = viewModel else { return }
+                // Remove any existing image attachments first (only 1 allowed)
+                viewModel.attachments.removeAll { $0.attachmentType == .image }
+                viewModel.attachments.append(attachment)
+            }
         }
     }
 }
