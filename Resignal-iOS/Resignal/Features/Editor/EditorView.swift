@@ -171,16 +171,6 @@ struct EditorView: View {
                     .foregroundStyle(AppTheme.Colors.textTertiary)
                 
                 Spacer()
-                
-                if viewModel.attachments.first(where: { $0.attachmentType == .image }) == nil {
-                    Button {
-                        viewModel.toggleAttachmentPicker()
-                    } label: {
-                        Label("Add", systemImage: "plus.circle")
-                            .font(AppTheme.Typography.caption)
-                            .foregroundStyle(AppTheme.Colors.primary)
-                    }
-                }
             }
             
             if let imageAttachment = viewModel.attachments.first(where: { $0.attachmentType == .image }) {
@@ -193,10 +183,10 @@ struct EditorView: View {
                 } label: {
                     HStack {
                         Image(systemName: "photo")
-                            .foregroundStyle(AppTheme.Colors.textTertiary)
-                        Text("Add image for analysis")
+                            .foregroundStyle(AppTheme.Colors.primary)
+                        Text("Add Image")
                             .font(AppTheme.Typography.callout)
-                            .foregroundStyle(AppTheme.Colors.textTertiary)
+                            .foregroundStyle(AppTheme.Colors.primary)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(AppTheme.Spacing.md)
