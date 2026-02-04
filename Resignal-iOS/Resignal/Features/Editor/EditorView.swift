@@ -230,34 +230,62 @@ struct EditorView: View {
     }
 }
 
-/// Chip view for displaying attachments
+/// Chip view for displaying image attachment with thumbnail
 struct AttachmentChipView: View {
     let attachment: SessionAttachment
     let onRemove: () -> Void
+    @State private var thumbnailImage: UIImage?
+    @Environment(DependencyContainer.self) private var container
     
     var body: some View {
-        HStack(spacing: AppTheme.Spacing.xxs) {
-            Image(systemName: attachment.attachmentType == .image ? "photo" : "doc")
-                .font(.caption)
-                .foregroundStyle(AppTheme.Colors.textSecondary)
+        HStack(spacing: AppTheme.Spacing.sm) {
+            // Thumbnail preview
+            ZStack {
+                RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small)
+                    .fill(AppTheme.Colors.surface)
+                    .frame(width: 50, height: 50)
+                
+                if let image = thumbnailImage {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 50, height: 50)
+                        .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small))
+                } else {
+                    Image(systemName: "photo")
+                        .font(.title3)
+                        .foregroundStyle(AppTheme.Colors.textTertiary)
+                }
+            }
             
-            Text(attachment.filename)
-                .font(AppTheme.Typography.caption)
-                .foregroundStyle(AppTheme.Colors.textPrimary)
-                .lineLimit(1)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Image attached")
+                    .font(AppTheme.Typography.callout)
+                    .foregroundStyle(AppTheme.Colors.textPrimary)
+                
+                Text(attachment.fileSizeFormatted)
+                    .font(AppTheme.Typography.caption)
+                    .foregroundStyle(AppTheme.Colors.textTertiary)
+            }
+            
+            Spacer()
             
             Button {
                 onRemove()
             } label: {
                 Image(systemName: "xmark.circle.fill")
-                    .font(.caption)
+                    .font(.title3)
                     .foregroundStyle(AppTheme.Colors.textTertiary)
             }
         }
-        .padding(.horizontal, AppTheme.Spacing.sm)
-        .padding(.vertical, AppTheme.Spacing.xs)
+        .padding(AppTheme.Spacing.sm)
         .background(AppTheme.Colors.surface)
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.full))
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small))
+        .task {
+            if attachment.attachmentType == .image {
+                thumbnailImage = try? await container.attachmentService.loadImage(attachment)
+            }
+        }
     }
 }
 
