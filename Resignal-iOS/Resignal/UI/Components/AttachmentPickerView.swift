@@ -2,56 +2,55 @@
 //  AttachmentPickerView.swift
 //  Resignal
 //
-//  Component for picking images and files to attach to sessions.
+//  Component for picking a single image to attach to sessions.
 //
 
 import SwiftUI
 import PhotosUI
-import UniformTypeIdentifiers
 
-/// View for selecting images and files to attach
+/// View for selecting a single image to attach (API supports only 1 image, max 2MB)
 struct AttachmentPickerView: View {
     
     @Binding var selectedAttachments: [SessionAttachment]
     @Environment(\.dismiss) private var dismiss
     
-    @State private var selectedTab: AttachmentTab = .images
-    @State private var selectedPhotos: [PhotosPickerItem] = []
-    @State private var isDocumentPickerPresented = false
+    @State private var selectedPhoto: PhotosPickerItem?
     @State private var isProcessing = false
+    @State private var displayImage: UIImage?
     
     let attachmentService: AttachmentService
     
-    enum AttachmentTab {
-        case images
-        case files
+    /// Returns the current image attachment if one exists
+    private var currentImageAttachment: SessionAttachment? {
+        selectedAttachments.first { $0.attachmentType == .image }
     }
     
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                // Tab selector
-                Picker("Attachment Type", selection: $selectedTab) {
-                    Text("Images").tag(AttachmentTab.images)
-                    Text("Files").tag(AttachmentTab.files)
-                }
-                .pickerStyle(.segmented)
-                .padding(AppTheme.Spacing.md)
+            VStack(spacing: AppTheme.Spacing.lg) {
+                // Hint about limitation
+                Text("You can attach 1 image (auto-compressed to fit 2MB limit)")
+                    .font(AppTheme.Typography.caption)
+                    .foregroundStyle(AppTheme.Colors.textTertiary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, AppTheme.Spacing.md)
+                    .padding(.top, AppTheme.Spacing.md)
                 
-                // Content
-                Group {
-                    switch selectedTab {
-                    case .images:
-                        imagesTab
-                    case .files:
-                        filesTab
-                    }
+                // Photo picker or current image
+                if let attachment = currentImageAttachment {
+                    // Show current image with option to remove/replace
+                    currentImageView(attachment: attachment)
+                } else {
+                    // Show picker
+                    photoPickerButton
                 }
+                
+                Spacer()
             }
-            .navigationTitle("Add Attachments")
+            .navigationTitle("Add Image")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
+                ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {
                         dismiss()
                     }
@@ -63,175 +62,164 @@ struct AttachmentPickerView: View {
                         Color.black.opacity(0.3)
                             .ignoresSafeArea()
                         
-                        ProgressView("Processing...")
-                            .padding(AppTheme.Spacing.lg)
-                            .background(AppTheme.Colors.surface)
-                            .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.medium))
-                    }
-                }
-            }
-        }
-    }
-    
-    private var imagesTab: some View {
-        VStack(spacing: AppTheme.Spacing.md) {
-            PhotosPicker(
-                selection: $selectedPhotos,
-                maxSelectionCount: 5,
-                matching: .images
-            ) {
-                Label("Select Photos", systemImage: "photo.on.rectangle")
-                    .font(AppTheme.Typography.body)
-                    .foregroundStyle(AppTheme.Colors.primary)
-                    .frame(maxWidth: .infinity)
-                    .padding(AppTheme.Spacing.md)
-                    .background(AppTheme.Colors.surface)
-                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small))
-            }
-            .padding(.horizontal, AppTheme.Spacing.md)
-            .onChange(of: selectedPhotos) { oldValue, newValue in
-                Task {
-                    await processSelectedPhotos(newValue)
-                }
-            }
-            
-            if !selectedAttachments.filter({ $0.attachmentType == .image }).isEmpty {
-                ScrollView {
-                    LazyVGrid(columns: [
-                        GridItem(.flexible()),
-                        GridItem(.flexible()),
-                        GridItem(.flexible())
-                    ], spacing: AppTheme.Spacing.sm) {
-                        ForEach(selectedAttachments.filter { $0.attachmentType == .image }, id: \.id) { attachment in
-                            AttachmentThumbnailView(
-                                attachment: attachment,
-                                onRemove: {
-                                    removeAttachment(attachment)
-                                }
-                            )
-                        }
-                    }
-                    .padding(AppTheme.Spacing.md)
-                }
-            } else {
-                Spacer()
-                Text("No images selected")
-                    .font(AppTheme.Typography.body)
-                    .foregroundStyle(AppTheme.Colors.textTertiary)
-                Spacer()
-            }
-        }
-    }
-    
-    private var filesTab: some View {
-        VStack(spacing: AppTheme.Spacing.md) {
-            Button {
-                isDocumentPickerPresented = true
-            } label: {
-                Label("Select Files", systemImage: "doc.on.doc")
-                    .font(AppTheme.Typography.body)
-                    .foregroundStyle(AppTheme.Colors.primary)
-                    .frame(maxWidth: .infinity)
-                    .padding(AppTheme.Spacing.md)
-                    .background(AppTheme.Colors.surface)
-                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small))
-            }
-            .padding(.horizontal, AppTheme.Spacing.md)
-            .fileImporter(
-                isPresented: $isDocumentPickerPresented,
-                allowedContentTypes: [.pdf, .plainText, .data],
-                allowsMultipleSelection: true
-            ) { result in
-                Task {
-                    await processSelectedFiles(result)
-                }
-            }
-            
-            if !selectedAttachments.filter({ $0.attachmentType == .file }).isEmpty {
-                List {
-                    ForEach(selectedAttachments.filter { $0.attachmentType == .file }, id: \.id) { attachment in
-                        HStack {
-                            Image(systemName: "doc.fill")
+                        VStack(spacing: AppTheme.Spacing.sm) {
+                            ProgressView()
+                            Text("Compressing image...")
+                                .font(AppTheme.Typography.caption)
                                 .foregroundStyle(AppTheme.Colors.textSecondary)
-                            
-                            VStack(alignment: .leading, spacing: AppTheme.Spacing.xxs) {
-                                Text(attachment.filename)
-                                    .font(AppTheme.Typography.body)
-                                    .foregroundStyle(AppTheme.Colors.textPrimary)
-                                
-                                Text(attachment.fileSizeFormatted)
-                                    .font(AppTheme.Typography.caption)
-                                    .foregroundStyle(AppTheme.Colors.textTertiary)
-                            }
-                            
-                            Spacer()
-                            
-                            Button {
-                                removeAttachment(attachment)
-                            } label: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundStyle(AppTheme.Colors.textTertiary)
-                            }
+                        }
+                        .padding(AppTheme.Spacing.lg)
+                        .background(AppTheme.Colors.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.medium))
+                    }
+                }
+            }
+        }
+    }
+    
+    private var photoPickerButton: some View {
+        PhotosPicker(
+            selection: $selectedPhoto,
+            matching: .images
+        ) {
+            VStack(spacing: AppTheme.Spacing.md) {
+                Image(systemName: "photo.on.rectangle.angled")
+                    .font(.system(size: 48))
+                    .foregroundStyle(AppTheme.Colors.textTertiary)
+                
+                Text("Select Photo")
+                    .font(AppTheme.Typography.body)
+                    .foregroundStyle(AppTheme.Colors.primary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(AppTheme.Spacing.xl)
+            .background(AppTheme.Colors.surface)
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.medium))
+        }
+        .padding(.horizontal, AppTheme.Spacing.md)
+        .onChange(of: selectedPhoto) { _, newValue in
+            if let item = newValue {
+                Task {
+                    await processSelectedPhoto(item)
+                }
+            }
+        }
+    }
+    
+    private func currentImageView(attachment: SessionAttachment) -> some View {
+        VStack(spacing: AppTheme.Spacing.md) {
+            // Image preview
+            ZStack {
+                RoundedRectangle(cornerRadius: AppTheme.CornerRadius.medium)
+                    .fill(AppTheme.Colors.surface)
+                    .aspectRatio(4/3, contentMode: .fit)
+                
+                if let displayImage = displayImage {
+                    Image(uiImage: displayImage)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(maxWidth: .infinity)
+                        .aspectRatio(4/3, contentMode: .fill)
+                        .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.medium))
+                } else {
+                    Image(systemName: "photo.fill")
+                        .font(.system(size: 64))
+                        .foregroundStyle(AppTheme.Colors.textTertiary)
+                }
+            }
+            .padding(.horizontal, AppTheme.Spacing.md)
+            .task {
+                // Load the image when view appears
+                if displayImage == nil {
+                    displayImage = try? await attachmentService.loadImage(attachment)
+                }
+            }
+            
+            // Action buttons
+            HStack(spacing: AppTheme.Spacing.md) {
+                // Replace button
+                PhotosPicker(
+                    selection: $selectedPhoto,
+                    matching: .images
+                ) {
+                    Label("Replace", systemImage: "arrow.triangle.2.circlepath")
+                        .font(AppTheme.Typography.callout)
+                        .foregroundStyle(AppTheme.Colors.primary)
+                        .padding(.horizontal, AppTheme.Spacing.md)
+                        .padding(.vertical, AppTheme.Spacing.sm)
+                        .background(AppTheme.Colors.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small))
+                }
+                .onChange(of: selectedPhoto) { _, newValue in
+                    if let item = newValue {
+                        Task {
+                            await processSelectedPhoto(item)
                         }
                     }
                 }
-                .listStyle(.plain)
-            } else {
-                Spacer()
-                Text("No files selected")
-                    .font(AppTheme.Typography.body)
-                    .foregroundStyle(AppTheme.Colors.textTertiary)
-                Spacer()
+                
+                // Remove button
+                Button {
+                    removeAttachment(attachment)
+                } label: {
+                    Label("Remove", systemImage: "trash")
+                        .font(AppTheme.Typography.callout)
+                        .foregroundStyle(AppTheme.Colors.destructive)
+                        .padding(.horizontal, AppTheme.Spacing.md)
+                        .padding(.vertical, AppTheme.Spacing.sm)
+                        .background(AppTheme.Colors.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small))
+                }
             }
         }
     }
     
-    private func processSelectedPhotos(_ items: [PhotosPickerItem]) async {
-        isProcessing = true
+    private func processSelectedPhoto(_ item: PhotosPickerItem) async {
+        await MainActor.run {
+            isProcessing = true
+        }
         
-        for item in items {
-            if let data = try? await item.loadTransferable(type: Data.self),
-               let image = UIImage(data: data) {
-                
-                let filename = "image_\(UUID().uuidString).jpg"
-                
-                if let attachment = try? await attachmentService.saveImage(image, filename: filename) {
-                    await MainActor.run {
-                        selectedAttachments.append(attachment)
-                    }
-                }
+        defer {
+            Task { @MainActor in
+                isProcessing = false
+                selectedPhoto = nil
             }
         }
         
-        await MainActor.run {
-            isProcessing = false
-            selectedPhotos = []
+        guard let data = try? await item.loadTransferable(type: Data.self),
+              let image = UIImage(data: data) else {
+            return
         }
-    }
-    
-    private func processSelectedFiles(_ result: Result<[URL], Error>) async {
-        isProcessing = true
         
-        switch result {
-        case .success(let urls):
-            for url in urls {
-                if let attachment = try? await attachmentService.saveFile(from: url, type: .file) {
-                    await MainActor.run {
-                        selectedAttachments.append(attachment)
-                    }
-                }
+        // Compress image to fit within 2MB limit
+        guard let compressedData = await attachmentService.compressImageForUpload(
+            image,
+            maxBytes: ValidationConstants.maxImageSizeBytes
+        ) else {
+            return
+        }
+        
+        let filename = "image_\(UUID().uuidString).jpg"
+        
+        // Save compressed data as file
+        if let attachment = try? await attachmentService.saveFile(
+            data: compressedData,
+            filename: filename,
+            type: .image
+        ) {
+            await MainActor.run {
+                // Remove any existing image attachments first (only 1 allowed)
+                selectedAttachments.removeAll { $0.attachmentType == .image }
+                selectedAttachments.append(attachment)
+                // Update display image
+                displayImage = image
             }
-        case .failure:
-            break
-        }
-        
-        await MainActor.run {
-            isProcessing = false
         }
     }
     
     private func removeAttachment(_ attachment: SessionAttachment) {
         selectedAttachments.removeAll { $0.id == attachment.id }
+        displayImage = nil
         
         Task {
             try? await attachmentService.deleteAttachment(attachment)

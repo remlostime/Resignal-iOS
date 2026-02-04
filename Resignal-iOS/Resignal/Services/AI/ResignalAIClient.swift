@@ -15,6 +15,16 @@ actor ResignalAIClient: AIClient {
 
     struct ChatRequest: Encodable, Sendable {
         let input: String
+        let task: String
+        let locale: String
+        let image: ImageAttachment?
+        
+        init(input: String, task: String = "feedback", locale: String = "en", image: ImageAttachment? = nil) {
+            self.input = input
+            self.task = task
+            self.locale = locale
+            self.image = image
+        }
     }
 
     struct ChatResponse: Decodable, Sendable {
@@ -104,8 +114,8 @@ actor ResignalAIClient: AIClient {
         // Send only the raw transcript
         let completeInput = request.inputText
 
-        // Create the request
-        let chatRequest = ChatRequest(input: completeInput)
+        // Create the request with optional image
+        let chatRequest = ChatRequest(input: completeInput, image: request.image)
 
         // Create URL request
         guard let url = URL(string: "\(baseURL)/api/interviews") else {

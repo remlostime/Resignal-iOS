@@ -58,6 +58,7 @@ struct EditorView: View {
                 viewModel = EditorViewModel(
                     aiClient: container.aiClient,
                     sessionRepository: container.sessionRepository,
+                    attachmentService: container.attachmentService,
                     session: existingSession,
                     initialTranscript: initialTranscript,
                     audioURL: audioURL
@@ -161,39 +162,47 @@ struct EditorView: View {
     private func attachmentsSection(viewModel: EditorViewModel) -> some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
             HStack {
-                Text("Attachments")
+                Text("Image Attachment")
                     .font(AppTheme.Typography.caption)
                     .foregroundStyle(AppTheme.Colors.textSecondary)
                 
+                Text("(optional, 1 max)")
+                    .font(AppTheme.Typography.caption)
+                    .foregroundStyle(AppTheme.Colors.textTertiary)
+                
                 Spacer()
                 
-                Button {
-                    viewModel.toggleAttachmentPicker()
-                } label: {
-                    Label("Add", systemImage: "plus.circle")
-                        .font(AppTheme.Typography.caption)
-                        .foregroundStyle(AppTheme.Colors.primary)
+                if viewModel.attachments.first(where: { $0.attachmentType == .image }) == nil {
+                    Button {
+                        viewModel.toggleAttachmentPicker()
+                    } label: {
+                        Label("Add", systemImage: "plus.circle")
+                            .font(AppTheme.Typography.caption)
+                            .foregroundStyle(AppTheme.Colors.primary)
+                    }
                 }
             }
             
-            if !viewModel.attachments.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: AppTheme.Spacing.sm) {
-                        ForEach(viewModel.attachments, id: \.id) { attachment in
-                            AttachmentChipView(attachment: attachment) {
-                                viewModel.removeAttachment(attachment)
-                            }
-                        }
-                    }
+            if let imageAttachment = viewModel.attachments.first(where: { $0.attachmentType == .image }) {
+                AttachmentChipView(attachment: imageAttachment) {
+                    viewModel.removeAttachment(imageAttachment)
                 }
             } else {
-                Text("No attachments")
-                    .font(AppTheme.Typography.callout)
-                    .foregroundStyle(AppTheme.Colors.textTertiary)
+                Button {
+                    viewModel.toggleAttachmentPicker()
+                } label: {
+                    HStack {
+                        Image(systemName: "photo")
+                            .foregroundStyle(AppTheme.Colors.textTertiary)
+                        Text("Add image for analysis")
+                            .font(AppTheme.Typography.callout)
+                            .foregroundStyle(AppTheme.Colors.textTertiary)
+                    }
                     .frame(maxWidth: .infinity)
                     .padding(AppTheme.Spacing.md)
                     .background(AppTheme.Colors.surface)
                     .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small))
+                }
             }
         }
     }

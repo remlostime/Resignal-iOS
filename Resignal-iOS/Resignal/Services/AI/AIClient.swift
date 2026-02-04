@@ -37,13 +37,21 @@ enum AIClientError: Error, LocalizedError, Sendable {
     }
 }
 
+/// Image attachment for API payload
+struct ImageAttachment: Sendable, Encodable {
+    let base64: String
+    let mimeType: String
+}
+
 /// Request model for AI analysis
 /// Nonisolated to allow use from any actor context
 struct AnalysisRequest: Sendable {
     nonisolated let inputText: String
+    nonisolated let image: ImageAttachment?
 
-    nonisolated init(inputText: String) {
+    nonisolated init(inputText: String, image: ImageAttachment? = nil) {
         self.inputText = inputText
+        self.image = image
     }
 }
 
