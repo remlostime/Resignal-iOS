@@ -66,4 +66,10 @@ protocol AttachmentService: Actor {
     
     /// Get base64 encoded data for AI processing
     func getBase64Data(_ attachment: SessionAttachment) async throws -> String
+    
+    /// Get MIME type for an attachment
+    func getMimeType(_ attachment: SessionAttachment) async -> String
+    
+    /// Compress image to ensure it's under maxBytes, returns compressed JPEG data
+    func compressImageForUpload(_ image: UIImage, maxBytes: Int64) async -> Data?
 }

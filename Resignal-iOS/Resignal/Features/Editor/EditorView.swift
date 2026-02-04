@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import PhotosUI
 
 /// Editor screen for creating or editing interview sessions
 struct EditorView: View {
@@ -22,6 +23,8 @@ struct EditorView: View {
     
     @State private var viewModel: EditorViewModel?
     @FocusState private var isTextEditorFocused: Bool
+    @State private var selectedPhoto: PhotosPickerItem?
+    @State private var isProcessingImage = false
     
     // MARK: - Initialization
     
@@ -58,6 +61,7 @@ struct EditorView: View {
                 viewModel = EditorViewModel(
                     aiClient: container.aiClient,
                     sessionRepository: container.sessionRepository,
+                    attachmentService: container.attachmentService,
                     session: existingSession,
                     initialTranscript: initialTranscript,
                     audioURL: audioURL
@@ -92,17 +96,30 @@ struct EditorView: View {
         }
         .padding(AppTheme.Spacing.md)
         .background(AppTheme.Colors.background)
-        .sheet(isPresented: Binding(
-            get: { viewModel.showAttachmentPicker },
-            set: { viewModel.showAttachmentPicker = $0 }
-        )) {
-            AttachmentPickerView(
-                selectedAttachments: Binding(
-                    get: { viewModel.attachments },
-                    set: { viewModel.attachments = $0 }
-                ),
-                attachmentService: container.attachmentService
-            )
+        .onChange(of: selectedPhoto) { _, newValue in
+            if let item = newValue {
+                Task {
+                    await processSelectedPhoto(item)
+                }
+            }
+        }
+        .overlay {
+            if isProcessingImage {
+                ZStack {
+                    Color.black.opacity(0.3)
+                        .ignoresSafeArea()
+                    
+                    VStack(spacing: AppTheme.Spacing.sm) {
+                        ProgressView()
+                        Text("Compressing image...")
+                            .font(AppTheme.Typography.caption)
+                            .foregroundStyle(AppTheme.Colors.textSecondary)
+                    }
+                    .padding(AppTheme.Spacing.lg)
+                    .background(AppTheme.Colors.surface)
+                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.medium))
+                }
+            }
         }
     }
     
@@ -161,39 +178,38 @@ struct EditorView: View {
     private func attachmentsSection(viewModel: EditorViewModel) -> some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
             HStack {
-                Text("Attachments")
+                Text("Image Attachment")
                     .font(AppTheme.Typography.caption)
                     .foregroundStyle(AppTheme.Colors.textSecondary)
                 
-                Spacer()
+                Text("(optional, 1 max)")
+                    .font(AppTheme.Typography.caption)
+                    .foregroundStyle(AppTheme.Colors.textTertiary)
                 
-                Button {
-                    viewModel.toggleAttachmentPicker()
-                } label: {
-                    Label("Add", systemImage: "plus.circle")
-                        .font(AppTheme.Typography.caption)
-                        .foregroundStyle(AppTheme.Colors.primary)
-                }
+                Spacer()
             }
             
-            if !viewModel.attachments.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: AppTheme.Spacing.sm) {
-                        ForEach(viewModel.attachments, id: \.id) { attachment in
-                            AttachmentChipView(attachment: attachment) {
-                                viewModel.removeAttachment(attachment)
-                            }
-                        }
-                    }
+            if let imageAttachment = viewModel.attachments.first(where: { $0.attachmentType == .image }) {
+                AttachmentChipView(attachment: imageAttachment) {
+                    viewModel.removeAttachment(imageAttachment)
                 }
             } else {
-                Text("No attachments")
-                    .font(AppTheme.Typography.callout)
-                    .foregroundStyle(AppTheme.Colors.textTertiary)
+                PhotosPicker(
+                    selection: $selectedPhoto,
+                    matching: .images
+                ) {
+                    HStack {
+                        Image(systemName: "photo")
+                            .foregroundStyle(AppTheme.Colors.primary)
+                        Text("Add Image")
+                            .font(AppTheme.Typography.callout)
+                            .foregroundStyle(AppTheme.Colors.primary)
+                    }
                     .frame(maxWidth: .infinity)
                     .padding(AppTheme.Spacing.md)
                     .background(AppTheme.Colors.surface)
                     .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small))
+                }
             }
         }
     }
@@ -229,36 +245,108 @@ struct EditorView: View {
             .accessibilityIdentifier(EditorAccessibility.analyzeButton)
         }
     }
+    
+    // MARK: - Image Processing
+    
+    private func processSelectedPhoto(_ item: PhotosPickerItem) async {
+        await MainActor.run {
+            isProcessingImage = true
+        }
+        
+        defer {
+            Task { @MainActor in
+                isProcessingImage = false
+                selectedPhoto = nil
+            }
+        }
+        
+        guard let data = try? await item.loadTransferable(type: Data.self),
+              let image = UIImage(data: data) else {
+            return
+        }
+        
+        // Compress image to fit within 2MB limit
+        guard let compressedData = await container.attachmentService.compressImageForUpload(
+            image,
+            maxBytes: ValidationConstants.maxImageSizeBytes
+        ) else {
+            return
+        }
+        
+        let filename = "image_\(UUID().uuidString).jpg"
+        
+        // Save compressed data as file
+        if let attachment = try? await container.attachmentService.saveFile(
+            data: compressedData,
+            filename: filename,
+            type: .image
+        ) {
+            await MainActor.run {
+                guard let viewModel = viewModel else { return }
+                // Remove any existing image attachments first (only 1 allowed)
+                viewModel.attachments.removeAll { $0.attachmentType == .image }
+                viewModel.attachments.append(attachment)
+            }
+        }
+    }
 }
 
-/// Chip view for displaying attachments
+/// Chip view for displaying image attachment with thumbnail
 struct AttachmentChipView: View {
     let attachment: SessionAttachment
     let onRemove: () -> Void
+    @State private var thumbnailImage: UIImage?
+    @Environment(DependencyContainer.self) private var container
     
     var body: some View {
-        HStack(spacing: AppTheme.Spacing.xxs) {
-            Image(systemName: attachment.attachmentType == .image ? "photo" : "doc")
-                .font(.caption)
-                .foregroundStyle(AppTheme.Colors.textSecondary)
+        HStack(spacing: AppTheme.Spacing.sm) {
+            // Thumbnail preview
+            ZStack {
+                RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small)
+                    .fill(AppTheme.Colors.surface)
+                    .frame(width: 50, height: 50)
+                
+                if let image = thumbnailImage {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 50, height: 50)
+                        .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small))
+                } else {
+                    Image(systemName: "photo")
+                        .font(.title3)
+                        .foregroundStyle(AppTheme.Colors.textTertiary)
+                }
+            }
             
-            Text(attachment.filename)
-                .font(AppTheme.Typography.caption)
-                .foregroundStyle(AppTheme.Colors.textPrimary)
-                .lineLimit(1)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Image attached")
+                    .font(AppTheme.Typography.callout)
+                    .foregroundStyle(AppTheme.Colors.textPrimary)
+                
+                Text(attachment.fileSizeFormatted)
+                    .font(AppTheme.Typography.caption)
+                    .foregroundStyle(AppTheme.Colors.textTertiary)
+            }
+            
+            Spacer()
             
             Button {
                 onRemove()
             } label: {
                 Image(systemName: "xmark.circle.fill")
-                    .font(.caption)
+                    .font(.title3)
                     .foregroundStyle(AppTheme.Colors.textTertiary)
             }
         }
-        .padding(.horizontal, AppTheme.Spacing.sm)
-        .padding(.vertical, AppTheme.Spacing.xs)
+        .padding(AppTheme.Spacing.sm)
         .background(AppTheme.Colors.surface)
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.full))
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small))
+        .task {
+            if attachment.attachmentType == .image {
+                thumbnailImage = try? await container.attachmentService.loadImage(attachment)
+            }
+        }
     }
 }
 

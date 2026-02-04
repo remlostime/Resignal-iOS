@@ -17,6 +17,7 @@ final class EditorViewModel: EditorViewModelProtocol {
     
     private let aiClient: any AIClient
     private let sessionRepository: SessionRepositoryProtocol
+    private let attachmentService: AttachmentService
     
     // Session data
     var session: Session?
@@ -68,12 +69,14 @@ final class EditorViewModel: EditorViewModelProtocol {
     init(
         aiClient: any AIClient,
         sessionRepository: SessionRepositoryProtocol,
+        attachmentService: AttachmentService,
         session: Session? = nil,
         initialTranscript: String? = nil,
         audioURL: URL? = nil
     ) {
         self.aiClient = aiClient
         self.sessionRepository = sessionRepository
+        self.attachmentService = attachmentService
         self.session = session
         self.audioURL = audioURL
         
@@ -122,7 +125,10 @@ final class EditorViewModel: EditorViewModelProtocol {
         }
         
         do {
-            let request = AnalysisRequest(inputText: inputText)
+            // Prepare image attachment if available
+            let imageAttachment = await prepareImageForAnalysis()
+            
+            let request = AnalysisRequest(inputText: inputText, image: imageAttachment)
             
             let response = try await aiClient.analyze(request)
             analysisResult = response.feedback
@@ -233,5 +239,23 @@ final class EditorViewModel: EditorViewModelProtocol {
         #if DEBUG
         print("[EditorViewModel] \(message)")
         #endif
+    }
+    
+    /// Prepares the first image attachment for API analysis
+    private func prepareImageForAnalysis() async -> ImageAttachment? {
+        // Get the first image attachment
+        guard let imageAttachment = attachments.first(where: { $0.attachmentType == .image }) else {
+            return nil
+        }
+        
+        do {
+            let base64Data = try await attachmentService.getBase64Data(imageAttachment)
+            let mimeType = await attachmentService.getMimeType(imageAttachment)
+            
+            return ImageAttachment(base64: base64Data, mimeType: mimeType)
+        } catch {
+            debugLog("Failed to prepare image for analysis: \(error)")
+            return nil
+        }
     }
 }

@@ -161,6 +161,71 @@ actor AttachmentServiceImpl: AttachmentService {
         let data = try await loadAttachment(attachment)
         return data.base64EncodedString()
     }
+    
+    func getMimeType(_ attachment: SessionAttachment) async -> String {
+        let filename = attachment.filename.lowercased()
+        if filename.hasSuffix(".png") {
+            return "image/png"
+        } else if filename.hasSuffix(".gif") {
+            return "image/gif"
+        } else if filename.hasSuffix(".webp") {
+            return "image/webp"
+        } else if filename.hasSuffix(".heic") || filename.hasSuffix(".heif") {
+            return "image/heic"
+        } else {
+            // Default to JPEG for .jpg, .jpeg, or unknown image types
+            return "image/jpeg"
+        }
+    }
+    
+    func compressImageForUpload(_ image: UIImage, maxBytes: Int64) async -> Data? {
+        // Account for base64 encoding overhead (~33% increase)
+        // Target 75% of maxBytes to ensure base64 payload stays under limit
+        let targetBytes = Int64(Double(maxBytes) * 0.75)
+        
+        var quality: CGFloat = 0.9
+        let minQuality: CGFloat = 0.1
+        let step: CGFloat = 0.1
+        
+        // Try iterative quality reduction
+        while quality >= minQuality {
+            if let data = image.jpegData(compressionQuality: quality),
+               Int64(data.count) <= targetBytes {
+                return data
+            }
+            quality -= step
+        }
+        
+        // Fallback: resize image if still too large at minimum quality
+        let resizedImage = resizeImage(image, maxDimension: 1920)
+        if let data = resizedImage.jpegData(compressionQuality: 0.7),
+           Int64(data.count) <= targetBytes {
+            return data
+        }
+        
+        // Final fallback: aggressive resize
+        let smallerImage = resizeImage(image, maxDimension: 1280)
+        return smallerImage.jpegData(compressionQuality: 0.5)
+    }
+    
+    // MARK: - Private Helpers
+    
+    private func resizeImage(_ image: UIImage, maxDimension: CGFloat) -> UIImage {
+        let size = image.size
+        let aspectRatio = size.width / size.height
+        
+        var newSize: CGSize
+        if size.width > size.height {
+            newSize = CGSize(width: min(size.width, maxDimension), height: min(size.width, maxDimension) / aspectRatio)
+        } else {
+            newSize = CGSize(width: min(size.height, maxDimension) * aspectRatio, height: min(size.height, maxDimension))
+        }
+        
+        let renderer = UIGraphicsImageRenderer(size: newSize)
+        return renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: newSize))
+        }
+    }
 }
 
 // MARK: - Mock Implementation
@@ -240,5 +305,13 @@ actor MockAttachmentService: AttachmentService {
     
     func getBase64Data(_ attachment: SessionAttachment) async throws -> String {
         return "mock_base64_data"
+    }
+    
+    func getMimeType(_ attachment: SessionAttachment) async -> String {
+        return "image/jpeg"
+    }
+    
+    func compressImageForUpload(_ image: UIImage, maxBytes: Int64) async -> Data? {
+        return image.jpegData(compressionQuality: 0.8)
     }
 }

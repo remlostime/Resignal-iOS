@@ -18,6 +18,8 @@ struct ResultView: View {
     let session: Session
     
     @State private var viewModel: ResultViewModel?
+    @State private var fullscreenImage: UIImage?
+    @State private var showFullscreenImage = false
     
     // MARK: - Body
     
@@ -93,6 +95,11 @@ struct ResultView: View {
             }
         }
         .background(AppTheme.Colors.background)
+        .fullScreenCover(isPresented: $showFullscreenImage) {
+            FullscreenImageView(image: fullscreenImage) {
+                showFullscreenImage = false
+            }
+        }
     }
     
     private func feedbackTabContent(viewModel: ResultViewModel) -> some View {
@@ -150,23 +157,35 @@ struct ResultView: View {
                             .foregroundStyle(AppTheme.Colors.textSecondary)
                         
                         ForEach(session.attachments, id: \.id) { attachment in
-                            HStack {
-                                Image(systemName: attachment.attachmentType == .image ? "photo" : "doc")
-                                    .foregroundStyle(AppTheme.Colors.textSecondary)
-                                
-                                Text(attachment.filename)
-                                    .font(AppTheme.Typography.body)
-                                    .foregroundStyle(AppTheme.Colors.textPrimary)
-                                
-                                Spacer()
-                                
-                                Text(attachment.fileSizeFormatted)
-                                    .font(AppTheme.Typography.caption)
-                                    .foregroundStyle(AppTheme.Colors.textTertiary)
+                            if attachment.attachmentType == .image {
+                                ImageAttachmentRow(
+                                    attachment: attachment,
+                                    attachmentService: container.attachmentService,
+                                    onTap: { image in
+                                        fullscreenImage = image
+                                        showFullscreenImage = true
+                                    }
+                                )
+                            } else {
+                                // Non-image attachment (files)
+                                HStack {
+                                    Image(systemName: "doc")
+                                        .foregroundStyle(AppTheme.Colors.textSecondary)
+                                    
+                                    Text(attachment.filename)
+                                        .font(AppTheme.Typography.body)
+                                        .foregroundStyle(AppTheme.Colors.textPrimary)
+                                    
+                                    Spacer()
+                                    
+                                    Text(attachment.fileSizeFormatted)
+                                        .font(AppTheme.Typography.caption)
+                                        .foregroundStyle(AppTheme.Colors.textTertiary)
+                                }
+                                .padding(AppTheme.Spacing.sm)
+                                .background(AppTheme.Colors.surface)
+                                .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small))
                             }
-                            .padding(AppTheme.Spacing.sm)
-                            .background(AppTheme.Colors.surface)
-                            .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small))
                         }
                     }
                 }
@@ -243,6 +262,147 @@ struct ResultView: View {
         .padding(AppTheme.Spacing.xl)
         .frame(maxWidth: .infinity)
         .cardStyle()
+    }
+}
+
+// MARK: - Image Attachment Row
+
+/// Row view for displaying image attachment with thumbnail
+struct ImageAttachmentRow: View {
+    let attachment: SessionAttachment
+    let attachmentService: AttachmentService
+    let onTap: (UIImage) -> Void
+    
+    @State private var thumbnailImage: UIImage?
+    
+    var body: some View {
+        Button {
+            if let image = thumbnailImage {
+                onTap(image)
+            }
+        } label: {
+            HStack(spacing: AppTheme.Spacing.sm) {
+                // Thumbnail preview
+                ZStack {
+                    RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small)
+                        .fill(AppTheme.Colors.surface)
+                        .frame(width: 60, height: 60)
+                    
+                    if let image = thumbnailImage {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 60, height: 60)
+                            .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small))
+                    } else {
+                        ProgressView()
+                    }
+                }
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Image attached")
+                        .font(AppTheme.Typography.callout)
+                        .foregroundStyle(AppTheme.Colors.textPrimary)
+                    
+                    Text(attachment.fileSizeFormatted)
+                        .font(AppTheme.Typography.caption)
+                        .foregroundStyle(AppTheme.Colors.textTertiary)
+                    
+                    Text("Tap to view")
+                        .font(AppTheme.Typography.caption)
+                        .foregroundStyle(AppTheme.Colors.primary)
+                }
+                
+                Spacer()
+                
+                Image(systemName: "arrow.up.left.and.arrow.down.right")
+                    .font(.body)
+                    .foregroundStyle(AppTheme.Colors.textTertiary)
+            }
+            .padding(AppTheme.Spacing.sm)
+            .background(AppTheme.Colors.surface)
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small))
+        }
+        .buttonStyle(.plain)
+        .task {
+            thumbnailImage = try? await attachmentService.loadImage(attachment)
+        }
+    }
+}
+
+// MARK: - Fullscreen Image View
+
+/// Fullscreen image viewer with dismiss capability
+struct FullscreenImageView: View {
+    let image: UIImage?
+    let onDismiss: () -> Void
+    
+    @State private var scale: CGFloat = 1.0
+    @State private var lastScale: CGFloat = 1.0
+    
+    var body: some View {
+        ZStack {
+            Color.black
+                .ignoresSafeArea()
+            
+            if let image = image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .scaleEffect(scale)
+                    .gesture(
+                        MagnificationGesture()
+                            .onChanged { value in
+                                scale = lastScale * value
+                            }
+                            .onEnded { _ in
+                                lastScale = scale
+                                // Limit zoom range
+                                if scale < 1.0 {
+                                    withAnimation {
+                                        scale = 1.0
+                                        lastScale = 1.0
+                                    }
+                                } else if scale > 4.0 {
+                                    withAnimation {
+                                        scale = 4.0
+                                        lastScale = 4.0
+                                    }
+                                }
+                            }
+                    )
+                    .onTapGesture(count: 2) {
+                        withAnimation {
+                            if scale > 1.0 {
+                                scale = 1.0
+                                lastScale = 1.0
+                            } else {
+                                scale = 2.0
+                                lastScale = 2.0
+                            }
+                        }
+                    }
+            }
+            
+            // Close button
+            VStack {
+                HStack {
+                    Spacer()
+                    
+                    Button {
+                        onDismiss()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title)
+                            .foregroundStyle(.white)
+                            .shadow(radius: 4)
+                    }
+                    .padding(AppTheme.Spacing.md)
+                }
+                
+                Spacer()
+            }
+        }
     }
 }
 
