@@ -179,6 +179,10 @@ actor AttachmentServiceImpl: AttachmentService {
     }
     
     func compressImageForUpload(_ image: UIImage, maxBytes: Int64) async -> Data? {
+        // Account for base64 encoding overhead (~33% increase)
+        // Target 75% of maxBytes to ensure base64 payload stays under limit
+        let targetBytes = Int64(Double(maxBytes) * 0.75)
+        
         var quality: CGFloat = 0.9
         let minQuality: CGFloat = 0.1
         let step: CGFloat = 0.1
@@ -186,7 +190,7 @@ actor AttachmentServiceImpl: AttachmentService {
         // Try iterative quality reduction
         while quality >= minQuality {
             if let data = image.jpegData(compressionQuality: quality),
-               Int64(data.count) <= maxBytes {
+               Int64(data.count) <= targetBytes {
                 return data
             }
             quality -= step
@@ -195,7 +199,7 @@ actor AttachmentServiceImpl: AttachmentService {
         // Fallback: resize image if still too large at minimum quality
         let resizedImage = resizeImage(image, maxDimension: 1920)
         if let data = resizedImage.jpegData(compressionQuality: 0.7),
-           Int64(data.count) <= maxBytes {
+           Int64(data.count) <= targetBytes {
             return data
         }
         
