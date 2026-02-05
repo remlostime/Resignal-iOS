@@ -25,8 +25,35 @@ struct ResignalApp: App {
                 .environment(router)
                 .modelContainer(container.modelContainer)
                 .background(AppTheme.Colors.background)
+                .onOpenURL { url in
+                    handleDeepLink(url)
+                }
         }
     }
+    
+    // MARK: - Deep Link Handling
+    
+    private func handleDeepLink(_ url: URL) {
+        guard url.scheme == "resignal" else { return }
+        
+        switch url.host {
+        case "stopRecording":
+            // Post notification to stop recording
+            NotificationCenter.default.post(
+                name: .stopRecordingFromLiveActivity,
+                object: nil
+            )
+        default:
+            break
+        }
+    }
+}
+
+// MARK: - Notification Names
+
+extension Notification.Name {
+    /// Notification posted when the Stop button is tapped from Live Activity
+    static let stopRecordingFromLiveActivity = Notification.Name("stopRecordingFromLiveActivity")
 }
 
 /// Root view with navigation stack

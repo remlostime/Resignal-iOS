@@ -70,19 +70,32 @@ actor TranscriptionServiceImpl: TranscriptionService {
             throw TranscriptionError.audioFileNotFound
         }
         
+        print("📝 Transcribing audio file: \(audioURL.lastPathComponent)")
+        
         let request = SFSpeechURLRecognitionRequest(url: audioURL)
         request.shouldReportPartialResults = false
         request.requiresOnDeviceRecognition = false
         
         return try await withCheckedThrowingContinuation { continuation in
+            var hasResumed = false
+            
             recognitionTask = recognizer.recognitionTask(with: request) { result, error in
+                // Prevent multiple resumes which would crash
+                guard !hasResumed else { return }
+                
                 if let error = error {
+                    hasResumed = true
+                    print("📝 Speech recognition error: \(error.localizedDescription)")
                     continuation.resume(throwing: TranscriptionError.transcriptionFailed)
                     return
                 }
                 
-                if let result = result, result.isFinal {
-                    continuation.resume(returning: result.bestTranscription.formattedString)
+                if let result = result {
+                    print("📝 Got result, isFinal: \(result.isFinal), text length: \(result.bestTranscription.formattedString.count)")
+                    if result.isFinal {
+                        hasResumed = true
+                        continuation.resume(returning: result.bestTranscription.formattedString)
+                    }
                 }
             }
         }
@@ -295,9 +308,8 @@ actor TranscriptionServiceImpl: TranscriptionService {
         accumulatedTranscript = ""
         currentChunkTranscript = ""
         currentTaskId = nil
-        
-        // Deactivate audio session
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+
+        // Do not deactivate audio session here; recording service owns it.
     }
     
     nonisolated func isAvailable() -> Bool {

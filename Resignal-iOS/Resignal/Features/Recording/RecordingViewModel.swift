@@ -7,6 +7,8 @@
 
 import Foundation
 import Observation
+import UIKit
+import AVFoundation
 
 /// ViewModel for RecordingView
 @MainActor
@@ -17,6 +19,7 @@ final class RecordingViewModel {
     
     private let recordingService: RecordingService
     private let transcriptionService: TranscriptionService
+    private let liveActivityService: LiveActivityService
     private let session: Session?
     
     var recordingState: RecordingState = .idle
@@ -30,9 +33,15 @@ final class RecordingViewModel {
     
     private var durationTimer: Timer?
     private var levelTimer: Timer?
+    private var liveActivityTimer: Timer?
     private var recordingURL: URL?
     /// Transcript saved before pausing, to preserve when resuming
     private var savedTranscriptBeforePause: String = ""
+    /// Notification observer for stop recording from Live Activity
+    /// Using nonisolated(unsafe) to allow cleanup in deinit
+    nonisolated(unsafe) private var stopRecordingObserver: NSObjectProtocol?
+    /// Callback triggered when recording is stopped from Live Activity
+    var onStopFromLiveActivity: ((URL, String) -> Void)?
     
     // MARK: - Computed Properties
     
@@ -71,14 +80,48 @@ final class RecordingViewModel {
     init(
         recordingService: RecordingService,
         transcriptionService: TranscriptionService,
+        liveActivityService: LiveActivityService,
         session: Session? = nil
     ) {
         self.recordingService = recordingService
         self.transcriptionService = transcriptionService
+        self.liveActivityService = liveActivityService
         self.session = session
+        
+        // Listen for stop recording notification from Live Activity
+        setupNotificationObserver()
         
         Task {
             await checkPermissions()
+        }
+    }
+    
+    deinit {
+        if let observer = stopRecordingObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+    }
+    
+    // MARK: - Notification Handling
+    
+    private func setupNotificationObserver() {
+        stopRecordingObserver = NotificationCenter.default.addObserver(
+            forName: .stopRecordingFromLiveActivity,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                await self?.handleStopFromLiveActivity()
+            }
+        }
+    }
+    
+    private func handleStopFromLiveActivity() async {
+        guard canStop else { return }
+        
+        if let url = await stopRecording() {
+            // Notify the view that recording was stopped from Live Activity
+            onStopFromLiveActivity?(url, transcriptText)
         }
     }
     
@@ -118,6 +161,9 @@ final class RecordingViewModel {
             
             startTimers()
             
+            // Start Live Activity for lock screen / Dynamic Island
+            try? await liveActivityService.startActivity(sessionName: session?.title)
+            
             // Start live transcription
             Task {
                 await startLiveTranscription()
@@ -135,6 +181,9 @@ final class RecordingViewModel {
             recordingState = recordingService.state
             stopTimers()
             
+            // Update Live Activity to show paused state
+            await liveActivityService.updateActivity(duration: duration, isPaused: true)
+            
             // Stop live transcription and save current transcript
             savedTranscriptBeforePause = transcriptText
             await transcriptionService.stopLiveTranscription()
@@ -151,6 +200,9 @@ final class RecordingViewModel {
             recordingState = recordingService.state
             startTimers()
             
+            // Update Live Activity to show recording state
+            await liveActivityService.updateActivity(duration: duration, isPaused: false)
+            
             // Restart live transcription
             Task {
                 await startLiveTranscription()
@@ -165,12 +217,16 @@ final class RecordingViewModel {
         
         stopTimers()
         
-        // Stop live transcription
-        await transcriptionService.stopLiveTranscription()
-        
+        // End Live Activity
+        await liveActivityService.endActivity()
+
         do {
+            // Stop recording first to finalize the audio file cleanly.
             let url = try await recordingService.stopRecording()
             recordingState = .processing
+
+            // Stop live transcription after recording is finalized.
+            await transcriptionService.stopLiveTranscription()
             
             // Transcribe the complete recording
             await transcribeRecording(url: url)
@@ -187,6 +243,9 @@ final class RecordingViewModel {
     
     func cancelRecording() async {
         stopTimers()
+        
+        // End Live Activity
+        await liveActivityService.endActivity()
         
         // Stop live transcription
         await transcriptionService.stopLiveTranscription()
@@ -224,13 +283,65 @@ final class RecordingViewModel {
     }
     
     private func transcribeRecording(url: URL) async {
+        print("📝 Starting file transcription for: \(url.path)")
+        
+        // Store the current live transcript as backup (this was working during recording)
+        let liveTranscriptBackup = transcriptText
+        print("📝 Live transcript backup: \(liveTranscriptBackup.count) characters")
+        
+        // Check audio file size for diagnostics
+        if let fileSize = try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int {
+            print("📝 Audio file size: \(fileSize) bytes")
+        }
+        
+        // Wait for app to be in foreground (needed when stopped from Live Activity)
+        await waitForForeground()
+        
+        // Wait for audio system to settle
+        try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+        
         do {
             let transcript = try await transcriptionService.transcribe(audioURL: url)
+            print("📝 File transcription successful, length: \(transcript.count) characters")
             transcriptText = transcript
         } catch {
-            // If transcription fails, keep any partial transcript from live transcription
-            if transcriptText.isEmpty {
+            print("📝 File transcription failed: \(error)")
+            
+            // Fall back to live transcript if available
+            // (The live transcript was working during recording, so use it as backup)
+            if !liveTranscriptBackup.isEmpty {
+                print("📝 Using live transcript as fallback (\(liveTranscriptBackup.count) characters)")
+                transcriptText = liveTranscriptBackup
+                // Don't show error since we have a usable transcript
+            } else {
                 showError(message: "Transcription failed. You can edit the text manually.")
+            }
+        }
+    }
+    
+    /// Waits until the app is in the foreground (required for speech recognition from file)
+    private func waitForForeground() async {
+        // Check if already in foreground
+        if UIApplication.shared.applicationState == .active {
+            print("📝 App already in foreground")
+            return
+        }
+        
+        print("📝 Waiting for app to come to foreground...")
+        
+        // Wait for app to become active
+        await withCheckedContinuation { continuation in
+            var observer: NSObjectProtocol?
+            observer = NotificationCenter.default.addObserver(
+                forName: UIApplication.didBecomeActiveNotification,
+                object: nil,
+                queue: .main
+            ) { _ in
+                if let observer = observer {
+                    NotificationCenter.default.removeObserver(observer)
+                }
+                print("📝 App is now in foreground")
+                continuation.resume()
             }
         }
     }
@@ -251,6 +362,13 @@ final class RecordingViewModel {
                 self?.updateAudioLevel()
             }
         }
+        
+        // Live Activity timer (update every second)
+        liveActivityTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                await self?.updateLiveActivity()
+            }
+        }
     }
     
     private func stopTimers() {
@@ -258,6 +376,8 @@ final class RecordingViewModel {
         durationTimer = nil
         levelTimer?.invalidate()
         levelTimer = nil
+        liveActivityTimer?.invalidate()
+        liveActivityTimer = nil
     }
     
     private func updateDuration() {
@@ -266,6 +386,11 @@ final class RecordingViewModel {
     
     private func updateAudioLevel() {
         audioLevel = recordingService.getAudioLevel()
+    }
+    
+    private func updateLiveActivity() async {
+        guard isRecording else { return }
+        await liveActivityService.updateActivity(duration: duration, isPaused: false)
     }
     
     // MARK: - Error Handling

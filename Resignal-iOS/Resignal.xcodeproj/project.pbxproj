@@ -8,6 +8,9 @@
 
 /* Begin PBXBuildFile section */
 		475C88812F29C8D10011DF17 /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = 475C88802F29C8D10011DF17 /* MarkdownUI */; };
+		47A972972F34324F00F4D3A0 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 47A972962F34324F00F4D3A0 /* WidgetKit.framework */; };
+		47A972992F34324F00F4D3A0 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 47A972982F34324F00F4D3A0 /* SwiftUI.framework */; };
+		47A972A82F34325000F4D3A0 /* RecordingActivityWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 47A972942F34324F00F4D3A0 /* RecordingActivityWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -18,11 +21,35 @@
 			remoteGlobalIDString = 478A5C742F05EFBF0022ACD9;
 			remoteInfo = Resignal;
 		};
+		47A972A62F34325000F4D3A0 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 478A5C6D2F05EFBF0022ACD9 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 47A972932F34324F00F4D3A0;
+			remoteInfo = RecordingActivityWidgetExtension;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		47A972A92F34325000F4D3A0 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				47A972A82F34325000F4D3A0 /* RecordingActivityWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		478A5C752F05EFBF0022ACD9 /* Resignal.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Resignal.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		478A5C822F05EFC00022ACD9 /* ResignalTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ResignalTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		47A972942F34324F00F4D3A0 /* RecordingActivityWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = RecordingActivityWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		47A972962F34324F00F4D3A0 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		47A972982F34324F00F4D3A0 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -33,6 +60,20 @@
 			);
 			target = 478A5C742F05EFBF0022ACD9 /* Resignal */;
 		};
+		47A972AD2F34325000F4D3A0 /* Exceptions for "RecordingActivityWidget" folder in "RecordingActivityWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 47A972932F34324F00F4D3A0 /* RecordingActivityWidgetExtension */;
+		};
+		47A972B32F34340800F4D3A0 /* Exceptions for "Resignal" folder in "RecordingActivityWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Models/RecordingActivityAttributes.swift,
+			);
+			target = 47A972932F34324F00F4D3A0 /* RecordingActivityWidgetExtension */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -40,6 +81,7 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				4756BD672F19FD6600D767A7 /* Exceptions for "Resignal" folder in "Resignal" target */,
+				47A972B32F34340800F4D3A0 /* Exceptions for "Resignal" folder in "RecordingActivityWidgetExtension" target */,
 			);
 			path = Resignal;
 			sourceTree = "<group>";
@@ -47,6 +89,14 @@
 		478A5C852F05EFC00022ACD9 /* ResignalTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = ResignalTests;
+			sourceTree = "<group>";
+		};
+		47A9729A2F34324F00F4D3A0 /* RecordingActivityWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				47A972AD2F34325000F4D3A0 /* Exceptions for "RecordingActivityWidget" folder in "RecordingActivityWidgetExtension" target */,
+			);
+			path = RecordingActivityWidget;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -67,6 +117,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		47A972912F34324F00F4D3A0 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				47A972992F34324F00F4D3A0 /* SwiftUI.framework in Frameworks */,
+				47A972972F34324F00F4D3A0 /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -75,6 +134,8 @@
 			children = (
 				478A5C772F05EFBF0022ACD9 /* Resignal */,
 				478A5C852F05EFC00022ACD9 /* ResignalTests */,
+				47A9729A2F34324F00F4D3A0 /* RecordingActivityWidget */,
+				47A972952F34324F00F4D3A0 /* Frameworks */,
 				478A5C762F05EFBF0022ACD9 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -84,8 +145,18 @@
 			children = (
 				478A5C752F05EFBF0022ACD9 /* Resignal.app */,
 				478A5C822F05EFC00022ACD9 /* ResignalTests.xctest */,
+				47A972942F34324F00F4D3A0 /* RecordingActivityWidgetExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		47A972952F34324F00F4D3A0 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				47A972962F34324F00F4D3A0 /* WidgetKit.framework */,
+				47A972982F34324F00F4D3A0 /* SwiftUI.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -98,10 +169,12 @@
 				478A5C712F05EFBF0022ACD9 /* Sources */,
 				478A5C722F05EFBF0022ACD9 /* Frameworks */,
 				478A5C732F05EFBF0022ACD9 /* Resources */,
+				47A972A92F34325000F4D3A0 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				47A972A72F34325000F4D3A0 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				478A5C772F05EFBF0022ACD9 /* Resignal */,
@@ -137,6 +210,28 @@
 			productReference = 478A5C822F05EFC00022ACD9 /* ResignalTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		47A972932F34324F00F4D3A0 /* RecordingActivityWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 47A972AC2F34325000F4D3A0 /* Build configuration list for PBXNativeTarget "RecordingActivityWidgetExtension" */;
+			buildPhases = (
+				47A972902F34324F00F4D3A0 /* Sources */,
+				47A972912F34324F00F4D3A0 /* Frameworks */,
+				47A972922F34324F00F4D3A0 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				47A9729A2F34324F00F4D3A0 /* RecordingActivityWidget */,
+			);
+			name = RecordingActivityWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = RecordingActivityWidgetExtension;
+			productReference = 47A972942F34324F00F4D3A0 /* RecordingActivityWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -154,6 +249,9 @@
 						CreatedOnToolsVersion = 26.0;
 						LastSwiftMigration = 2600;
 						TestTargetID = 478A5C742F05EFBF0022ACD9;
+					};
+					47A972932F34324F00F4D3A0 = {
+						CreatedOnToolsVersion = 26.0;
 					};
 				};
 			};
@@ -176,6 +274,7 @@
 			targets = (
 				478A5C742F05EFBF0022ACD9 /* Resignal */,
 				478A5C812F05EFC00022ACD9 /* ResignalTests */,
+				47A972932F34324F00F4D3A0 /* RecordingActivityWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -189,6 +288,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		478A5C802F05EFC00022ACD9 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		47A972922F34324F00F4D3A0 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -212,6 +318,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		47A972902F34324F00F4D3A0 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -219,6 +332,11 @@
 			isa = PBXTargetDependency;
 			target = 478A5C742F05EFBF0022ACD9 /* Resignal */;
 			targetProxy = 478A5C832F05EFC00022ACD9 /* PBXContainerItemProxy */;
+		};
+		47A972A72F34325000F4D3A0 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 47A972932F34324F00F4D3A0 /* RecordingActivityWidgetExtension */;
+			targetProxy = 47A972A62F34325000F4D3A0 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -358,6 +476,7 @@
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Resignal needs access to save images to your photo library";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Resignal needs access to your photo library to attach relevant images to your sessions";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Resignal uses speech recognition to transcribe your recordings automatically";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -396,6 +515,7 @@
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Resignal needs access to save images to your photo library";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Resignal needs access to your photo library to attach relevant images to your sessions";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Resignal uses speech recognition to transcribe your recordings automatically";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -463,6 +583,66 @@
 			};
 			name = Release;
 		};
+		47A972AA2F34325000F4D3A0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 5WDN96EM72;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = RecordingActivityWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = RecordingActivityWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ck.Resignal.RecordingActivityWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		47A972AB2F34325000F4D3A0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 5WDN96EM72;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = RecordingActivityWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = RecordingActivityWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ck.Resignal.RecordingActivityWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -489,6 +669,15 @@
 			buildConfigurations = (
 				478A5C9A2F05EFC10022ACD9 /* Debug */,
 				478A5C9B2F05EFC10022ACD9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		47A972AC2F34325000F4D3A0 /* Build configuration list for PBXNativeTarget "RecordingActivityWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				47A972AA2F34325000F4D3A0 /* Debug */,
+				47A972AB2F34325000F4D3A0 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

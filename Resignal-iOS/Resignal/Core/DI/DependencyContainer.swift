@@ -20,6 +20,7 @@ protocol DependencyContainerProtocol {
     var attachmentService: AttachmentService { get }
     var chatService: ChatService { get }
     var userClient: any UserClient { get }
+    var liveActivityService: LiveActivityService { get }
 }
 
 /// Main dependency container that provides all app dependencies
@@ -37,6 +38,7 @@ final class DependencyContainer: DependencyContainerProtocol {
     let attachmentService: AttachmentService
     let chatService: ChatService
     let userClient: any UserClient
+    let liveActivityService: LiveActivityService
     private let isPreview: Bool
     
     // Cached AI client with invalidation tracking
@@ -95,12 +97,14 @@ final class DependencyContainer: DependencyContainerProtocol {
             self.attachmentService = MockAttachmentService()
             self.chatService = MockChatService()
             self.userClient = MockUserClient()
+            self.liveActivityService = MockLiveActivityService()
         } else {
             self.recordingService = RecordingServiceImpl()
             self.transcriptionService = TranscriptionServiceImpl()
             self.attachmentService = AttachmentServiceImpl()
             self.chatService = ChatServiceImpl()
             self.userClient = UserClientImpl()
+            self.liveActivityService = LiveActivityServiceImpl()
         }
     }
     

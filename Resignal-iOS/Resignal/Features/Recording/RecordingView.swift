@@ -56,11 +56,21 @@ struct RecordingView: View {
         }
         .onAppear {
             if viewModel == nil {
-                viewModel = RecordingViewModel(
+                let vm = RecordingViewModel(
                     recordingService: container.recordingService,
                     transcriptionService: container.transcriptionService,
+                    liveActivityService: container.liveActivityService,
                     session: existingSession
                 )
+                
+                // Handle stop from Live Activity deep link
+                vm.onStopFromLiveActivity = { [onComplete] url, transcript in
+                    if let onComplete = onComplete {
+                        onComplete(url, transcript)
+                    }
+                }
+                
+                viewModel = vm
             }
         }
         .alert("Error", isPresented: Binding(
