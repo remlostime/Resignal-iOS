@@ -17,6 +17,7 @@ final class RecordingViewModel {
     
     private let recordingService: RecordingService
     private let transcriptionService: TranscriptionService
+    private let liveActivityService: LiveActivityService
     private let session: Session?
     
     var recordingState: RecordingState = .idle
@@ -30,9 +31,15 @@ final class RecordingViewModel {
     
     private var durationTimer: Timer?
     private var levelTimer: Timer?
+    private var liveActivityTimer: Timer?
     private var recordingURL: URL?
     /// Transcript saved before pausing, to preserve when resuming
     private var savedTranscriptBeforePause: String = ""
+    /// Notification observer for stop recording from Live Activity
+    /// Using nonisolated(unsafe) to allow cleanup in deinit
+    nonisolated(unsafe) private var stopRecordingObserver: NSObjectProtocol?
+    /// Callback triggered when recording is stopped from Live Activity
+    var onStopFromLiveActivity: ((URL, String) -> Void)?
     
     // MARK: - Computed Properties
     
@@ -71,14 +78,48 @@ final class RecordingViewModel {
     init(
         recordingService: RecordingService,
         transcriptionService: TranscriptionService,
+        liveActivityService: LiveActivityService,
         session: Session? = nil
     ) {
         self.recordingService = recordingService
         self.transcriptionService = transcriptionService
+        self.liveActivityService = liveActivityService
         self.session = session
+        
+        // Listen for stop recording notification from Live Activity
+        setupNotificationObserver()
         
         Task {
             await checkPermissions()
+        }
+    }
+    
+    deinit {
+        if let observer = stopRecordingObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+    }
+    
+    // MARK: - Notification Handling
+    
+    private func setupNotificationObserver() {
+        stopRecordingObserver = NotificationCenter.default.addObserver(
+            forName: .stopRecordingFromLiveActivity,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                await self?.handleStopFromLiveActivity()
+            }
+        }
+    }
+    
+    private func handleStopFromLiveActivity() async {
+        guard canStop else { return }
+        
+        if let url = await stopRecording() {
+            // Notify the view that recording was stopped from Live Activity
+            onStopFromLiveActivity?(url, transcriptText)
         }
     }
     
@@ -118,6 +159,9 @@ final class RecordingViewModel {
             
             startTimers()
             
+            // Start Live Activity for lock screen / Dynamic Island
+            try? await liveActivityService.startActivity(sessionName: session?.title)
+            
             // Start live transcription
             Task {
                 await startLiveTranscription()
@@ -135,6 +179,9 @@ final class RecordingViewModel {
             recordingState = recordingService.state
             stopTimers()
             
+            // Update Live Activity to show paused state
+            await liveActivityService.updateActivity(duration: duration, isPaused: true)
+            
             // Stop live transcription and save current transcript
             savedTranscriptBeforePause = transcriptText
             await transcriptionService.stopLiveTranscription()
@@ -151,6 +198,9 @@ final class RecordingViewModel {
             recordingState = recordingService.state
             startTimers()
             
+            // Update Live Activity to show recording state
+            await liveActivityService.updateActivity(duration: duration, isPaused: false)
+            
             // Restart live transcription
             Task {
                 await startLiveTranscription()
@@ -164,6 +214,9 @@ final class RecordingViewModel {
         guard canStop else { return nil }
         
         stopTimers()
+        
+        // End Live Activity
+        await liveActivityService.endActivity()
         
         // Stop live transcription
         await transcriptionService.stopLiveTranscription()
@@ -187,6 +240,9 @@ final class RecordingViewModel {
     
     func cancelRecording() async {
         stopTimers()
+        
+        // End Live Activity
+        await liveActivityService.endActivity()
         
         // Stop live transcription
         await transcriptionService.stopLiveTranscription()
@@ -251,6 +307,13 @@ final class RecordingViewModel {
                 self?.updateAudioLevel()
             }
         }
+        
+        // Live Activity timer (update every second)
+        liveActivityTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                await self?.updateLiveActivity()
+            }
+        }
     }
     
     private func stopTimers() {
@@ -258,6 +321,8 @@ final class RecordingViewModel {
         durationTimer = nil
         levelTimer?.invalidate()
         levelTimer = nil
+        liveActivityTimer?.invalidate()
+        liveActivityTimer = nil
     }
     
     private func updateDuration() {
@@ -266,6 +331,11 @@ final class RecordingViewModel {
     
     private func updateAudioLevel() {
         audioLevel = recordingService.getAudioLevel()
+    }
+    
+    private func updateLiveActivity() async {
+        guard isRecording else { return }
+        await liveActivityService.updateActivity(duration: duration, isPaused: false)
     }
     
     // MARK: - Error Handling
