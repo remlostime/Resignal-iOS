@@ -476,6 +476,7 @@
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Resignal needs access to save images to your photo library";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Resignal needs access to your photo library to attach relevant images to your sessions";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Resignal uses speech recognition to transcribe your recordings automatically";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -514,6 +515,7 @@
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Resignal needs access to save images to your photo library";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Resignal needs access to your photo library to attach relevant images to your sessions";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Resignal uses speech recognition to transcribe your recordings automatically";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

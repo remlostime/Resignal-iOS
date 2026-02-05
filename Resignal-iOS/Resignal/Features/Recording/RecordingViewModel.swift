@@ -7,6 +7,8 @@
 
 import Foundation
 import Observation
+import UIKit
+import AVFoundation
 
 /// ViewModel for RecordingView
 @MainActor
@@ -217,13 +219,14 @@ final class RecordingViewModel {
         
         // End Live Activity
         await liveActivityService.endActivity()
-        
-        // Stop live transcription
-        await transcriptionService.stopLiveTranscription()
-        
+
         do {
+            // Stop recording first to finalize the audio file cleanly.
             let url = try await recordingService.stopRecording()
             recordingState = .processing
+
+            // Stop live transcription after recording is finalized.
+            await transcriptionService.stopLiveTranscription()
             
             // Transcribe the complete recording
             await transcribeRecording(url: url)
@@ -280,13 +283,65 @@ final class RecordingViewModel {
     }
     
     private func transcribeRecording(url: URL) async {
+        print("📝 Starting file transcription for: \(url.path)")
+        
+        // Store the current live transcript as backup (this was working during recording)
+        let liveTranscriptBackup = transcriptText
+        print("📝 Live transcript backup: \(liveTranscriptBackup.count) characters")
+        
+        // Check audio file size for diagnostics
+        if let fileSize = try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int {
+            print("📝 Audio file size: \(fileSize) bytes")
+        }
+        
+        // Wait for app to be in foreground (needed when stopped from Live Activity)
+        await waitForForeground()
+        
+        // Wait for audio system to settle
+        try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+        
         do {
             let transcript = try await transcriptionService.transcribe(audioURL: url)
+            print("📝 File transcription successful, length: \(transcript.count) characters")
             transcriptText = transcript
         } catch {
-            // If transcription fails, keep any partial transcript from live transcription
-            if transcriptText.isEmpty {
+            print("📝 File transcription failed: \(error)")
+            
+            // Fall back to live transcript if available
+            // (The live transcript was working during recording, so use it as backup)
+            if !liveTranscriptBackup.isEmpty {
+                print("📝 Using live transcript as fallback (\(liveTranscriptBackup.count) characters)")
+                transcriptText = liveTranscriptBackup
+                // Don't show error since we have a usable transcript
+            } else {
                 showError(message: "Transcription failed. You can edit the text manually.")
+            }
+        }
+    }
+    
+    /// Waits until the app is in the foreground (required for speech recognition from file)
+    private func waitForForeground() async {
+        // Check if already in foreground
+        if UIApplication.shared.applicationState == .active {
+            print("📝 App already in foreground")
+            return
+        }
+        
+        print("📝 Waiting for app to come to foreground...")
+        
+        // Wait for app to become active
+        await withCheckedContinuation { continuation in
+            var observer: NSObjectProtocol?
+            observer = NotificationCenter.default.addObserver(
+                forName: UIApplication.didBecomeActiveNotification,
+                object: nil,
+                queue: .main
+            ) { _ in
+                if let observer = observer {
+                    NotificationCenter.default.removeObserver(observer)
+                }
+                print("📝 App is now in foreground")
+                continuation.resume()
             }
         }
     }
