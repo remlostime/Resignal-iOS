@@ -5,6 +5,7 @@
 //  Chat interface for asking questions about analyzed sessions.
 //
 
+import MarkdownUI
 import SwiftUI
 
 /// Chat view for interactive Q&A about session analysis
@@ -145,16 +146,23 @@ struct MessageBubbleView: View {
             }
             
             VStack(alignment: message.isUser ? .trailing : .leading, spacing: AppTheme.Spacing.xxs) {
-                Text(message.content)
-                    .font(AppTheme.Typography.body)
-                    .foregroundStyle(message.isUser ? Color.white : AppTheme.Colors.textPrimary)
-                    .padding(AppTheme.Spacing.sm)
-                    .background(
-                        message.isUser
-                            ? AppTheme.Colors.primary
-                            : AppTheme.Colors.surface
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.medium))
+                Group {
+                    if message.isUser {
+                        Text(message.content)
+                            .font(AppTheme.Typography.body)
+                            .foregroundStyle(Color.white)
+                    } else {
+                        Markdown(message.content)
+                            .markdownTheme(.resignalChat)
+                    }
+                }
+                .padding(AppTheme.Spacing.sm)
+                .background(
+                    message.isUser
+                        ? AppTheme.Colors.primary
+                        : AppTheme.Colors.surface
+                )
+                .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.medium))
                 
                 Text(message.timestamp.relativeFormatted)
                     .font(AppTheme.Typography.caption)
@@ -167,6 +175,74 @@ struct MessageBubbleView: View {
             }
         }
     }
+}
+
+// MARK: - Markdown Theme
+
+extension MarkdownUI.Theme {
+    /// Custom markdown theme matching the app's minimalist black & white aesthetic
+    static let resignalChat = MarkdownUI.Theme()
+        .text {
+            ForegroundColor(AppTheme.Colors.textPrimary)
+            FontSize(.em(1))
+        }
+        .heading1 { configuration in
+            configuration.label
+                .markdownTextStyle {
+                    FontWeight(.bold)
+                    FontSize(.em(1.4))
+                    ForegroundColor(AppTheme.Colors.textPrimary)
+                }
+                .markdownMargin(top: 12, bottom: 8)
+        }
+        .heading2 { configuration in
+            configuration.label
+                .markdownTextStyle {
+                    FontWeight(.semibold)
+                    FontSize(.em(1.25))
+                    ForegroundColor(AppTheme.Colors.textPrimary)
+                }
+                .markdownMargin(top: 10, bottom: 6)
+        }
+        .heading3 { configuration in
+            configuration.label
+                .markdownTextStyle {
+                    FontWeight(.semibold)
+                    FontSize(.em(1.1))
+                    ForegroundColor(AppTheme.Colors.textPrimary)
+                }
+                .markdownMargin(top: 8, bottom: 4)
+        }
+        .strong {
+            FontWeight(.semibold)
+        }
+        .emphasis {
+            FontStyle(.italic)
+        }
+        .code {
+            FontFamilyVariant(.monospaced)
+            FontSize(.em(0.9))
+            BackgroundColor(AppTheme.Colors.border)
+        }
+        .codeBlock { configuration in
+            configuration.label
+                .markdownTextStyle {
+                    FontFamilyVariant(.monospaced)
+                    FontSize(.em(0.85))
+                    ForegroundColor(AppTheme.Colors.textPrimary)
+                }
+                .padding(AppTheme.Spacing.sm)
+                .background(AppTheme.Colors.background)
+                .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small))
+                .markdownMargin(top: 8, bottom: 8)
+        }
+        .link {
+            ForegroundColor(.accentColor)
+        }
+        .listItem { configuration in
+            configuration.label
+                .markdownMargin(top: 4, bottom: 4)
+        }
 }
 
 // MARK: - Preview

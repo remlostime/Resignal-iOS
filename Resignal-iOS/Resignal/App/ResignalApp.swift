@@ -25,6 +25,7 @@ struct ResignalApp: App {
                 .environment(router)
                 .modelContainer(container.modelContainer)
                 .background(AppTheme.Colors.background)
+                .preferredColorScheme(.light)
                 .onOpenURL { url in
                     handleDeepLink(url)
                 }
