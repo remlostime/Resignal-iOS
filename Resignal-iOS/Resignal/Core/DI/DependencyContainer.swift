@@ -41,17 +41,15 @@ final class DependencyContainer: DependencyContainerProtocol {
     let liveActivityService: LiveActivityService
     private let isPreview: Bool
     
-    // Cached AI client with invalidation tracking
+    // Cached AI client with invalidation tracking (for useMockAI toggle)
     private var _cachedAIClient: (any AIClient)?
     private var _lastUseMockAI: Bool?
     
     var aiClient: any AIClient {
-        let settings = settingsService
-        let currentUseMock = settings.useMockAI
+        let currentUseMock = settingsService.useMockAI
         
-        // Check if we need to recreate the client
-        let needsRecreation = _cachedAIClient == nil ||
-            _lastUseMockAI != currentUseMock
+        let needsRecreation = _cachedAIClient == nil
+            || _lastUseMockAI != currentUseMock
         
         if needsRecreation {
             _cachedAIClient = createAIClient()
@@ -90,7 +88,8 @@ final class DependencyContainer: DependencyContainerProtocol {
         self.settingsService = settings
         self.sessionRepository = SessionRepository(modelContext: modelContainer.mainContext)
         
-        // Initialize new services
+        // Initialize services using persisted API environment
+        let baseURL = settings.apiEnvironment.baseURL
         if isPreview {
             self.recordingService = MockRecordingService()
             self.transcriptionService = MockTranscriptionService()
@@ -102,8 +101,8 @@ final class DependencyContainer: DependencyContainerProtocol {
             self.recordingService = RecordingServiceImpl()
             self.transcriptionService = TranscriptionServiceImpl()
             self.attachmentService = AttachmentServiceImpl()
-            self.chatService = ChatServiceImpl()
-            self.userClient = UserClientImpl()
+            self.chatService = ChatServiceImpl(baseURL: baseURL)
+            self.userClient = UserClientImpl(baseURL: baseURL)
             self.liveActivityService = LiveActivityServiceImpl()
         }
     }
@@ -111,7 +110,8 @@ final class DependencyContainer: DependencyContainerProtocol {
     // MARK: - Private Methods
     
     private func createAIClient() -> any AIClient {
-        ResignalAIClient()
+        let baseURL = settingsService.apiEnvironment.baseURL
+        return ResignalAIClient(baseURL: baseURL)
     }
     
     /// Creates a container for previews and testing with in-memory storage

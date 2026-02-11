@@ -63,6 +63,10 @@ struct RootView: View {
     @Environment(Router.self) private var router
     @Environment(DependencyContainer.self) private var container
     
+    #if DEBUG
+    @State private var showDevSettings = false
+    #endif
+    
     var body: some View {
         @Bindable var router = router
         
@@ -78,6 +82,14 @@ struct RootView: View {
         .task {
             await registerUserIfNeeded()
         }
+        #if DEBUG
+        .onReceive(NotificationCenter.default.publisher(for: UIDevice.deviceDidShakeNotification)) { _ in
+            showDevSettings = true
+        }
+        .sheet(isPresented: $showDevSettings) {
+            DevSettingsView()
+        }
+        #endif
     }
     
     /// Registers user with backend on first app launch

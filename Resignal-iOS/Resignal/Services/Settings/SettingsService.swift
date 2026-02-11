@@ -7,12 +7,35 @@
 
 import Foundation
 
+// MARK: - API Environment
+
+/// Represents the available API backend environments
+enum APIEnvironment: String, CaseIterable, Sendable {
+    case prod = "prod"
+    case dev = "dev"
+    
+    var baseURL: String {
+        switch self {
+        case .prod: return "https://resignal-backend.vercel.app"
+        case .dev: return "http://localhost:3000"
+        }
+    }
+    
+    var displayName: String {
+        switch self {
+        case .prod: return "Prod"
+        case .dev: return "Dev"
+        }
+    }
+}
+
 /// Protocol defining settings service interface
 @MainActor
 protocol SettingsServiceProtocol: AnyObject, Sendable {
     var useMockAI: Bool { get set }
     var hasRegisteredUser: Bool { get set }
     var appVersion: String { get }
+    var apiEnvironment: APIEnvironment { get set }
 }
 
 /// Service for managing app settings
@@ -25,6 +48,7 @@ final class SettingsService: SettingsServiceProtocol {
     private enum Keys {
         static let useMockAI = "useMockAI"
         static let hasRegisteredUser = "hasRegisteredUser"
+        static let apiEnvironment = "apiEnvironment"
     }
     
     // MARK: - Properties
@@ -40,6 +64,12 @@ final class SettingsService: SettingsServiceProtocol {
     var hasRegisteredUser: Bool {
         didSet {
             defaults.set(hasRegisteredUser, forKey: Keys.hasRegisteredUser)
+        }
+    }
+    
+    var apiEnvironment: APIEnvironment {
+        didSet {
+            defaults.set(apiEnvironment.rawValue, forKey: Keys.apiEnvironment)
         }
     }
     
@@ -60,6 +90,13 @@ final class SettingsService: SettingsServiceProtocol {
         // Load settings
         self.useMockAI = defaults.object(forKey: Keys.useMockAI) as? Bool ?? true
         self.hasRegisteredUser = defaults.object(forKey: Keys.hasRegisteredUser) as? Bool ?? false
+        
+        if let rawEnvironment = defaults.string(forKey: Keys.apiEnvironment),
+           let environment = APIEnvironment(rawValue: rawEnvironment) {
+            self.apiEnvironment = environment
+        } else {
+            self.apiEnvironment = .prod
+        }
     }
     
 }
