@@ -99,7 +99,7 @@ struct DevSettingsView: View {
     /// instead of applying the change immediately.
     private var pickerBinding: Binding<APIEnvironment> {
         Binding(
-            get: { currentEnvironment },
+            get: { pendingEnvironment ?? currentEnvironment },
             set: { newValue in
                 guard newValue != currentEnvironment else { return }
                 pendingEnvironment = newValue
