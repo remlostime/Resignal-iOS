@@ -27,11 +27,16 @@ struct DevSettingsView: View {
         container.settingsService.aiModel
     }
     
+    private var currentAudioAPI: AudioAPI {
+        container.settingsService.audioAPI
+    }
+    
     var body: some View {
         NavigationStack {
             List {
                 apiEnvironmentSection
                 aiModelSection
+                audioAPISection
             }
             .navigationTitle("Internal Settings")
             .navigationBarTitleDisplayMode(.inline)
@@ -124,6 +129,32 @@ struct DevSettingsView: View {
         }
     }
     
+    @ViewBuilder
+    private var audioAPISection: some View {
+        Section {
+            Menu {
+                Picker("Audio API", selection: audioAPIBinding) {
+                    ForEach(AudioAPI.allCases, id: \.self) { api in
+                        Text(api.displayName).tag(api)
+                    }
+                }
+            } label: {
+                HStack {
+                    Text("Transcription")
+                    Spacer()
+                    Text(currentAudioAPI.displayName)
+                        .foregroundStyle(AppTheme.Colors.textSecondary)
+                }
+            }
+            .tint(AppTheme.Colors.textPrimary)
+        } header: {
+            Text("Audio API")
+        } footer: {
+            Text("Select the audio transcription provider.")
+                .font(AppTheme.Typography.caption)
+        }
+    }
+    
     // MARK: - Bindings
     
     /// Picker binding that intercepts changes to show the restart confirmation alert
@@ -143,6 +174,15 @@ struct DevSettingsView: View {
             get: { currentModel },
             set: { newValue in
                 container.settingsService.aiModel = newValue
+            }
+        )
+    }
+    
+    private var audioAPIBinding: Binding<AudioAPI> {
+        Binding(
+            get: { currentAudioAPI },
+            set: { newValue in
+                container.settingsService.audioAPI = newValue
             }
         )
     }

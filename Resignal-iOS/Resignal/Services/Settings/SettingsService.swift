@@ -46,6 +46,21 @@ enum AIModel: String, CaseIterable, Sendable {
     }
 }
 
+// MARK: - Audio API
+
+/// Represents the available audio transcription APIs
+enum AudioAPI: String, CaseIterable, Sendable {
+    case apple = "apple"
+    case openaiWhisper = "openaiWhisper"
+    
+    var displayName: String {
+        switch self {
+        case .apple: return "Apple"
+        case .openaiWhisper: return "OpenAI Whisper"
+        }
+    }
+}
+
 /// Protocol defining settings service interface
 @MainActor
 protocol SettingsServiceProtocol: AnyObject, Sendable {
@@ -54,6 +69,7 @@ protocol SettingsServiceProtocol: AnyObject, Sendable {
     var appVersion: String { get }
     var apiEnvironment: APIEnvironment { get set }
     var aiModel: AIModel { get set }
+    var audioAPI: AudioAPI { get set }
 }
 
 /// Service for managing app settings
@@ -68,6 +84,7 @@ final class SettingsService: SettingsServiceProtocol {
         static let hasRegisteredUser = "hasRegisteredUser"
         static let apiEnvironment = "apiEnvironment"
         static let aiModel = "aiModel"
+        static let audioAPI = "audioAPI"
     }
     
     // MARK: - Properties
@@ -95,6 +112,12 @@ final class SettingsService: SettingsServiceProtocol {
     var aiModel: AIModel {
         didSet {
             defaults.set(aiModel.rawValue, forKey: Keys.aiModel)
+        }
+    }
+    
+    var audioAPI: AudioAPI {
+        didSet {
+            defaults.set(audioAPI.rawValue, forKey: Keys.audioAPI)
         }
     }
     
@@ -128,6 +151,13 @@ final class SettingsService: SettingsServiceProtocol {
             self.aiModel = model
         } else {
             self.aiModel = .Gemini
+        }
+        
+        if let rawAudioAPI = defaults.string(forKey: Keys.audioAPI),
+           let audioAPI = AudioAPI(rawValue: rawAudioAPI) {
+            self.audioAPI = audioAPI
+        } else {
+            self.audioAPI = .apple
         }
     }
     
