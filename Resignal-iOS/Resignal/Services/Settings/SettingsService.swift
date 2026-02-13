@@ -29,6 +29,23 @@ enum APIEnvironment: String, CaseIterable, Sendable {
     }
 }
 
+// MARK: - AI Model
+
+/// Represents the available AI model providers
+enum AIModel: String, CaseIterable, Sendable {
+    case DeepSeek = "DeepSeek"
+    case Gemini = "Gemini"
+    case OpenAI = "OpenAI"
+    
+    var displayName: String {
+        switch self {
+        case .DeepSeek: return "DeepSeek"
+        case .Gemini: return "Gemini"
+        case .OpenAI: return "OpenAI"
+        }
+    }
+}
+
 /// Protocol defining settings service interface
 @MainActor
 protocol SettingsServiceProtocol: AnyObject, Sendable {
@@ -36,6 +53,7 @@ protocol SettingsServiceProtocol: AnyObject, Sendable {
     var hasRegisteredUser: Bool { get set }
     var appVersion: String { get }
     var apiEnvironment: APIEnvironment { get set }
+    var aiModel: AIModel { get set }
 }
 
 /// Service for managing app settings
@@ -49,6 +67,7 @@ final class SettingsService: SettingsServiceProtocol {
         static let useMockAI = "useMockAI"
         static let hasRegisteredUser = "hasRegisteredUser"
         static let apiEnvironment = "apiEnvironment"
+        static let aiModel = "aiModel"
     }
     
     // MARK: - Properties
@@ -70,6 +89,12 @@ final class SettingsService: SettingsServiceProtocol {
     var apiEnvironment: APIEnvironment {
         didSet {
             defaults.set(apiEnvironment.rawValue, forKey: Keys.apiEnvironment)
+        }
+    }
+    
+    var aiModel: AIModel {
+        didSet {
+            defaults.set(aiModel.rawValue, forKey: Keys.aiModel)
         }
     }
     
@@ -96,6 +121,13 @@ final class SettingsService: SettingsServiceProtocol {
             self.apiEnvironment = environment
         } else {
             self.apiEnvironment = .prod
+        }
+        
+        if let rawModel = defaults.string(forKey: Keys.aiModel),
+           let model = AIModel(rawValue: rawModel) {
+            self.aiModel = model
+        } else {
+            self.aiModel = .Gemini
         }
     }
     

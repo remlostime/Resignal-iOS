@@ -23,10 +23,15 @@ struct DevSettingsView: View {
         container.settingsService.apiEnvironment
     }
     
+    private var currentModel: AIModel {
+        container.settingsService.aiModel
+    }
+    
     var body: some View {
         NavigationStack {
             List {
                 apiEnvironmentSection
+                aiModelSection
             }
             .navigationTitle("Internal Settings")
             .navigationBarTitleDisplayMode(.inline)
@@ -93,6 +98,32 @@ struct DevSettingsView: View {
         }
     }
     
+    @ViewBuilder
+    private var aiModelSection: some View {
+        Section {
+            Menu {
+                Picker("Model", selection: aiModelBinding) {
+                    ForEach(AIModel.allCases, id: \.self) { model in
+                        Text(model.displayName).tag(model)
+                    }
+                }
+            } label: {
+                HStack {
+                    Text("Model")
+                    Spacer()
+                    Text(currentModel.displayName)
+                        .foregroundStyle(AppTheme.Colors.textSecondary)
+                }
+            }
+            .tint(AppTheme.Colors.textPrimary)
+        } header: {
+            Text("AI Model")
+        } footer: {
+            Text("Select the AI model provider used for analysis.")
+                .font(AppTheme.Typography.caption)
+        }
+    }
+    
     // MARK: - Bindings
     
     /// Picker binding that intercepts changes to show the restart confirmation alert
@@ -103,6 +134,15 @@ struct DevSettingsView: View {
             set: { newValue in
                 guard newValue != currentEnvironment else { return }
                 pendingEnvironment = newValue
+            }
+        )
+    }
+    
+    private var aiModelBinding: Binding<AIModel> {
+        Binding(
+            get: { currentModel },
+            set: { newValue in
+                container.settingsService.aiModel = newValue
             }
         )
     }
