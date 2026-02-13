@@ -70,6 +70,21 @@ enum AudioAPI: String, CaseIterable, Sendable {
     }
 }
 
+// MARK: - Audio API
+
+/// Represents the available audio transcription APIs
+enum AudioAPI: String, CaseIterable, Sendable {
+    case apple = "apple"
+    case openaiWhisper = "openaiWhisper"
+    
+    var displayName: String {
+        switch self {
+        case .apple: return "Apple"
+        case .openaiWhisper: return "OpenAI Whisper"
+        }
+    }
+}
+
 /// Protocol defining settings service interface
 @MainActor
 protocol SettingsServiceProtocol: AnyObject, Sendable {
