@@ -37,6 +37,7 @@ struct DevSettingsView: View {
     var body: some View {
         NavigationStack {
             List {
+                subscriptionMockSection
                 apiEnvironmentSection
                 aiModelSection
                 audioAPISection
@@ -95,6 +96,45 @@ struct DevSettingsView: View {
     }
     
     // MARK: - Sections
+    
+    @ViewBuilder
+    private var subscriptionMockSection: some View {
+        Section {
+            Toggle("Enable Mock Subscription", isOn: mockSubscriptionEnabledBinding)
+            
+            if container.settingsService.mockSubscriptionEnabled {
+                HStack {
+                    Text("Plan")
+                    Spacer()
+                    Picker("Plan", selection: mockPlanBinding) {
+                        Text("Free").tag(Plan.free)
+                        Text("Pro").tag(Plan.pro)
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 160)
+                }
+                
+                HStack {
+                    Text("Current Status")
+                        .font(AppTheme.Typography.caption)
+                        .foregroundStyle(AppTheme.Colors.textSecondary)
+                    Spacer()
+                    Text(container.featureAccessService.isPro ? "Pro" : "Free")
+                        .font(AppTheme.Typography.caption)
+                        .foregroundStyle(
+                            container.featureAccessService.isPro
+                                ? AppTheme.Colors.success
+                                : AppTheme.Colors.textSecondary
+                        )
+                }
+            }
+        } header: {
+            Text("Subscription (Mock)")
+        } footer: {
+            Text("When enabled, overrides real StoreKit subscription status. Use this to test Pro features without App Store configuration.")
+                .font(AppTheme.Typography.caption)
+        }
+    }
     
     @ViewBuilder
     private var apiEnvironmentSection: some View {
@@ -179,6 +219,24 @@ struct DevSettingsView: View {
     }
     
     // MARK: - Bindings
+    
+    private var mockSubscriptionEnabledBinding: Binding<Bool> {
+        Binding(
+            get: { container.settingsService.mockSubscriptionEnabled },
+            set: { newValue in
+                container.settingsService.mockSubscriptionEnabled = newValue
+            }
+        )
+    }
+    
+    private var mockPlanBinding: Binding<Plan> {
+        Binding(
+            get: { container.settingsService.mockPlan },
+            set: { newValue in
+                container.settingsService.mockPlan = newValue
+            }
+        )
+    }
     
     /// Picker binding that intercepts changes to show the restart confirmation alert
     /// instead of applying the change immediately.

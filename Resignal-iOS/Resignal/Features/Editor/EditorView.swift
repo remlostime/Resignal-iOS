@@ -62,11 +62,20 @@ struct EditorView: View {
                     aiClient: container.aiClient,
                     sessionRepository: container.sessionRepository,
                     attachmentService: container.attachmentService,
+                    featureAccessService: container.featureAccessService,
                     session: existingSession,
                     initialTranscript: initialTranscript,
                     audioURL: audioURL
                 )
             }
+        }
+        .sheet(isPresented: Binding(
+            get: { viewModel?.showPaywall ?? false },
+            set: { viewModel?.showPaywall = $0 }
+        )) {
+            PaywallView()
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
         }
         .alert("Error", isPresented: Binding(
             get: { viewModel?.showError ?? false },
@@ -243,6 +252,13 @@ struct EditorView: View {
                 }
             }
             .accessibilityIdentifier(EditorAccessibility.analyzeButton)
+            
+            // Show remaining free analyses for free-tier users
+            if let message = viewModel.remainingAnalysesMessage {
+                Text(message)
+                    .font(AppTheme.Typography.caption)
+                    .foregroundStyle(AppTheme.Colors.textTertiary)
+            }
         }
     }
     

@@ -49,6 +49,9 @@ protocol EditorViewModelProtocol: AnyObject, Observable {
     var errorMessage: String? { get }
     var showError: Bool { get set }
     var showAttachmentPicker: Bool { get set }
+    var showPaywall: Bool { get set }
+    var isFreePlan: Bool { get }
+    var remainingAnalysesMessage: String? { get }
     
     func analyze() async -> Session?
     func cancelAnalysis()

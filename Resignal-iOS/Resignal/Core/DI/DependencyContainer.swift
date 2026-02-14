@@ -21,6 +21,8 @@ protocol DependencyContainerProtocol {
     var chatService: ChatService { get }
     var userClient: any UserClient { get }
     var liveActivityService: LiveActivityService { get }
+    var subscriptionService: SubscriptionServiceProtocol { get }
+    var featureAccessService: FeatureAccessServiceProtocol { get }
 }
 
 /// Main dependency container that provides all app dependencies
@@ -39,6 +41,8 @@ final class DependencyContainer: DependencyContainerProtocol {
     let chatService: ChatService
     let userClient: any UserClient
     let liveActivityService: LiveActivityService
+    let subscriptionService: SubscriptionServiceProtocol
+    let featureAccessService: FeatureAccessServiceProtocol
     private let isPreview: Bool
     
     // Cached AI client with invalidation tracking (for useMockAI toggle)
@@ -98,6 +102,13 @@ final class DependencyContainer: DependencyContainerProtocol {
             self.chatService = MockChatService()
             self.userClient = MockUserClient()
             self.liveActivityService = MockLiveActivityService()
+            #if DEBUG
+            let subscription = MockSubscriptionService()
+            self.subscriptionService = subscription
+            #else
+            let subscription = SubscriptionService()
+            self.subscriptionService = subscription
+            #endif
         } else {
             self.recordingService = RecordingServiceImpl()
             self.transcriptionService = TranscriptionServiceImpl()
@@ -105,7 +116,14 @@ final class DependencyContainer: DependencyContainerProtocol {
             self.chatService = ChatServiceImpl(baseURL: baseURL, model: aiModelValue)
             self.userClient = UserClientImpl(baseURL: baseURL)
             self.liveActivityService = LiveActivityServiceImpl()
+            let subscription = SubscriptionService()
+            self.subscriptionService = subscription
         }
+        
+        self.featureAccessService = FeatureAccessService(
+            subscriptionService: self.subscriptionService,
+            settingsService: settings
+        )
     }
     
     // MARK: - Private Methods
