@@ -44,6 +44,15 @@ enum AIModel: String, CaseIterable, Sendable {
         case .OpenAI: return "OpenAI"
         }
     }
+    
+    /// The lowercase value sent in API request bodies (e.g. `"model": "gemini"`)
+    var apiValue: String {
+        switch self {
+        case .DeepSeek: return "deepseek"
+        case .Gemini: return "gemini"
+        case .OpenAI: return "openai"
+        }
+    }
 }
 
 // MARK: - Audio API

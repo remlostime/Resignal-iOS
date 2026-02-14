@@ -88,8 +88,9 @@ final class DependencyContainer: DependencyContainerProtocol {
         self.settingsService = settings
         self.sessionRepository = SessionRepository(modelContext: modelContainer.mainContext)
         
-        // Initialize services using persisted API environment
+        // Initialize services using persisted API environment and AI model
         let baseURL = settings.apiEnvironment.baseURL
+        let aiModelValue = settings.aiModel.apiValue
         if isPreview {
             self.recordingService = MockRecordingService()
             self.transcriptionService = MockTranscriptionService()
@@ -101,7 +102,7 @@ final class DependencyContainer: DependencyContainerProtocol {
             self.recordingService = RecordingServiceImpl()
             self.transcriptionService = TranscriptionServiceImpl()
             self.attachmentService = AttachmentServiceImpl()
-            self.chatService = ChatServiceImpl(baseURL: baseURL)
+            self.chatService = ChatServiceImpl(baseURL: baseURL, model: aiModelValue)
             self.userClient = UserClientImpl(baseURL: baseURL)
             self.liveActivityService = LiveActivityServiceImpl()
         }
@@ -111,7 +112,8 @@ final class DependencyContainer: DependencyContainerProtocol {
     
     private func createAIClient() -> any AIClient {
         let baseURL = settingsService.apiEnvironment.baseURL
-        return ResignalAIClient(baseURL: baseURL)
+        let aiModelValue = settingsService.aiModel.apiValue
+        return ResignalAIClient(baseURL: baseURL, model: aiModelValue)
     }
     
     /// Creates a container for previews and testing with in-memory storage
