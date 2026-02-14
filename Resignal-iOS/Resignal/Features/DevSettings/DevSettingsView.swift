@@ -19,6 +19,9 @@ struct DevSettingsView: View {
     /// The environment the user is attempting to switch to, pending confirmation.
     @State private var pendingEnvironment: APIEnvironment?
     
+    /// The AI model the user is attempting to switch to, pending confirmation.
+    @State private var pendingModel: AIModel?
+    
     private var currentEnvironment: APIEnvironment {
         container.settingsService.apiEnvironment
     }
@@ -65,6 +68,26 @@ struct DevSettingsView: View {
                 message: {
                     if let pending = pendingEnvironment {
                         Text("Switching to \(pending.displayName) (\(pending.baseURL)) requires restarting the app.")
+                    }
+                }
+            )
+            .alert(
+                "Change AI Model",
+                isPresented: showModelRestartAlert,
+                actions: {
+                    Button("Cancel", role: .cancel) {
+                        pendingModel = nil
+                    }
+                    Button("Restart", role: .destructive) {
+                        if let pending = pendingModel {
+                            container.settingsService.aiModel = pending
+                        }
+                        exit(0)
+                    }
+                },
+                message: {
+                    if let pending = pendingModel {
+                        Text("Switching to \(pending.displayName) requires restarting the app.")
                     }
                 }
             )
@@ -124,7 +147,7 @@ struct DevSettingsView: View {
         } header: {
             Text("AI Model")
         } footer: {
-            Text("Select the AI model provider used for analysis.")
+            Text("Changing the AI model requires an app restart.")
                 .font(AppTheme.Typography.caption)
         }
     }
@@ -171,9 +194,10 @@ struct DevSettingsView: View {
     
     private var aiModelBinding: Binding<AIModel> {
         Binding(
-            get: { currentModel },
+            get: { pendingModel ?? currentModel },
             set: { newValue in
-                container.settingsService.aiModel = newValue
+                guard newValue != currentModel else { return }
+                pendingModel = newValue
             }
         )
     }
@@ -193,6 +217,17 @@ struct DevSettingsView: View {
             set: { isPresented in
                 if !isPresented {
                     pendingEnvironment = nil
+                }
+            }
+        )
+    }
+    
+    private var showModelRestartAlert: Binding<Bool> {
+        Binding(
+            get: { pendingModel != nil },
+            set: { isPresented in
+                if !isPresented {
+                    pendingModel = nil
                 }
             }
         )
