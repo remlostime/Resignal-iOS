@@ -22,13 +22,13 @@ enum PurchaseState: Equatable, Sendable {
 
 // MARK: - Subscription Product Identifiers
 
-/// Placeholder product identifiers for App Store Connect
+/// Product identifiers matching App Store Connect / StoreKit configuration
 enum SubscriptionProductID {
-    static let monthly = "com.interviewai.pro.monthly"
-    static let yearly = "com.interviewai.pro.yearly"
+    static let weekly = "com.resignal.pro.weekly"
+    static let monthly = "com.resignal.pro.monthly"
     
     static var all: Set<String> {
-        [monthly, yearly]
+        [weekly, monthly]
     }
 }
 

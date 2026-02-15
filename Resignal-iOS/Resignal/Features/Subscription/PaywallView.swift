@@ -3,7 +3,7 @@
 //  Resignal
 //
 //  Paywall screen for upgrading to Pro subscription.
-//  Minimalist black & white design with monthly/yearly options.
+//  Minimalist black & white design with monthly/weekly options.
 //
 
 import SwiftUI
@@ -157,7 +157,7 @@ struct PaywallView: View {
                     PricingCard(
                         product: product,
                         isSelected: selectedProduct?.id == product.id,
-                        isBestValue: product.id == SubscriptionProductID.yearly
+                        isBestValue: product.id == SubscriptionProductID.monthly
                     ) {
                         withAnimation(AppTheme.Animation.fast) {
                             selectedProduct = product
@@ -236,8 +236,8 @@ struct PaywallView: View {
     
     private func selectDefaultProduct() {
         let products = container.subscriptionService.products
-        // Default to yearly (best value)
-        selectedProduct = products.first(where: { $0.id == SubscriptionProductID.yearly })
+        // Default to monthly (best value)
+        selectedProduct = products.first(where: { $0.id == SubscriptionProductID.monthly })
             ?? products.first
     }
     
@@ -364,10 +364,10 @@ private struct PricingCard: View {
     }
     
     private func periodLabel(for product: Product) -> String {
-        if product.id == SubscriptionProductID.yearly {
-            return "year"
-        } else {
+        if product.id == SubscriptionProductID.monthly {
             return "month"
+        } else {
+            return "week"
         }
     }
 }
