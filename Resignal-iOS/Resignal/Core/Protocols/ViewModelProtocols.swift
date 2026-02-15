@@ -74,3 +74,11 @@ protocol ResultViewModelProtocol: AnyObject, Observable {
     func clearError()
 }
 
+// MARK: - OnboardingViewModelProtocol
+
+/// Protocol defining the OnboardingViewModel interface
+@MainActor
+protocol OnboardingViewModelProtocol: AnyObject, Observable {
+    func completeOnboarding()
+}
+
