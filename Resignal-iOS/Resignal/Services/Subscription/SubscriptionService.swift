@@ -44,9 +44,9 @@ final class SubscriptionService: SubscriptionServiceProtocol {
         do {
             let storeProducts = try await Product.products(for: SubscriptionProductID.all)
             
-            // Sort: yearly first (best value), then monthly
+            // Sort: monthly first (best value), then weekly
             products = storeProducts.sorted { lhs, _ in
-                lhs.id == SubscriptionProductID.yearly
+                lhs.id == SubscriptionProductID.monthly
             }
             
             debugLog("Loaded \(products.count) products")

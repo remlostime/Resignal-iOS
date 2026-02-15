@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		474226A22F413AE90044DD29 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 474226A12F413AE90044DD29 /* StoreKit.framework */; };
 		475C88812F29C8D10011DF17 /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = 475C88802F29C8D10011DF17 /* MarkdownUI */; };
 		47A972972F34324F00F4D3A0 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 47A972962F34324F00F4D3A0 /* WidgetKit.framework */; };
 		47A972992F34324F00F4D3A0 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 47A972982F34324F00F4D3A0 /* SwiftUI.framework */; };
@@ -45,6 +46,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		474226A12F413AE90044DD29 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 		478A5C752F05EFBF0022ACD9 /* Resignal.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Resignal.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		478A5C822F05EFC00022ACD9 /* ResignalTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ResignalTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		47A972942F34324F00F4D3A0 /* RecordingActivityWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = RecordingActivityWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -107,6 +109,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				475C88812F29C8D10011DF17 /* MarkdownUI in Frameworks */,
+				474226A22F413AE90044DD29 /* StoreKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -153,6 +156,7 @@
 		47A972952F34324F00F4D3A0 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				474226A12F413AE90044DD29 /* StoreKit.framework */,
 				47A972962F34324F00F4D3A0 /* WidgetKit.framework */,
 				47A972982F34324F00F4D3A0 /* SwiftUI.framework */,
 			);
