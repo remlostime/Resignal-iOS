@@ -18,6 +18,7 @@ final class EditorViewModel: EditorViewModelProtocol {
     private let aiClient: any AIClient
     private let sessionRepository: SessionRepositoryProtocol
     private let attachmentService: AttachmentService
+    private let featureAccessService: FeatureAccessServiceProtocol
     
     // Session data
     var session: Session?
@@ -29,6 +30,7 @@ final class EditorViewModel: EditorViewModelProtocol {
     var analysisState: ViewState<Session> = .idle
     var analysisProgress: Double = 0
     var showAttachmentPicker: Bool = false
+    var showPaywall: Bool = false
     
     // Analysis result
     var analysisResult: StructuredFeedback?
@@ -64,12 +66,26 @@ final class EditorViewModel: EditorViewModelProtocol {
         set { if !newValue { clearError() } }
     }
     
+    /// Whether the user is on the free plan
+    var isFreePlan: Bool {
+        !featureAccessService.isPro
+    }
+    
+    /// Message showing remaining free analyses (e.g. "2 of 3 free analyses remaining")
+    var remainingAnalysesMessage: String? {
+        guard isFreePlan else { return nil }
+        let remaining = featureAccessService.remainingFreeAnalyses
+        let max = featureAccessService.maxFreeAnalyses
+        return "\(remaining) of \(max) free analyses remaining"
+    }
+    
     // MARK: - Initialization
     
     init(
         aiClient: any AIClient,
         sessionRepository: SessionRepositoryProtocol,
         attachmentService: AttachmentService,
+        featureAccessService: FeatureAccessServiceProtocol,
         session: Session? = nil,
         initialTranscript: String? = nil,
         audioURL: URL? = nil
@@ -77,6 +93,7 @@ final class EditorViewModel: EditorViewModelProtocol {
         self.aiClient = aiClient
         self.sessionRepository = sessionRepository
         self.attachmentService = attachmentService
+        self.featureAccessService = featureAccessService
         self.session = session
         self.audioURL = audioURL
         
@@ -94,6 +111,12 @@ final class EditorViewModel: EditorViewModelProtocol {
     /// Starts the AI analysis
     func analyze() async -> Session? {
         guard canAnalyze else { return nil }
+        
+        // Check if user has reached their free analysis limit
+        if !featureAccessService.canAnalyze {
+            showPaywall = true
+            return nil
+        }
         
         analysisState = .loading
         analysisProgress = 0
@@ -136,6 +159,10 @@ final class EditorViewModel: EditorViewModelProtocol {
             // Save or update session
             let savedSession = try saveSession(with: response.feedback, interviewId: response.interviewId)
             analysisState = .success(savedSession)
+            
+            // Record analysis for free-tier usage tracking
+            featureAccessService.recordAnalysis()
+            
             return savedSession
             
         } catch let error as AIClientError {

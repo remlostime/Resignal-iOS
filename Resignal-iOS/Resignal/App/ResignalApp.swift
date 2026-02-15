@@ -82,6 +82,12 @@ struct RootView: View {
         .task {
             await registerUserIfNeeded()
         }
+        .task {
+            await container.subscriptionService.loadProducts()
+        }
+        .task {
+            await container.subscriptionService.listenForTransactions()
+        }
         #if DEBUG
         .onReceive(NotificationCenter.default.publisher(for: UIDevice.deviceDidShakeNotification)) { _ in
             showDevSettings = true

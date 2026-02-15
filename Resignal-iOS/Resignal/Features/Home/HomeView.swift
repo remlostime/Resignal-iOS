@@ -16,6 +16,7 @@ struct HomeView: View {
     @Environment(DependencyContainer.self) private var container
     @State private var viewModel: HomeViewModel?
     @State private var showCreateSessionSheet = false
+    @State private var showPaywall = false
     
     // MARK: - Body
     
@@ -140,9 +141,16 @@ struct HomeView: View {
     }
     
     private func sessionListView(viewModel: HomeViewModel) -> some View {
-        ZStack(alignment: .bottomTrailing) {
+        let featureAccess = container.featureAccessService
+        let isPro = featureAccess.isPro
+        let maxFreeSessions = featureAccess.maxFreeSessions
+        let allSessions = viewModel.sessions
+        let visibleSessions = isPro ? allSessions : Array(allSessions.prefix(maxFreeSessions))
+        let hasHiddenSessions = !isPro && allSessions.count > maxFreeSessions
+        
+        return ZStack(alignment: .bottomTrailing) {
             List {
-                ForEach(viewModel.sessions, id: \.id) { session in
+                ForEach(visibleSessions, id: \.id) { session in
                     SessionRowView(session: session)
                         .contentShape(Rectangle())
                         .onTapGesture {
@@ -175,6 +183,22 @@ struct HomeView: View {
                     bottom: AppTheme.Spacing.xs,
                     trailing: AppTheme.Spacing.md
                 ))
+                
+                // Show locked overlay when there are hidden sessions
+                if hasHiddenSessions {
+                    LockedHistoryCard(
+                        hiddenCount: allSessions.count - maxFreeSessions,
+                        onUpgradeTapped: { showPaywall = true }
+                    )
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(
+                        top: AppTheme.Spacing.xs,
+                        leading: AppTheme.Spacing.md,
+                        bottom: AppTheme.Spacing.xs,
+                        trailing: AppTheme.Spacing.md
+                    ))
+                }
             }
             .listStyle(.plain)
             .refreshable {
@@ -206,6 +230,11 @@ struct HomeView: View {
                     router.navigate(to: .editor(session: nil))
                 }
             )
+        }
+        .sheet(isPresented: $showPaywall) {
+            PaywallView()
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
         }
     }
 }
@@ -279,6 +308,46 @@ struct SessionRowView: View {
         .padding(AppTheme.Spacing.md)
         .cardStyle()
         .accessibilityIdentifier(HomeAccessibility.sessionRow)
+    }
+}
+
+// MARK: - Locked History Card
+
+/// Card shown when free-tier user has more sessions than the limit
+private struct LockedHistoryCard: View {
+    let hiddenCount: Int
+    let onUpgradeTapped: () -> Void
+    
+    var body: some View {
+        VStack(spacing: AppTheme.Spacing.sm) {
+            Image(systemName: "lock.circle")
+                .font(.system(size: 28))
+                .foregroundStyle(AppTheme.Colors.textTertiary)
+            
+            Text("\(hiddenCount) more session\(hiddenCount == 1 ? "" : "s") hidden")
+                .font(AppTheme.Typography.headline)
+                .foregroundStyle(AppTheme.Colors.textSecondary)
+            
+            Text("Unlock Pro for unlimited history")
+                .font(AppTheme.Typography.caption)
+                .foregroundStyle(AppTheme.Colors.textTertiary)
+            
+            Button {
+                onUpgradeTapped()
+            } label: {
+                Text("Upgrade")
+                    .font(AppTheme.Typography.caption.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, AppTheme.Spacing.md)
+                    .padding(.vertical, AppTheme.Spacing.xs)
+                    .background(AppTheme.Colors.primary)
+                    .clipShape(Capsule())
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(AppTheme.Spacing.lg)
+        .cardStyle()
+        .opacity(0.7)
     }
 }
 
