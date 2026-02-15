@@ -90,6 +90,7 @@ enum AudioAPI: String, CaseIterable, Sendable {
 protocol SettingsServiceProtocol: AnyObject, Sendable {
     var useMockAI: Bool { get set }
     var hasRegisteredUser: Bool { get set }
+    var hasSeenOnboarding: Bool { get set }
     var appVersion: String { get }
     var apiEnvironment: APIEnvironment { get set }
     var aiModel: AIModel { get set }
@@ -113,6 +114,7 @@ final class SettingsService: SettingsServiceProtocol {
     private enum Keys {
         static let useMockAI = "useMockAI"
         static let hasRegisteredUser = "hasRegisteredUser"
+        static let hasSeenOnboarding = "hasSeenOnboarding"
         static let apiEnvironment = "apiEnvironment"
         static let aiModel = "aiModel"
         static let audioAPI = "audioAPI"
@@ -135,6 +137,12 @@ final class SettingsService: SettingsServiceProtocol {
     var hasRegisteredUser: Bool {
         didSet {
             defaults.set(hasRegisteredUser, forKey: Keys.hasRegisteredUser)
+        }
+    }
+    
+    var hasSeenOnboarding: Bool {
+        didSet {
+            defaults.set(hasSeenOnboarding, forKey: Keys.hasSeenOnboarding)
         }
     }
     
@@ -187,6 +195,7 @@ final class SettingsService: SettingsServiceProtocol {
         // Load settings
         self.useMockAI = defaults.object(forKey: Keys.useMockAI) as? Bool ?? true
         self.hasRegisteredUser = defaults.object(forKey: Keys.hasRegisteredUser) as? Bool ?? false
+        self.hasSeenOnboarding = defaults.object(forKey: Keys.hasSeenOnboarding) as? Bool ?? false
         
         if let rawEnvironment = defaults.string(forKey: Keys.apiEnvironment),
            let environment = APIEnvironment(rawValue: rawEnvironment) {
