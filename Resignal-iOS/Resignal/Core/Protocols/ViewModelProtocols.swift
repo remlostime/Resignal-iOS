@@ -14,6 +14,8 @@ import SwiftUI
 @MainActor
 protocol HomeViewModelProtocol: AnyObject, Observable {
     var sessions: [Session] { get }
+    var filteredSessions: [Session] { get }
+    var searchText: String { get set }
     var state: ViewState<[Session]> { get }
     var showDeleteConfirmation: Bool { get set }
     var sessionToDelete: Session? { get set }

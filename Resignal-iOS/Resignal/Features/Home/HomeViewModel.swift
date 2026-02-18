@@ -18,6 +18,7 @@ final class HomeViewModel: HomeViewModelProtocol {
     private let sessionRepository: SessionRepositoryProtocol
     
     var sessions: [Session] = []
+    var searchText: String = ""
     var state: ViewState<[Session]> = .idle
     var showDeleteConfirmation: Bool = false
     var sessionToDelete: Session?
@@ -28,6 +29,19 @@ final class HomeViewModel: HomeViewModelProtocol {
     
     init(sessionRepository: SessionRepositoryProtocol) {
         self.sessionRepository = sessionRepository
+    }
+    
+    // MARK: - Computed Properties
+    
+    /// Returns sessions filtered by `searchText`, matching against title, transcript, and analysis summary
+    var filteredSessions: [Session] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !query.isEmpty else { return sessions }
+        return sessions.filter { session in
+            session.displayTitle.lowercased().contains(query)
+            || session.inputText.lowercased().contains(query)
+            || (session.structuredFeedback?.summary.lowercased().contains(query) ?? false)
+        }
     }
     
     // MARK: - Public Methods

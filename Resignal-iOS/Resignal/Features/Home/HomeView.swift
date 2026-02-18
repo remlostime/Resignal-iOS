@@ -52,6 +52,8 @@ struct HomeView: View {
                 ProgressView()
             } else if viewModel.sessions.isEmpty {
                 emptyStateView
+            } else if viewModel.filteredSessions.isEmpty {
+                noSearchResultsView
             } else {
                 sessionListView(viewModel: viewModel)
             }
@@ -88,6 +90,7 @@ struct HomeView: View {
         } message: {
             Text(viewModel.state.error ?? "An error occurred")
         }
+        .searchable(text: $bindableVM.searchText, prompt: "Search sessions")
     }
     
     private var emptyStateView: some View {
@@ -140,11 +143,29 @@ struct HomeView: View {
         .accessibilityIdentifier(HomeAccessibility.emptyStateView)
     }
     
+    private var noSearchResultsView: some View {
+        VStack(spacing: AppTheme.Spacing.md) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 48))
+                .foregroundStyle(AppTheme.Colors.textTertiary)
+            
+            Text("No Matching Sessions")
+                .font(AppTheme.Typography.title)
+                .foregroundStyle(AppTheme.Colors.textPrimary)
+            
+            Text("Try a different search term")
+                .font(AppTheme.Typography.body)
+                .foregroundStyle(AppTheme.Colors.textSecondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityIdentifier(HomeAccessibility.noSearchResults)
+    }
+    
     private func sessionListView(viewModel: HomeViewModel) -> some View {
         let featureAccess = container.featureAccessService
         let isPro = featureAccess.isPro
         let maxFreeSessions = featureAccess.maxFreeSessions
-        let allSessions = viewModel.sessions
+        let allSessions = viewModel.filteredSessions
         let visibleSessions = isPro ? allSessions : Array(allSessions.prefix(maxFreeSessions))
         let hasHiddenSessions = !isPro && allSessions.count > maxFreeSessions
         
@@ -243,6 +264,7 @@ struct HomeView: View {
 
 enum HomeAccessibility {
     static let emptyStateView = "emptyStateView"
+    static let noSearchResults = "noSearchResults"
     static let sessionList = "sessionList"
     static let sessionRow = "sessionRow"
 }
