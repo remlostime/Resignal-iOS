@@ -90,7 +90,9 @@ struct HomeView: View {
         } message: {
             Text(viewModel.state.error ?? "An error occurred")
         }
-        .searchable(text: $bindableVM.searchText, prompt: "Search sessions")
+        .conditionally(!viewModel.sessions.isEmpty) { view in
+            view.searchable(text: $bindableVM.searchText, prompt: "Search sessions")
+        }
     }
     
     private var emptyStateView: some View {
