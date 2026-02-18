@@ -15,6 +15,18 @@ actor TranscriptionServiceImpl: TranscriptionService {
     // MARK: - Properties
     
     private let speechRecognizer: SFSpeechRecognizer?
+    private let contextualStrings: [String] = [
+        "UIWindow", "UIKit", "SwiftUI", "UIViewController", "UIView",
+        "protocol", "struct", "enum", "async", "await", "actor",
+        "Combine", "ObservableObject", "NavigationStack", "NavigationController",
+        "MVVM", "SOLID", "singleton", "dependency injection",
+        "Cursor", "Codex", "Claude", "Anthropic", "OpenAI",
+        "CoderPad", "Xcode", "GitHub", "Enterprise Cloud",
+        "cancelable", "composable", "configurable",
+        "diarization", "transcription", "webhook", "WebSocket",
+        "view controller", "tab bar", "navigation stack",
+        "toast", "suppress", "suppressed"
+    ]
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
     private var audioEngine: AVAudioEngine?
@@ -39,7 +51,7 @@ actor TranscriptionServiceImpl: TranscriptionService {
     
     // MARK: - Initialization
     
-    init(locale: Locale = .current) {
+    init(locale: Locale = Locale(identifier: "en-US")) {
         self.speechRecognizer = SFSpeechRecognizer(locale: locale)
     }
     
@@ -75,6 +87,9 @@ actor TranscriptionServiceImpl: TranscriptionService {
         let request = SFSpeechURLRecognitionRequest(url: audioURL)
         request.shouldReportPartialResults = false
         request.requiresOnDeviceRecognition = false
+        request.contextualStrings = contextualStrings
+        request.addsPunctuation = true
+        request.taskHint = .dictation
         
         return try await withCheckedThrowingContinuation { continuation in
             var hasResumed = false
@@ -126,7 +141,7 @@ actor TranscriptionServiceImpl: TranscriptionService {
         
         // Configure audio session
         let audioSession = AVAudioSession.sharedInstance()
-        try audioSession.setCategory(.record, mode: .measurement, options: .duckOthers)
+        try audioSession.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetooth])
         try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
         
         let inputNode = audioEngine.inputNode
@@ -137,7 +152,7 @@ actor TranscriptionServiceImpl: TranscriptionService {
             self.liveContinuation = continuation
             
             // Install audio tap - this runs continuously across chunk restarts
-            inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, _ in
+            inputNode.installTap(onBus: 0, bufferSize: 4096, format: recordingFormat) { [weak self] buffer, _ in
                 // Append buffer to current recognition request
                 self?.recognitionRequest?.append(buffer)
             }
@@ -178,6 +193,9 @@ actor TranscriptionServiceImpl: TranscriptionService {
         // Create new recognition request
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
+        request.contextualStrings = contextualStrings
+        request.addsPunctuation = true
+        request.taskHint = .dictation
         self.recognitionRequest = request
         
         // Start new recognition task
@@ -210,7 +228,7 @@ actor TranscriptionServiceImpl: TranscriptionService {
             // Track the current chunk's partial transcript for proactive restarts
             currentChunkTranscript = currentPartial
             
-            // Combine accumulated transcript with current partial result
+            // Combine accumulated transcript with current partial result for display
             let fullTranscript: String
             if accumulatedTranscript.isEmpty {
                 fullTranscript = currentPartial
@@ -221,9 +239,9 @@ actor TranscriptionServiceImpl: TranscriptionService {
             // Yield the combined transcript
             liveContinuation?.yield(fullTranscript)
             
-            // When chunk completes naturally (isFinal), save and restart
+            // When chunk completes naturally (isFinal), save with dedup and restart
             if result.isFinal {
-                accumulatedTranscript = fullTranscript
+                appendWithOverlapDetection(currentPartial)
                 currentChunkTranscript = ""
                 restartRecognitionChunk(recognizer: recognizer)
             }
@@ -262,13 +280,8 @@ actor TranscriptionServiceImpl: TranscriptionService {
         chunkRestartTask = nil
         
         // Save the current chunk's transcript before restarting
-        // This preserves text when proactively restarting (before isFinal)
         if !currentChunkTranscript.isEmpty {
-            if accumulatedTranscript.isEmpty {
-                accumulatedTranscript = currentChunkTranscript
-            } else {
-                accumulatedTranscript = accumulatedTranscript + " " + currentChunkTranscript
-            }
+            appendWithOverlapDetection(currentChunkTranscript)
             currentChunkTranscript = ""
         }
         
@@ -276,6 +289,35 @@ actor TranscriptionServiceImpl: TranscriptionService {
         startRecognitionChunk(recognizer: recognizer)
         
         isRestarting = false
+    }
+    
+    /// Appends new text to accumulatedTranscript, stripping overlapping words at the boundary
+    private func appendWithOverlapDetection(_ newText: String) {
+        guard !newText.isEmpty else { return }
+        guard !accumulatedTranscript.isEmpty else {
+            accumulatedTranscript = newText
+            return
+        }
+        
+        let existingWords = accumulatedTranscript.split(separator: " ").map(String.init)
+        let newWords = newText.split(separator: " ").map(String.init)
+        
+        let maxOverlap = min(5, existingWords.count, newWords.count)
+        var overlapCount = 0
+        
+        for length in stride(from: maxOverlap, through: 1, by: -1) {
+            let tail = existingWords.suffix(length)
+            let head = newWords.prefix(length)
+            if Array(tail).map({ $0.lowercased() }) == Array(head).map({ $0.lowercased() }) {
+                overlapCount = length
+                break
+            }
+        }
+        
+        let deduped = newWords.dropFirst(overlapCount).joined(separator: " ")
+        if !deduped.isEmpty {
+            accumulatedTranscript += " " + deduped
+        }
     }
     
     func stopLiveTranscription() async {
