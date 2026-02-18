@@ -120,6 +120,16 @@ extension View {
         )
     }
     
+    /// Conditionally applies a view modifier
+    @ViewBuilder
+    func conditionally<Content: View>(_ condition: Bool, transform: (Self) -> Content) -> some View {
+        if condition {
+            transform(self)
+        } else {
+            self
+        }
+    }
+    
     /// Applies card-like styling with background and rounded corners
     func cardStyle() -> some View {
         self
