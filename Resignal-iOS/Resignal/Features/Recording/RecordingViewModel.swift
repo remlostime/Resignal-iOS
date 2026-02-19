@@ -301,18 +301,24 @@ final class RecordingViewModel {
         try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
         
         do {
-            let transcript = try await transcriptionService.transcribe(audioURL: url)
-            print("📝 File transcription successful, length: \(transcript.count) characters")
-            transcriptText = transcript
+            let fileTranscript = try await transcriptionService.transcribe(audioURL: url)
+            let liveWordCount = liveTranscriptBackup.split(separator: " ").count
+            let fileWordCount = fileTranscript.split(separator: " ").count
+            print("📝 File transcription: \(fileWordCount) words, live backup: \(liveWordCount) words")
+            
+            // Keep whichever transcript captured more content
+            if fileWordCount >= liveWordCount {
+                transcriptText = fileTranscript
+            } else {
+                print("📝 Keeping live transcript (more words than file transcription)")
+                transcriptText = liveTranscriptBackup
+            }
         } catch {
             print("📝 File transcription failed: \(error)")
             
-            // Fall back to live transcript if available
-            // (The live transcript was working during recording, so use it as backup)
             if !liveTranscriptBackup.isEmpty {
                 print("📝 Using live transcript as fallback (\(liveTranscriptBackup.count) characters)")
                 transcriptText = liveTranscriptBackup
-                // Don't show error since we have a usable transcript
             } else {
                 showError(message: "Transcription failed. You can edit the text manually.")
             }
