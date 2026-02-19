@@ -111,7 +111,8 @@ final class DependencyContainer: DependencyContainerProtocol {
             #endif
         } else {
             self.recordingService = RecordingServiceImpl()
-            self.transcriptionService = TranscriptionServiceImpl()
+            let vocabularyProvider = ContextualVocabularyProviderImpl()
+            self.transcriptionService = TranscriptionServiceImpl(vocabularyProvider: vocabularyProvider)
             self.attachmentService = AttachmentServiceImpl()
             self.chatService = ChatServiceImpl(baseURL: baseURL, model: aiModelValue)
             self.userClient = UserClientImpl(baseURL: baseURL)

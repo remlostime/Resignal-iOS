@@ -15,18 +15,7 @@ actor TranscriptionServiceImpl: TranscriptionService {
     // MARK: - Properties
     
     private let speechRecognizer: SFSpeechRecognizer?
-    private let contextualStrings: [String] = [
-        "UIWindow", "UIKit", "SwiftUI", "UIViewController", "UIView",
-        "protocol", "struct", "enum", "async", "await", "actor",
-        "Combine", "ObservableObject", "NavigationStack", "NavigationController",
-        "MVVM", "SOLID", "singleton", "dependency injection",
-        "Cursor", "Codex", "Claude", "Anthropic", "OpenAI",
-        "CoderPad", "Xcode", "GitHub", "Enterprise Cloud",
-        "cancelable", "composable", "configurable",
-        "diarization", "transcription", "webhook", "WebSocket",
-        "view controller", "tab bar", "navigation stack",
-        "toast", "suppress", "suppressed"
-    ]
+    private let contextualStrings: [String]
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
     private var audioEngine: AVAudioEngine?
@@ -51,8 +40,10 @@ actor TranscriptionServiceImpl: TranscriptionService {
     
     // MARK: - Initialization
     
-    init(locale: Locale = Locale(identifier: "en-US")) {
+    init(locale: Locale = Locale(identifier: "en-US"),
+         vocabularyProvider: ContextualVocabularyProvider = ContextualVocabularyProviderImpl()) {
         self.speechRecognizer = SFSpeechRecognizer(locale: locale)
+        self.contextualStrings = vocabularyProvider.allTerms()
     }
     
     // MARK: - TranscriptionService Implementation
