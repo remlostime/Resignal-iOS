@@ -69,14 +69,6 @@ struct EditorView: View {
                 )
             }
         }
-        .sheet(isPresented: Binding(
-            get: { viewModel?.showPaywall ?? false },
-            set: { viewModel?.showPaywall = $0 }
-        )) {
-            PaywallView()
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
-        }
         .alert("Error", isPresented: Binding(
             get: { viewModel?.showError ?? false },
             set: { viewModel?.showError = $0 }
@@ -252,13 +244,6 @@ struct EditorView: View {
                 }
             }
             .accessibilityIdentifier(EditorAccessibility.analyzeButton)
-            
-            // Show remaining free analyses for free-tier users
-            if let message = viewModel.remainingAnalysesMessage {
-                Text(message)
-                    .font(AppTheme.Typography.caption)
-                    .foregroundStyle(AppTheme.Colors.textTertiary)
-            }
         }
     }
     
