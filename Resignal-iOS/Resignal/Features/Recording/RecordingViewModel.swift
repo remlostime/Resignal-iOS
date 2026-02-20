@@ -19,6 +19,8 @@ final class RecordingViewModel {
     
     private let recordingService: RecordingService
     private let transcriptionService: TranscriptionService
+    private let audioUploadService: AudioUploadService
+    private let audioAPI: AudioAPI
     private let liveActivityService: LiveActivityService
     private let session: Session?
     
@@ -37,11 +39,15 @@ final class RecordingViewModel {
     private var recordingURL: URL?
     /// Transcript saved before pausing, to preserve when resuming
     private var savedTranscriptBeforePause: String = ""
+    /// Task that observes AudioUploadService state for progress updates
+    private var uploadObserveTask: Task<Void, Never>?
     /// Notification observer for stop recording from Live Activity
     /// Using nonisolated(unsafe) to allow cleanup in deinit
     nonisolated(unsafe) private var stopRecordingObserver: NSObjectProtocol?
     /// Callback triggered when recording is stopped from Live Activity
     var onStopFromLiveActivity: ((URL, String) -> Void)?
+    
+    private var isWhisperMode: Bool { audioAPI == .openaiWhisper }
     
     // MARK: - Computed Properties
     
@@ -80,11 +86,15 @@ final class RecordingViewModel {
     init(
         recordingService: RecordingService,
         transcriptionService: TranscriptionService,
+        audioUploadService: AudioUploadService,
+        audioAPI: AudioAPI,
         liveActivityService: LiveActivityService,
         session: Session? = nil
     ) {
         self.recordingService = recordingService
         self.transcriptionService = transcriptionService
+        self.audioUploadService = audioUploadService
+        self.audioAPI = audioAPI
         self.liveActivityService = liveActivityService
         self.session = session
         
@@ -129,21 +139,31 @@ final class RecordingViewModel {
     
     func checkPermissions() async {
         let micPermission = recordingService.hasPermission()
-        let speechPermission = await transcriptionService.hasPermission()
-        hasPermissions = micPermission && speechPermission
+        if isWhisperMode {
+            hasPermissions = micPermission
+        } else {
+            let speechPermission = await transcriptionService.hasPermission()
+            hasPermissions = micPermission && speechPermission
+        }
     }
     
     func requestPermissions() async {
         isRequestingPermissions = true
         
         let micGranted = await recordingService.requestPermission()
-        let speechGranted = await transcriptionService.requestPermission()
-        
-        hasPermissions = micGranted && speechGranted
-        isRequestingPermissions = false
-        
-        if !hasPermissions {
-            showError(message: "Microphone and speech recognition permissions are required to record.")
+        if isWhisperMode {
+            hasPermissions = micGranted
+            isRequestingPermissions = false
+            if !hasPermissions {
+                showError(message: "Microphone permission is required to record.")
+            }
+        } else {
+            let speechGranted = await transcriptionService.requestPermission()
+            hasPermissions = micGranted && speechGranted
+            isRequestingPermissions = false
+            if !hasPermissions {
+                showError(message: "Microphone and speech recognition permissions are required to record.")
+            }
         }
     }
     
@@ -156,17 +176,18 @@ final class RecordingViewModel {
             recordingURL = try await recordingService.startRecording()
             recordingState = recordingService.state
             
-            // Reset saved transcript for fresh recording
             savedTranscriptBeforePause = ""
             
             startTimers()
             
-            // Start Live Activity for lock screen / Dynamic Island
             try? await liveActivityService.startActivity(sessionName: session?.title)
             
-            // Start live transcription
-            Task {
-                await startLiveTranscription()
+            if isWhisperMode {
+                transcriptText = "Recording..."
+            } else {
+                Task {
+                    await startLiveTranscription()
+                }
             }
         } catch {
             showError(message: error.localizedDescription)
@@ -181,12 +202,14 @@ final class RecordingViewModel {
             recordingState = recordingService.state
             stopTimers()
             
-            // Update Live Activity to show paused state
             await liveActivityService.updateActivity(duration: duration, isPaused: true)
             
-            // Stop live transcription and save current transcript
-            savedTranscriptBeforePause = transcriptText
-            await transcriptionService.stopLiveTranscription()
+            if isWhisperMode {
+                transcriptText = "Paused"
+            } else {
+                savedTranscriptBeforePause = transcriptText
+                await transcriptionService.stopLiveTranscription()
+            }
         } catch {
             showError(message: error.localizedDescription)
         }
@@ -200,12 +223,14 @@ final class RecordingViewModel {
             recordingState = recordingService.state
             startTimers()
             
-            // Update Live Activity to show recording state
             await liveActivityService.updateActivity(duration: duration, isPaused: false)
             
-            // Restart live transcription
-            Task {
-                await startLiveTranscription()
+            if isWhisperMode {
+                transcriptText = "Recording..."
+            } else {
+                Task {
+                    await startLiveTranscription()
+                }
             }
         } catch {
             showError(message: error.localizedDescription)
@@ -216,20 +241,18 @@ final class RecordingViewModel {
         guard canStop else { return nil }
         
         stopTimers()
-        
-        // End Live Activity
         await liveActivityService.endActivity()
 
         do {
-            // Stop recording first to finalize the audio file cleanly.
             let url = try await recordingService.stopRecording()
             recordingState = .processing
 
-            // Stop live transcription after recording is finalized.
-            await transcriptionService.stopLiveTranscription()
-            
-            // Transcribe the complete recording
-            await transcribeRecording(url: url)
+            if isWhisperMode {
+                await transcribeViaWhisper(url: url)
+            } else {
+                await transcriptionService.stopLiveTranscription()
+                await transcribeRecording(url: url)
+            }
             
             recordingState = .idle
             savedTranscriptBeforePause = ""
@@ -243,12 +266,15 @@ final class RecordingViewModel {
     
     func cancelRecording() async {
         stopTimers()
-        
-        // End Live Activity
         await liveActivityService.endActivity()
         
-        // Stop live transcription
-        await transcriptionService.stopLiveTranscription()
+        if isWhisperMode {
+            uploadObserveTask?.cancel()
+            uploadObserveTask = nil
+            await audioUploadService.cancel()
+        } else {
+            await transcriptionService.stopLiveTranscription()
+        }
         
         do {
             try await recordingService.cancelRecording()
@@ -323,6 +349,51 @@ final class RecordingViewModel {
                 showError(message: "Transcription failed. You can edit the text manually.")
             }
         }
+    }
+    
+    /// Uploads the recording to the backend via AudioUploadService for Whisper transcription.
+    /// Observes upload state to show progress in the transcript text box.
+    private func transcribeViaWhisper(url: URL) async {
+        transcriptText = "Preparing audio..."
+        
+        // Observe upload state for real-time progress updates in the UI
+        uploadObserveTask = Task { [weak self] in
+            guard let self else { return }
+            let stream = await self.audioUploadService.observeState()
+            for await state in stream {
+                guard !Task.isCancelled else { break }
+                switch state {
+                case .idle:
+                    break
+                case .preparing:
+                    self.transcriptText = "Preparing audio..."
+                case .uploading(let progress):
+                    self.transcriptText = "Uploading audio... \(Int(progress * 100))%"
+                case .processing:
+                    self.transcriptText = "Transcribing audio..."
+                case .completed:
+                    break
+                case .failed:
+                    break
+                }
+            }
+        }
+        
+        do {
+            let transcript = try await audioUploadService.uploadInterviewAudio(
+                fileURL: url,
+                interviewId: session?.interviewId
+            )
+            transcriptText = transcript
+        } catch {
+            if (error as? AudioUploadError)?.isCancellation != true {
+                showError(message: error.localizedDescription)
+            }
+            transcriptText = ""
+        }
+        
+        uploadObserveTask?.cancel()
+        uploadObserveTask = nil
     }
     
     /// Waits until the app is in the foreground (required for speech recognition from file)
