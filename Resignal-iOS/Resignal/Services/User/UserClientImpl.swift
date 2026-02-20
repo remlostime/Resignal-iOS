@@ -32,7 +32,51 @@ actor UserClientImpl: UserClient {
         try await performRegistration()
     }
     
+    nonisolated func deleteAllData() async throws {
+        try await performDeleteAllData()
+    }
+    
     // MARK: - Private Methods
+    
+    private func performDeleteAllData() async throws {
+        let userId = clientContextService.anonymousUserId
+        
+        guard let url = URL(string: "\(baseURL)/api/users/\(userId)/data") else {
+            throw UserClientError.networkError("Invalid URL")
+        }
+        
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "DELETE"
+        urlRequest.setValue(clientContextService.clientId, forHTTPHeaderField: "x-client-id")
+        urlRequest.setValue(clientContextService.appVersion, forHTTPHeaderField: "x-client-version")
+        urlRequest.setValue(clientContextService.platform, forHTTPHeaderField: "x-client-platform")
+        urlRequest.setValue(clientContextService.deviceModel, forHTTPHeaderField: "x-device-model")
+        urlRequest.timeoutInterval = 30
+        
+        let (data, response): (Data, URLResponse)
+        do {
+            (data, response) = try await URLSession.shared.data(for: urlRequest)
+        } catch {
+            throw UserClientError.networkError("Request failed: \(error.localizedDescription)")
+        }
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw UserClientError.invalidResponse
+        }
+        
+        switch httpResponse.statusCode {
+        case 200...299:
+            return
+        case 400...499:
+            let message = String(data: data, encoding: .utf8) ?? "Client error"
+            throw UserClientError.apiError("HTTP \(httpResponse.statusCode): \(message)")
+        case 500...599:
+            let message = String(data: data, encoding: .utf8) ?? "Server error"
+            throw UserClientError.apiError("HTTP \(httpResponse.statusCode): \(message)")
+        default:
+            throw UserClientError.apiError("Unexpected status code: \(httpResponse.statusCode)")
+        }
+    }
     
     private func performRegistration() async throws -> UserRegistrationResponse {
         // Create user object with client context

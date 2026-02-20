@@ -25,8 +25,9 @@ final class OnboardingViewModel: OnboardingViewModelProtocol {
     
     // MARK: - Actions
     
-    /// Marks onboarding as seen so the user proceeds to the main app
+    /// Marks onboarding as seen and records terms acceptance so the user proceeds to the main app.
     func completeOnboarding() {
+        settingsService.hasAcceptedTerms = true
         settingsService.hasSeenOnboarding = true
     }
 }

@@ -20,6 +20,7 @@ struct RecordingView: View {
     let onComplete: ((URL, String) -> Void)?
     
     @State private var viewModel: RecordingViewModel?
+    @State private var showRecordingNotice = false
     
     // MARK: - Initialization
     
@@ -65,7 +66,6 @@ struct RecordingView: View {
                     session: existingSession
                 )
                 
-                // Handle stop from Live Activity deep link
                 vm.onStopFromLiveActivity = { [onComplete] url, transcript in
                     if let onComplete = onComplete {
                         onComplete(url, transcript)
@@ -74,6 +74,19 @@ struct RecordingView: View {
                 
                 viewModel = vm
             }
+            
+            if !container.settingsService.hasSeenRecordingNotice {
+                showRecordingNotice = true
+            }
+        }
+        .sheet(isPresented: $showRecordingNotice) {
+            RecordingTransparencyNotice {
+                container.settingsService.hasSeenRecordingNotice = true
+                showRecordingNotice = false
+            }
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+            .interactiveDismissDisabled()
         }
         .alert("Error", isPresented: Binding(
             get: { viewModel?.showError ?? false },
@@ -304,6 +317,47 @@ struct RecordingView: View {
         } else {
             return "Tap to start recording"
         }
+    }
+}
+
+// MARK: - Recording Transparency Notice
+
+/// One-time modal shown before the first recording to inform the user about audio processing.
+struct RecordingTransparencyNotice: View {
+    
+    let onContinue: () -> Void
+    
+    var body: some View {
+        VStack(spacing: AppTheme.Spacing.xl) {
+            Spacer()
+            
+            Image(systemName: "lock.shield")
+                .font(.system(size: 56))
+                .foregroundStyle(AppTheme.Colors.primary)
+            
+            Text("Your audio will be securely processed to generate transcript and AI feedback.")
+                .font(AppTheme.Typography.body)
+                .foregroundStyle(AppTheme.Colors.textPrimary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, AppTheme.Spacing.xl)
+            
+            Spacer()
+            
+            Button {
+                onContinue()
+            } label: {
+                Text("Continue")
+                    .font(AppTheme.Typography.headline)
+                    .foregroundStyle(AppTheme.Colors.background)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, AppTheme.Spacing.md)
+                    .background(AppTheme.Colors.primary)
+                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.medium))
+            }
+            .padding(.horizontal, AppTheme.Spacing.xl)
+            .padding(.bottom, AppTheme.Spacing.xxl)
+        }
+        .background(AppTheme.Colors.background)
     }
 }
 

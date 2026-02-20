@@ -17,6 +17,7 @@ struct HomeView: View {
     @State private var viewModel: HomeViewModel?
     @State private var showCreateSessionSheet = false
     @State private var showPaywall = false
+    @State private var showSettings = false
     
     // MARK: - Body
     
@@ -30,6 +31,25 @@ struct HomeView: View {
         }
         .navigationTitle("Resignal")
         .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showSettings = true
+                } label: {
+                    Image(systemName: "gearshape")
+                        .foregroundStyle(AppTheme.Colors.textPrimary)
+                }
+            }
+        }
+        .sheet(isPresented: $showSettings) {
+            SettingsView(
+                viewModel: SettingsViewModel(
+                    userClient: container.userClient,
+                    sessionRepository: container.sessionRepository,
+                    settingsService: container.settingsService
+                )
+            )
+        }
         .onAppear {
             if viewModel == nil {
                 viewModel = HomeViewModel(sessionRepository: container.sessionRepository)

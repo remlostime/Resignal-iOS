@@ -76,6 +76,8 @@ protocol SettingsServiceProtocol: AnyObject, Sendable {
     var useMockAI: Bool { get set }
     var hasRegisteredUser: Bool { get set }
     var hasSeenOnboarding: Bool { get set }
+    var hasAcceptedTerms: Bool { get set }
+    var hasSeenRecordingNotice: Bool { get set }
     var appVersion: String { get }
     var apiEnvironment: APIEnvironment { get set }
     var aiModel: AIModel { get set }
@@ -100,6 +102,8 @@ final class SettingsService: SettingsServiceProtocol {
         static let useMockAI = "useMockAI"
         static let hasRegisteredUser = "hasRegisteredUser"
         static let hasSeenOnboarding = "hasSeenOnboarding"
+        static let hasAcceptedTerms = "hasAcceptedTerms"
+        static let hasSeenRecordingNotice = "hasSeenRecordingNotice"
         static let apiEnvironment = "apiEnvironment"
         static let aiModel = "aiModel"
         static let audioAPI = "audioAPI"
@@ -128,6 +132,18 @@ final class SettingsService: SettingsServiceProtocol {
     var hasSeenOnboarding: Bool {
         didSet {
             defaults.set(hasSeenOnboarding, forKey: Keys.hasSeenOnboarding)
+        }
+    }
+    
+    var hasAcceptedTerms: Bool {
+        didSet {
+            defaults.set(hasAcceptedTerms, forKey: Keys.hasAcceptedTerms)
+        }
+    }
+    
+    var hasSeenRecordingNotice: Bool {
+        didSet {
+            defaults.set(hasSeenRecordingNotice, forKey: Keys.hasSeenRecordingNotice)
         }
     }
     
@@ -181,6 +197,8 @@ final class SettingsService: SettingsServiceProtocol {
         self.useMockAI = defaults.object(forKey: Keys.useMockAI) as? Bool ?? true
         self.hasRegisteredUser = defaults.object(forKey: Keys.hasRegisteredUser) as? Bool ?? false
         self.hasSeenOnboarding = defaults.object(forKey: Keys.hasSeenOnboarding) as? Bool ?? false
+        self.hasAcceptedTerms = defaults.object(forKey: Keys.hasAcceptedTerms) as? Bool ?? false
+        self.hasSeenRecordingNotice = defaults.object(forKey: Keys.hasSeenRecordingNotice) as? Bool ?? false
         
         if let rawEnvironment = defaults.string(forKey: Keys.apiEnvironment),
            let environment = APIEnvironment(rawValue: rawEnvironment) {
