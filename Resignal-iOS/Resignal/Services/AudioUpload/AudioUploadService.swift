@@ -71,12 +71,15 @@ enum AudioUploadError: LocalizedError {
 /// Uploads a recorded audio file to the backend in size-safe chunks,
 /// waits for server-side Whisper transcription, and returns the transcript.
 protocol AudioUploadService: Actor {
-    /// Splits the file, uploads all chunks, calls the completion endpoint,
+    /// Splits the file, uploads all chunks, optionally calls the completion endpoint,
     /// polls for the transcript, and returns it.
+    ///
+    /// Pass `nil` for `interviewId` when no backend interview exists yet (e.g. during
+    /// initial recording). The completion endpoint is skipped in that case.
     ///
     /// Throws `AudioUploadError` on failure. Supports cooperative cancellation
     /// via `cancel()` (checked between chunks and during polling).
-    func uploadInterviewAudio(fileURL: URL, interviewId: String) async throws -> String
+    func uploadInterviewAudio(fileURL: URL, interviewId: String?) async throws -> String
 
     /// Returns an `AsyncStream` that emits every state transition for the current
     /// (or next) upload. Multiple consumers can each call this to get their own stream.

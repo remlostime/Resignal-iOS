@@ -83,15 +83,17 @@ actor AudioUploadServiceImpl: AudioUploadService {
 
     // MARK: - AudioUploadService
 
-    func uploadInterviewAudio(fileURL: URL, interviewId: String) async throws -> String {
+    func uploadInterviewAudio(fileURL: URL, interviewId: String?) async throws -> String {
         isCancelled = false
         var chunks: [AudioChunkMetadata] = []
 
         defer { if !chunks.isEmpty { chunkManager.cleanupChunks(chunks) } }
 
+        let directoryId = interviewId ?? UUID().uuidString
+
         do {
             setState(.preparing)
-            chunks = try chunkManager.splitAudioFile(at: fileURL, interviewId: interviewId)
+            chunks = try chunkManager.splitAudioFile(at: fileURL, interviewId: directoryId)
             try checkCancellation()
 
             let jobId = try await createTranscriptionJob(totalChunks: chunks.count)
@@ -104,7 +106,9 @@ actor AudioUploadServiceImpl: AudioUploadService {
             }
 
             try checkCancellation()
-            try await signalTranscriptionComplete(interviewId: interviewId)
+            if let interviewId {
+                try await signalTranscriptionComplete(interviewId: interviewId)
+            }
 
             setState(.processing)
             let transcript = try await pollForTranscript(jobId: jobId)
@@ -367,7 +371,7 @@ actor MockAudioUploadService: AudioUploadService {
     private var currentState: TranscriptionUploadState = .idle
     private var continuations: [UUID: AsyncStream<TranscriptionUploadState>.Continuation] = [:]
 
-    func uploadInterviewAudio(fileURL: URL, interviewId: String) async throws -> String {
+    func uploadInterviewAudio(fileURL: URL, interviewId: String?) async throws -> String {
         guard !shouldFail else {
             broadcastState(.failed(errorMessage: "Mock upload failure"))
             throw AudioUploadError.uploadFailed(chunkIndex: 0, underlying: AudioUploadError.invalidResponse)
