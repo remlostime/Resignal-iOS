@@ -88,31 +88,31 @@ struct OnboardingView: View {
     // MARK: - Subviews
     
     private var consentText: some View {
-        HStack(spacing: 0) {
-            Text("By tapping \"Start\", you agree to our ")
+        VStack(spacing: 2) {
+            Text("By tapping \"Start\", you agree to our")
             
-            Button {
-                safariURL = Self.privacyPolicyURL
-            } label: {
-                Text("Privacy Policy")
-                    .underline()
+            HStack(spacing: 0) {
+                Button {
+                    safariURL = Self.privacyPolicyURL
+                } label: {
+                    Text("Privacy Policy")
+                        .underline()
+                }
+                
+                Text(" and ")
+                
+                Button {
+                    safariURL = Self.termsOfServiceURL
+                } label: {
+                    Text("Terms of Service")
+                        .underline()
+                }
+                
+                Text(".")
             }
-            
-            Text(" and ")
-            
-            Button {
-                safariURL = Self.termsOfServiceURL
-            } label: {
-                Text("Terms of Service")
-                    .underline()
-            }
-            
-            Text(".")
         }
         .font(AppTheme.Typography.caption)
         .foregroundStyle(AppTheme.Colors.textTertiary)
-        .multilineTextAlignment(.center)
-        .fixedSize(horizontal: false, vertical: true)
     }
 }
 
