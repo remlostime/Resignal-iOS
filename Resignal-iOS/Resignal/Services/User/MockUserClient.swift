@@ -26,10 +26,7 @@ actor MockUserClient: UserClient {
     // MARK: - UserClient Implementation
     
     nonisolated func registerUser() async throws -> UserRegistrationResponse {
-        // Simulate network delay
         try await Task.sleep(for: .seconds(delay))
-        
-        // Check for cancellation
         try Task.checkCancellation()
         
         if shouldSucceed {
@@ -39,6 +36,15 @@ actor MockUserClient: UserClient {
             )
         } else {
             throw UserClientError.apiError("Mock registration failed")
+        }
+    }
+    
+    nonisolated func deleteAllData() async throws {
+        try await Task.sleep(for: .seconds(delay))
+        try Task.checkCancellation()
+        
+        if !shouldSucceed {
+            throw UserClientError.apiError("Mock deletion failed")
         }
     }
 }
