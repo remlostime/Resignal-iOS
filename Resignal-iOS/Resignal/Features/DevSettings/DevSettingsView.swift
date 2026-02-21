@@ -39,6 +39,7 @@ struct DevSettingsView: View {
             List {
                 subscriptionMockSection
                 onboardingSection
+                clientIdSection
                 apiEnvironmentSection
                 aiModelSection
                 audioAPISection
@@ -154,6 +155,40 @@ struct DevSettingsView: View {
     }
     
     @ViewBuilder
+    private var clientIdSection: some View {
+        Section {
+            TextField("Override value", text: clientIdOverrideBinding)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+                .font(AppTheme.Typography.body)
+            
+            HStack {
+                Text("Effective ID")
+                    .font(AppTheme.Typography.caption)
+                    .foregroundStyle(AppTheme.Colors.textSecondary)
+                Spacer()
+                Text(ClientContextService.shared.clientId)
+                    .font(AppTheme.Typography.caption)
+                    .foregroundStyle(AppTheme.Colors.textSecondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+            }
+            
+            if !container.settingsService.clientIdOverride.isEmpty {
+                Button("Clear Override") {
+                    container.settingsService.clientIdOverride = ""
+                }
+                .foregroundStyle(AppTheme.Colors.destructive)
+            }
+        } header: {
+            Text("x-client-id")
+        } footer: {
+            Text("Override the auto-generated x-client-id for all API requests. Leave empty to use the default.")
+                .font(AppTheme.Typography.caption)
+        }
+    }
+    
+    @ViewBuilder
     private var apiEnvironmentSection: some View {
         Section {
             Picker("API Base URL", selection: pickerBinding) {
@@ -251,6 +286,15 @@ struct DevSettingsView: View {
             get: { container.settingsService.mockPlan },
             set: { newValue in
                 container.settingsService.mockPlan = newValue
+            }
+        )
+    }
+    
+    private var clientIdOverrideBinding: Binding<String> {
+        Binding(
+            get: { container.settingsService.clientIdOverride },
+            set: { newValue in
+                container.settingsService.clientIdOverride = newValue
             }
         )
     }

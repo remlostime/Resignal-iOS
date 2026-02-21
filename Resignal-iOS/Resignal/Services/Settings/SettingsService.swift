@@ -96,6 +96,8 @@ protocol SettingsServiceProtocol: AnyObject, Sendable {
     var mockSubscriptionEnabled: Bool { get set }
     /// The mock plan to use when mockSubscriptionEnabled is true
     var mockPlan: Plan { get set }
+    /// When non-empty, overrides the Keychain-generated x-client-id for all API requests
+    var clientIdOverride: String { get set }
     #endif
 }
 
@@ -118,6 +120,7 @@ final class SettingsService: SettingsServiceProtocol {
         #if DEBUG
         static let mockSubscriptionEnabled = "mockSubscriptionEnabled"
         static let mockPlan = "mockPlan"
+        static let clientIdOverride = "clientIdOverride"
         #endif
     }
     
@@ -185,6 +188,12 @@ final class SettingsService: SettingsServiceProtocol {
             defaults.set(mockPlan.rawValue, forKey: Keys.mockPlan)
         }
     }
+    
+    var clientIdOverride: String {
+        didSet {
+            defaults.set(clientIdOverride, forKey: Keys.clientIdOverride)
+        }
+    }
     #endif
     
     // MARK: - Computed Properties
@@ -237,6 +246,7 @@ final class SettingsService: SettingsServiceProtocol {
         } else {
             self.mockPlan = .free
         }
+        self.clientIdOverride = defaults.string(forKey: Keys.clientIdOverride) ?? ""
         #endif
     }
     
