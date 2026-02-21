@@ -50,7 +50,9 @@ final class HomeViewModel: HomeViewModelProtocol {
     
     /// Fetches interviews from the backend API
     func loadInterviews() async {
-        state = .loading
+        if interviews.isEmpty {
+            state = .loading
+        }
         
         do {
             let response = try await interviewClient.fetchInterviews(page: 1, pageSize: 20)
