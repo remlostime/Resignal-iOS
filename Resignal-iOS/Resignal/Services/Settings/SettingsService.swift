@@ -21,6 +21,14 @@ enum APIEnvironment: String, CaseIterable, Sendable {
         }
     }
     
+    var privacyPolicyURL: URL {
+        URL(string: "\(baseURL)/privacy")!
+    }
+    
+    var termsOfServiceURL: URL {
+        URL(string: "\(baseURL)/terms")!
+    }
+    
     var displayName: String {
         switch self {
         case .prod: return "Prod"

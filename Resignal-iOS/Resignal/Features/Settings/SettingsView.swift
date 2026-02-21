@@ -16,8 +16,7 @@ struct SettingsView: View {
     @State var viewModel: SettingsViewModel
     @State private var safariURL: URL?
     
-    private static let privacyPolicyURL = URL(string: "https://resignal.app/privacy")!
-    private static let termsOfServiceURL = URL(string: "https://resignal.app/terms")!
+    let apiEnvironment: APIEnvironment
     
     // MARK: - Body
     
@@ -74,7 +73,7 @@ struct SettingsView: View {
     private var legalSection: some View {
         Section("Legal") {
             Button {
-                safariURL = Self.privacyPolicyURL
+                safariURL = apiEnvironment.privacyPolicyURL
             } label: {
                 HStack {
                     Label("Privacy Policy", systemImage: "hand.raised")
@@ -87,7 +86,7 @@ struct SettingsView: View {
             }
             
             Button {
-                safariURL = Self.termsOfServiceURL
+                safariURL = apiEnvironment.termsOfServiceURL
             } label: {
                 HStack {
                     Label("Terms of Service", systemImage: "doc.text")
@@ -136,6 +135,7 @@ struct SettingsView: View {
                 modelContext: DependencyContainer.preview().modelContainer.mainContext
             ),
             settingsService: SettingsService()
-        )
+        ),
+        apiEnvironment: .prod
     )
 }

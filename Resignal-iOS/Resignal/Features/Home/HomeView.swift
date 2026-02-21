@@ -47,7 +47,8 @@ struct HomeView: View {
                     userClient: container.userClient,
                     sessionRepository: container.sessionRepository,
                     settingsService: container.settingsService
-                )
+                ),
+                apiEnvironment: container.settingsService.apiEnvironment
             )
         }
         .onAppear {
