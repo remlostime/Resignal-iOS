@@ -193,11 +193,13 @@ struct PaywallView: View {
             .disabled(isPurchasing)
 
             HStack(spacing: AppTheme.Spacing.md) {
-                Link("Terms of service", destination: URL(string: "https://resignal.app/terms")!)
+                Link("Terms of service",
+                     destination: container.settingsService.apiEnvironment.termsOfServiceURL)
                     .font(AppTheme.Typography.caption)
                     .foregroundStyle(AppTheme.Colors.textTertiary)
 
-                Link("Privacy policy", destination: URL(string: "https://resignal.app/privacy")!)
+                Link("Privacy policy",
+                     destination: container.settingsService.apiEnvironment.privacyPolicyURL)
                     .font(AppTheme.Typography.caption)
                     .foregroundStyle(AppTheme.Colors.textTertiary)
             }

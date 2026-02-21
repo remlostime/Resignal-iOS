@@ -14,14 +14,13 @@ struct OnboardingView: View {
     
     // MARK: - Properties
     
+    @Environment(DependencyContainer.self) private var container
+    
     let viewModel: OnboardingViewModel
     
     @State private var showContent = false
     @State private var showButton = false
     @State private var safariURL: URL?
-    
-    private static let privacyPolicyURL = URL(string: "https://resignal.app/privacy")!
-    private static let termsOfServiceURL = URL(string: "https://resignal.app/terms")!
     
     // MARK: - Body
     
@@ -93,7 +92,7 @@ struct OnboardingView: View {
             
             HStack(spacing: 0) {
                 Button {
-                    safariURL = Self.privacyPolicyURL
+                    safariURL = container.settingsService.apiEnvironment.privacyPolicyURL
                 } label: {
                     Text("Privacy Policy")
                         .underline()
@@ -102,7 +101,7 @@ struct OnboardingView: View {
                 Text(" and ")
                 
                 Button {
-                    safariURL = Self.termsOfServiceURL
+                    safariURL = container.settingsService.apiEnvironment.termsOfServiceURL
                 } label: {
                     Text("Terms of Service")
                         .underline()
