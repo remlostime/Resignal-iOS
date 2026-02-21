@@ -15,114 +15,96 @@ final class HomeViewModel: HomeViewModelProtocol {
     
     // MARK: - Properties
     
+    private let interviewClient: any InterviewClient
     private let sessionRepository: SessionRepositoryProtocol
     
-    var sessions: [Session] = []
+    var interviews: [InterviewDTO] = []
     var searchText: String = ""
-    var state: ViewState<[Session]> = .idle
+    var state: ViewState<[InterviewDTO]> = .idle
     var showDeleteConfirmation: Bool = false
-    var sessionToDelete: Session?
-    var sessionToRename: Session?
+    var interviewToDelete: InterviewDTO?
     var renameText: String = ""
     
     // MARK: - Initialization
     
-    init(sessionRepository: SessionRepositoryProtocol) {
+    init(
+        interviewClient: any InterviewClient,
+        sessionRepository: SessionRepositoryProtocol
+    ) {
+        self.interviewClient = interviewClient
         self.sessionRepository = sessionRepository
     }
     
     // MARK: - Computed Properties
     
-    /// Returns sessions filtered by `searchText`, matching against title, transcript, and analysis summary
-    var filteredSessions: [Session] {
+    var filteredInterviews: [InterviewDTO] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard !query.isEmpty else { return sessions }
-        return sessions.filter { session in
-            session.displayTitle.lowercased().contains(query)
-            || session.inputText.lowercased().contains(query)
-            || (session.structuredFeedback?.summary.lowercased().contains(query) ?? false)
+        guard !query.isEmpty else { return interviews }
+        return interviews.filter { interview in
+            (interview.title?.lowercased().contains(query) ?? false)
+            || (interview.summary?.lowercased().contains(query) ?? false)
         }
     }
     
     // MARK: - Public Methods
     
-    /// Loads all sessions from the repository
-    func loadSessions() {
-        state = .loading
+    /// Fetches interviews from the backend API
+    func loadInterviews() async {
+        if interviews.isEmpty {
+            state = .loading
+        }
         
         do {
-            sessions = try sessionRepository.fetchAll()
-            state = .success(sessions)
+            let response = try await interviewClient.fetchInterviews(page: 1, pageSize: 20)
+            interviews = response.interviews
+            state = .success(interviews)
         } catch {
-            state = .error("Failed to load sessions: \(error.localizedDescription)")
-            debugLog("Error loading sessions: \(error)")
+            state = .error("Failed to load interviews: \(error.localizedDescription)")
+            debugLog("Error loading interviews: \(error)")
         }
     }
     
-    /// Deletes the specified session
-    func deleteSession(_ session: Session) {
-        do {
-            try sessionRepository.delete(session)
-            sessions.removeAll { $0.id == session.id }
-            state = .success(sessions)
-        } catch {
-            state = .error("Failed to delete session: \(error.localizedDescription)")
-            debugLog("Error deleting session: \(error)")
-        }
+    /// Looks up the local SwiftData Session that corresponds to an API interview
+    func findLocalSession(for interview: InterviewDTO) -> Session? {
+        let allSessions = (try? sessionRepository.fetchAll()) ?? []
+        return allSessions.first { $0.interviewId == interview.id }
     }
     
-    /// Prepares for session deletion (shows confirmation)
-    func confirmDelete(_ session: Session) {
-        sessionToDelete = session
+    /// Prepares for interview deletion (shows confirmation)
+    func confirmDelete(_ interview: InterviewDTO) {
+        interviewToDelete = interview
         showDeleteConfirmation = true
     }
     
     /// Confirms and executes pending deletion
     func executePendingDelete() {
-        guard let session = sessionToDelete else { return }
-        deleteSession(session)
-        sessionToDelete = nil
+        guard let interview = interviewToDelete else { return }
+        
+        if let session = findLocalSession(for: interview) {
+            do {
+                try sessionRepository.delete(session)
+            } catch {
+                state = .error("Failed to delete session: \(error.localizedDescription)")
+                debugLog("Error deleting session: \(error)")
+            }
+        }
+        
+        interviews.removeAll { $0.id == interview.id }
+        state = .success(interviews)
+        interviewToDelete = nil
         showDeleteConfirmation = false
     }
     
     /// Cancels pending deletion
     func cancelDelete() {
-        sessionToDelete = nil
+        interviewToDelete = nil
         showDeleteConfirmation = false
-    }
-    
-    /// Prepares for session rename
-    func startRename(_ session: Session) {
-        sessionToRename = session
-        renameText = session.title
-    }
-    
-    /// Executes rename with current text
-    func executeRename() {
-        guard let session = sessionToRename else { return }
-        
-        do {
-            try sessionRepository.update(session, title: renameText, tags: nil)
-            loadSessions() // Refresh list
-        } catch {
-            state = .error("Failed to rename session: \(error.localizedDescription)")
-            debugLog("Error renaming session: \(error)")
-        }
-        
-        sessionToRename = nil
-        renameText = ""
-    }
-    
-    /// Cancels rename operation
-    func cancelRename() {
-        sessionToRename = nil
-        renameText = ""
     }
     
     /// Clears any error state
     func clearError() {
         if state.hasError {
-            state = .success(sessions)
+            state = .success(interviews)
         }
     }
     

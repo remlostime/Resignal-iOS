@@ -53,9 +53,14 @@ struct HomeView: View {
         }
         .onAppear {
             if viewModel == nil {
-                viewModel = HomeViewModel(sessionRepository: container.sessionRepository)
+                viewModel = HomeViewModel(
+                    interviewClient: container.interviewClient,
+                    sessionRepository: container.sessionRepository
+                )
             }
-            viewModel?.loadSessions()
+        }
+        .task {
+            await viewModel?.loadInterviews()
         }
     }
     
@@ -71,15 +76,15 @@ struct HomeView: View {
             
             if viewModel.state.isLoading {
                 ProgressView()
-            } else if viewModel.sessions.isEmpty {
+            } else if viewModel.interviews.isEmpty {
                 emptyStateView
-            } else if viewModel.filteredSessions.isEmpty {
+            } else if viewModel.filteredInterviews.isEmpty {
                 noSearchResultsView
             } else {
-                sessionListView(viewModel: viewModel)
+                interviewListView(viewModel: viewModel)
             }
         }
-        .alert("Delete Session?", isPresented: $bindableVM.showDeleteConfirmation) {
+        .alert("Delete Interview?", isPresented: $bindableVM.showDeleteConfirmation) {
             Button("Cancel", role: .cancel) {
                 viewModel.cancelDelete()
             }
@@ -88,18 +93,6 @@ struct HomeView: View {
             }
         } message: {
             Text("This action cannot be undone.")
-        }
-        .alert("Rename Session", isPresented: Binding(
-            get: { viewModel.sessionToRename != nil },
-            set: { if !$0 { viewModel.cancelRename() } }
-        )) {
-            TextField("Session title", text: $bindableVM.renameText)
-            Button("Cancel", role: .cancel) {
-                viewModel.cancelRename()
-            }
-            Button("Save") {
-                viewModel.executeRename()
-            }
         }
         .alert("Error", isPresented: Binding(
             get: { viewModel.state.hasError },
@@ -111,8 +104,8 @@ struct HomeView: View {
         } message: {
             Text(viewModel.state.error ?? "An error occurred")
         }
-        .conditionally(!viewModel.sessions.isEmpty) { view in
-            view.searchable(text: $bindableVM.searchText, prompt: "Search sessions")
+        .conditionally(!viewModel.interviews.isEmpty) { view in
+            view.searchable(text: $bindableVM.searchText, prompt: "Search interviews")
         }
     }
     
@@ -125,7 +118,7 @@ struct HomeView: View {
                     .font(.system(size: 80))
                     .foregroundStyle(AppTheme.Colors.textSecondary)
                 
-                Text("No Sessions Yet")
+                Text("No Interviews Yet")
                     .font(AppTheme.Typography.title)
                     .foregroundStyle(AppTheme.Colors.textPrimary)
                 
@@ -135,7 +128,6 @@ struct HomeView: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, AppTheme.Spacing.xl)
                 
-                // Floating action button
                 Button {
                     showCreateSessionSheet = true
                 } label: {
@@ -177,7 +169,7 @@ struct HomeView: View {
                 .font(.system(size: 48))
                 .foregroundStyle(AppTheme.Colors.textTertiary)
             
-            Text("No Matching Sessions")
+            Text("No Matching Interviews")
                 .font(AppTheme.Typography.title)
                 .foregroundStyle(AppTheme.Colors.textPrimary)
             
@@ -189,32 +181,21 @@ struct HomeView: View {
         .accessibilityIdentifier(HomeAccessibility.noSearchResults)
     }
     
-    private func sessionListView(viewModel: HomeViewModel) -> some View {
+    private func interviewListView(viewModel: HomeViewModel) -> some View {
         ZStack(alignment: .bottomTrailing) {
             List {
-                ForEach(viewModel.filteredSessions, id: \.id) { session in
-                    SessionRowView(session: session)
+                ForEach(viewModel.filteredInterviews) { interview in
+                    InterviewRowView(interview: interview)
                         .contentShape(Rectangle())
                         .onTapGesture {
-                            if session.hasAnalysis {
-                                router.navigate(to: .result(session: session))
-                            } else {
-                                router.navigate(to: .editor(session: session))
-                            }
+                            handleInterviewTap(interview, viewModel: viewModel)
                         }
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             Button(role: .destructive) {
-                                viewModel.confirmDelete(session)
+                                viewModel.confirmDelete(interview)
                             } label: {
                                 Label("Delete", systemImage: "trash")
                             }
-                            
-                            Button {
-                                viewModel.startRename(session)
-                            } label: {
-                                Label("Rename", systemImage: "pencil")
-                            }
-                            .tint(AppTheme.Colors.secondary)
                         }
                 }
                 .listRowSeparator(.hidden)
@@ -228,11 +209,10 @@ struct HomeView: View {
             }
             .listStyle(.plain)
             .refreshable {
-                viewModel.loadSessions()
+                await viewModel.loadInterviews()
             }
             .accessibilityIdentifier(HomeAccessibility.sessionList)
             
-            // Floating Action Button
             Button {
                 showCreateSessionSheet = true
             } label: {
@@ -264,6 +244,21 @@ struct HomeView: View {
         }
     }
     
+    // MARK: - Navigation
+    
+    private func handleInterviewTap(_ interview: InterviewDTO, viewModel: HomeViewModel) {
+        guard let session = viewModel.findLocalSession(for: interview) else {
+            router.navigate(to: .editor(session: nil))
+            return
+        }
+        
+        if session.hasAnalysis {
+            router.navigate(to: .result(session: session))
+        } else {
+            router.navigate(to: .editor(session: session))
+        }
+    }
+    
     // MARK: - Session Creation Gating
     
     private func handleNewSession(navigate: () -> Void) {
@@ -281,70 +276,39 @@ enum HomeAccessibility {
     static let emptyStateView = "emptyStateView"
     static let noSearchResults = "noSearchResults"
     static let sessionList = "sessionList"
-    static let sessionRow = "sessionRow"
+    static let interviewRow = "interviewRow"
 }
 
-/// Row view for a single session
-struct SessionRowView: View {
+/// Row view for a single interview from the API
+struct InterviewRowView: View {
     
-    let session: Session
+    let interview: InterviewDTO
     
     var body: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
-            // Title and date
             HStack {
-                Text(session.displayTitle)
+                Text(interview.displayTitle)
                     .font(AppTheme.Typography.headline)
                     .foregroundStyle(AppTheme.Colors.textPrimary)
                     .lineLimit(1)
                 
                 Spacer()
                 
-                Text(session.createdAt.relativeFormatted)
+                Text(interview.createdAt.relativeFormatted)
                     .font(AppTheme.Typography.caption)
                     .foregroundStyle(AppTheme.Colors.textTertiary)
             }
             
-            // Preview
-            if !session.inputPreview.isEmpty {
-                Text(session.inputPreview)
+            if let summary = interview.summary, !summary.isEmpty {
+                Text(summary)
                     .font(AppTheme.Typography.callout)
                     .foregroundStyle(AppTheme.Colors.textSecondary)
                     .lineLimit(2)
             }
-            
-            // Tags and status
-            HStack(spacing: AppTheme.Spacing.xs) {
-                // Audio indicator
-                if session.hasAudioRecording {
-                    Label("Audio", systemImage: "waveform")
-                        .font(AppTheme.Typography.caption)
-                        .foregroundStyle(AppTheme.Colors.textSecondary)
-                }
-                
-                // Attachment indicator
-                if session.hasAttachments {
-                    Label("\(session.attachments.count)", systemImage: "paperclip")
-                        .font(AppTheme.Typography.caption)
-                        .foregroundStyle(AppTheme.Colors.textSecondary)
-                }
-                
-                if !session.tags.isEmpty {
-                    TagChipsView(tags: Array(session.tags.prefix(3)))
-                }
-                
-                Spacer()
-                
-                if session.hasAnalysis {
-                    Label("Analyzed", systemImage: "checkmark.circle.fill")
-                        .font(AppTheme.Typography.caption)
-                        .foregroundStyle(AppTheme.Colors.success)
-                }
-            }
         }
         .padding(AppTheme.Spacing.md)
         .cardStyle()
-        .accessibilityIdentifier(HomeAccessibility.sessionRow)
+        .accessibilityIdentifier(HomeAccessibility.interviewRow)
     }
 }
 

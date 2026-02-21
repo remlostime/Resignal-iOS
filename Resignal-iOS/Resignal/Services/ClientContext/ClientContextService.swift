@@ -46,7 +46,15 @@ final class ClientContextService: ClientContextServiceProtocol, @unchecked Senda
     
     /// Persistent client identifier stored in Keychain.
     /// Creates a new UUID on first access and persists it across app reinstalls.
+    /// In DEBUG builds, a UserDefaults override takes precedence when set.
     var clientId: String {
+        #if DEBUG
+        if let override = UserDefaults.standard.string(forKey: "clientIdOverride"),
+           !override.isEmpty {
+            return override
+        }
+        #endif
+        
         lock.lock()
         defer { lock.unlock() }
         
