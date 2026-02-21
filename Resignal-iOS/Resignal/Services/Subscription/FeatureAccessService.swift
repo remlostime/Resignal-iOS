@@ -52,6 +52,11 @@ protocol FeatureAccessServiceProtocol: AnyObject, Sendable {
     
     /// Records that the user created a new session (increments monthly count)
     func recordSessionCreation()
+    
+    #if DEBUG
+    /// Overrides the session creation count for testing paywall gating
+    func overrideSessionCreationCount(_ count: Int)
+    #endif
 }
 
 // MARK: - Feature Access Service Implementation
@@ -140,6 +145,14 @@ final class FeatureAccessService: FeatureAccessServiceProtocol {
         defaults.set(sessionCreationCountThisMonth, forKey: Keys.sessionCreationCount)
         debugLog("Session creation recorded. Count this month: \(sessionCreationCountThisMonth)")
     }
+    
+    #if DEBUG
+    func overrideSessionCreationCount(_ count: Int) {
+        sessionCreationCountThisMonth = max(0, count)
+        defaults.set(sessionCreationCountThisMonth, forKey: Keys.sessionCreationCount)
+        debugLog("Session creation count overridden to \(sessionCreationCountThisMonth)")
+    }
+    #endif
     
     // MARK: - Private Methods
     

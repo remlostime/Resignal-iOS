@@ -38,6 +38,7 @@ struct DevSettingsView: View {
         NavigationStack {
             List {
                 subscriptionMockSection
+                sessionUsageSection
                 onboardingSection
                 clientIdSection
                 apiEnvironmentSection
@@ -134,6 +135,43 @@ struct DevSettingsView: View {
             Text("Subscription (Mock)")
         } footer: {
             Text("When enabled, overrides real StoreKit subscription status. Use this to test Pro features without App Store configuration.")
+                .font(AppTheme.Typography.caption)
+        }
+    }
+    
+    @ViewBuilder
+    private var sessionUsageSection: some View {
+        Section {
+            Stepper(
+                "\(container.featureAccessService.sessionCreationCountThisMonth) / \(container.featureAccessService.maxFreeSessionCreations) used",
+                value: sessionUsageBinding,
+                in: 0...10
+            )
+            
+            HStack {
+                Text("Can Create Session")
+                    .font(AppTheme.Typography.caption)
+                    .foregroundStyle(AppTheme.Colors.textSecondary)
+                Spacer()
+                Text(container.featureAccessService.canCreateSession ? "Yes" : "No")
+                    .font(AppTheme.Typography.caption)
+                    .foregroundStyle(
+                        container.featureAccessService.canCreateSession
+                            ? AppTheme.Colors.success
+                            : AppTheme.Colors.destructive
+                    )
+            }
+            
+            if container.featureAccessService.sessionCreationCountThisMonth > 0 {
+                Button("Reset to 0") {
+                    container.featureAccessService.overrideSessionCreationCount(0)
+                }
+                .foregroundStyle(AppTheme.Colors.destructive)
+            }
+        } header: {
+            Text("Session Usage")
+        } footer: {
+            Text("Override the monthly session creation count to test free-tier limits and paywall gating.")
                 .font(AppTheme.Typography.caption)
         }
     }
@@ -286,6 +324,15 @@ struct DevSettingsView: View {
             get: { container.settingsService.mockPlan },
             set: { newValue in
                 container.settingsService.mockPlan = newValue
+            }
+        )
+    }
+    
+    private var sessionUsageBinding: Binding<Int> {
+        Binding(
+            get: { container.featureAccessService.sessionCreationCountThisMonth },
+            set: { newValue in
+                container.featureAccessService.overrideSessionCreationCount(newValue)
             }
         )
     }
