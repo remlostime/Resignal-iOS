@@ -13,8 +13,10 @@ struct SettingsView: View {
     // MARK: - Properties
     
     @Environment(\.dismiss) private var dismiss
+    @Environment(DependencyContainer.self) private var container
     @State var viewModel: SettingsViewModel
     @State private var safariURL: URL?
+    @State private var showMembershipSheet = false
     
     let apiEnvironment: APIEnvironment
     
@@ -23,6 +25,7 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             List {
+                membershipSection
                 legalSection
                 aboutSection
             }
@@ -40,6 +43,17 @@ struct SettingsView: View {
         .sheet(item: $safariURL) { url in
             SafariView(url: url)
                 .ignoresSafeArea()
+        }
+        .sheet(isPresented: $showMembershipSheet) {
+            Group {
+                if container.featureAccessService.isPro {
+                    ProBenefitsView()
+                } else {
+                    PaywallView()
+                }
+            }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
         }
         .alert("Delete All My Data", isPresented: $viewModel.showDeleteConfirmation) {
             Button("Cancel", role: .cancel) {}
@@ -69,6 +83,23 @@ struct SettingsView: View {
     }
     
     // MARK: - Sections
+    
+    private var membershipSection: some View {
+        Section("Membership") {
+            Button {
+                showMembershipSheet = true
+            } label: {
+                HStack {
+                    Label(membershipRowTitle, systemImage: "star.circle")
+                        .foregroundStyle(AppTheme.Colors.textPrimary)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(AppTheme.Colors.textTertiary)
+                }
+            }
+        }
+    }
     
     private var legalSection: some View {
         Section("Legal") {
@@ -122,6 +153,10 @@ struct SettingsView: View {
                     .foregroundStyle(AppTheme.Colors.textSecondary)
             }
         }
+    }
+    
+    private var membershipRowTitle: String {
+        container.featureAccessService.isPro ? "You're on Pro" : "Upgrade to Pro"
     }
 }
 
