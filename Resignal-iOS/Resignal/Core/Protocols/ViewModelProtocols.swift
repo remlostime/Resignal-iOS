@@ -13,23 +13,19 @@ import SwiftUI
 /// Protocol defining the HomeViewModel interface
 @MainActor
 protocol HomeViewModelProtocol: AnyObject, Observable {
-    var sessions: [Session] { get }
-    var filteredSessions: [Session] { get }
+    var interviews: [InterviewDTO] { get }
+    var filteredInterviews: [InterviewDTO] { get }
     var searchText: String { get set }
-    var state: ViewState<[Session]> { get }
+    var state: ViewState<[InterviewDTO]> { get }
     var showDeleteConfirmation: Bool { get set }
-    var sessionToDelete: Session? { get set }
-    var sessionToRename: Session? { get set }
+    var interviewToDelete: InterviewDTO? { get set }
     var renameText: String { get set }
     
-    func loadSessions()
-    func deleteSession(_ session: Session)
-    func confirmDelete(_ session: Session)
+    func loadInterviews() async
+    func confirmDelete(_ interview: InterviewDTO)
     func executePendingDelete()
     func cancelDelete()
-    func startRename(_ session: Session)
-    func executeRename()
-    func cancelRename()
+    func findLocalSession(for interview: InterviewDTO) -> Session?
     func clearError()
 }
 
