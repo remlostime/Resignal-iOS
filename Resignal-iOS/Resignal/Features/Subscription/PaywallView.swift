@@ -265,7 +265,7 @@ struct PaywallView: View {
 // MARK: - Feature Bullet
 
 /// A feature bullet row — icon + title + subtitle
-private struct FeatureBullet: View {
+struct FeatureBullet: View {
     let icon: String
     let title: String
     let subtitle: String

@@ -18,6 +18,7 @@ struct HomeView: View {
     @State private var showCreateSessionSheet = false
     @State private var showPaywall = false
     @State private var showSettings = false
+    @State private var showMembershipSheet = false
     
     // MARK: - Body
     
@@ -32,6 +33,19 @@ struct HomeView: View {
         .navigationTitle("Resignal")
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    showMembershipSheet = true
+                } label: {
+                    Text(container.featureAccessService.currentPlan.rawValue.capitalized)
+                        .font(AppTheme.Typography.caption.weight(.semibold))
+                        .foregroundStyle(AppTheme.Colors.textSecondary)
+                        .padding(.horizontal, AppTheme.Spacing.sm)
+                        .padding(.vertical, AppTheme.Spacing.xxs)
+                        .background(AppTheme.Colors.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small))
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     showSettings = true
@@ -50,6 +64,17 @@ struct HomeView: View {
                 ),
                 apiEnvironment: container.settingsService.apiEnvironment
             )
+        }
+        .sheet(isPresented: $showMembershipSheet) {
+            Group {
+                if container.featureAccessService.isPro {
+                    ProBenefitsView()
+                } else {
+                    PaywallView()
+                }
+            }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
         }
         .onAppear {
             if viewModel == nil {
