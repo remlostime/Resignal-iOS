@@ -38,13 +38,9 @@ struct HomeView: View {
                     showMembershipSheet = true
                 } label: {
                     Text(container.featureAccessService.currentPlan.rawValue.capitalized)
-                        .font(AppTheme.Typography.caption.weight(.semibold))
-                        .foregroundStyle(AppTheme.Colors.textSecondary)
-                        .padding(.horizontal, AppTheme.Spacing.sm)
-                        .padding(.vertical, AppTheme.Spacing.xxs)
-                        .background(AppTheme.Colors.surface)
-                        .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small))
+                        .font(AppTheme.Typography.caption.weight(.bold))
                 }
+                .buttonStyle(.borderless)
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -53,6 +49,7 @@ struct HomeView: View {
                     Image(systemName: "gearshape")
                         .foregroundStyle(AppTheme.Colors.textPrimary)
                 }
+                .buttonStyle(.plain)
             }
         }
         .sheet(isPresented: $showSettings) {
