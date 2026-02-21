@@ -4,6 +4,7 @@
 //
 //  Minimal single-screen onboarding that sets psychological framing
 //  for first-time users. Appears only on first launch.
+//  Tapping "Start" implies acceptance of Privacy Policy & Terms of Service.
 //
 
 import SwiftUI
@@ -13,10 +14,13 @@ struct OnboardingView: View {
     
     // MARK: - Properties
     
+    @Environment(DependencyContainer.self) private var container
+    
     let viewModel: OnboardingViewModel
     
     @State private var showContent = false
     @State private var showButton = false
+    @State private var safariURL: URL?
     
     // MARK: - Body
     
@@ -24,7 +28,6 @@ struct OnboardingView: View {
         VStack(spacing: AppTheme.Spacing.xxl) {
             Spacer()
             
-            // Title + Subtitle
             VStack(spacing: AppTheme.Spacing.lg) {
                 Text("Practice. Reflect. Improve.")
                     .font(AppTheme.Typography.largeTitle)
@@ -45,8 +48,7 @@ struct OnboardingView: View {
             
             Spacer()
             
-            // Buttons
-            VStack(spacing: AppTheme.Spacing.md) {
+            VStack(spacing: AppTheme.Spacing.sm) {
                 Button {
                     viewModel.completeOnboarding()
                 } label: {
@@ -59,13 +61,7 @@ struct OnboardingView: View {
                         .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.medium))
                 }
                 
-                Button {
-                    viewModel.completeOnboarding()
-                } label: {
-                    Text("Already know how it works? Skip")
-                        .font(AppTheme.Typography.footnote)
-                        .foregroundStyle(AppTheme.Colors.textSecondary)
-                }
+                consentText
             }
             .padding(.horizontal, AppTheme.Spacing.xl)
             .padding(.bottom, AppTheme.Spacing.xxl)
@@ -82,7 +78,47 @@ struct OnboardingView: View {
                 showButton = true
             }
         }
+        .sheet(item: $safariURL) { url in
+            SafariView(url: url)
+                .ignoresSafeArea()
+        }
     }
+    
+    // MARK: - Subviews
+    
+    private var consentText: some View {
+        VStack(spacing: 2) {
+            Text("By tapping \"Start\", you agree to our")
+            
+            HStack(spacing: 0) {
+                Button {
+                    safariURL = container.settingsService.apiEnvironment.privacyPolicyURL
+                } label: {
+                    Text("Privacy Policy")
+                        .underline()
+                }
+                
+                Text(" and ")
+                
+                Button {
+                    safariURL = container.settingsService.apiEnvironment.termsOfServiceURL
+                } label: {
+                    Text("Terms of Service")
+                        .underline()
+                }
+                
+                Text(".")
+            }
+        }
+        .font(AppTheme.Typography.caption)
+        .foregroundStyle(AppTheme.Colors.textTertiary)
+    }
+}
+
+// MARK: - URL + Identifiable
+
+extension URL: @retroactive Identifiable {
+    public var id: String { absoluteString }
 }
 
 // MARK: - Preview

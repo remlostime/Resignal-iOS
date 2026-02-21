@@ -30,7 +30,6 @@ final class EditorViewModel: EditorViewModelProtocol {
     var analysisState: ViewState<Session> = .idle
     var analysisProgress: Double = 0
     var showAttachmentPicker: Bool = false
-    var showPaywall: Bool = false
     
     // Analysis result
     var analysisResult: StructuredFeedback?
@@ -66,19 +65,6 @@ final class EditorViewModel: EditorViewModelProtocol {
         set { if !newValue { clearError() } }
     }
     
-    /// Whether the user is on the free plan
-    var isFreePlan: Bool {
-        !featureAccessService.isPro
-    }
-    
-    /// Message showing remaining free analyses (e.g. "2 of 3 free analyses remaining")
-    var remainingAnalysesMessage: String? {
-        guard isFreePlan else { return nil }
-        let remaining = featureAccessService.remainingFreeAnalyses
-        let max = featureAccessService.maxFreeAnalyses
-        return "\(remaining) of \(max) free analyses remaining"
-    }
-    
     // MARK: - Initialization
     
     init(
@@ -111,12 +97,6 @@ final class EditorViewModel: EditorViewModelProtocol {
     /// Starts the AI analysis
     func analyze() async -> Session? {
         guard canAnalyze else { return nil }
-        
-        // Check if user has reached their free analysis limit
-        if !featureAccessService.canAnalyze {
-            showPaywall = true
-            return nil
-        }
         
         analysisState = .loading
         analysisProgress = 0
@@ -159,9 +139,6 @@ final class EditorViewModel: EditorViewModelProtocol {
             // Save or update session
             let savedSession = try saveSession(with: response.feedback, interviewId: response.interviewId)
             analysisState = .success(savedSession)
-            
-            // Record analysis for free-tier usage tracking
-            featureAccessService.recordAnalysis()
             
             return savedSession
             
@@ -257,6 +234,7 @@ final class EditorViewModel: EditorViewModelProtocol {
             )
             
             try sessionRepository.save(newSession)
+            featureAccessService.recordSessionCreation()
             session = newSession
             return newSession
         }

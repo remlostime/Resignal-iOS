@@ -32,7 +32,7 @@ actor TranscriptionServiceImpl: TranscriptionService {
     /// Flag to prevent concurrent restart operations
     private var isRestarting: Bool = false
     /// Duration before proactively restarting recognition (before 60s limit)
-    private let chunkDuration: TimeInterval = 50.0
+    private let chunkDuration: TimeInterval = 55.0
     /// Flag to track if transcription is actively running
     private var isTranscriptionActive: Bool = false
     /// Unique identifier for the current recognition task (to ignore stale callbacks)
@@ -182,7 +182,10 @@ actor TranscriptionServiceImpl: TranscriptionService {
     /// Starts a new recognition chunk, creating a fresh request and task.
     /// Assigns the new request BEFORE ending the old one so the audio tap
     /// never has a gap where buffers are silently dropped.
-    private func startRecognitionChunk(recognizer: SFSpeechRecognizer) {
+    private func startRecognitionChunk(
+        recognizer: SFSpeechRecognizer,
+        previousPartial: String = ""
+    ) {
         guard isTranscriptionActive else { return }
         
         // Clean up any still-pending previous task before starting a new handover
@@ -228,7 +231,7 @@ actor TranscriptionServiceImpl: TranscriptionService {
         
         if let oldTaskId, oldTask != nil {
             previousTaskId = oldTaskId
-            previousChunkSavedTranscript = currentChunkTranscript
+            previousChunkSavedTranscript = previousPartial
             
             previousTaskCleanupTask = Task { [weak self] in
                 do {
@@ -264,7 +267,8 @@ actor TranscriptionServiceImpl: TranscriptionService {
         guard taskId == currentTaskId else { return }
         
         if let result = result {
-            let currentPartial = result.bestTranscription.formattedString
+            let rawPartial = result.bestTranscription.formattedString
+            let currentPartial = removeConsecutiveDuplicates(rawPartial)
             
             currentChunkTranscript = currentPartial
             
@@ -359,14 +363,18 @@ actor TranscriptionServiceImpl: TranscriptionService {
         chunkRestartTask?.cancel()
         chunkRestartTask = nil
         
-        // Save the current chunk's transcript before restarting
+        // Capture the partial before clearing so settlement can compare against it
+        let savedPartialForSettlement = currentChunkTranscript
+        
         if !currentChunkTranscript.isEmpty {
             appendWithOverlapDetection(currentChunkTranscript)
             currentChunkTranscript = ""
         }
         
-        // Start a new recognition chunk
-        startRecognitionChunk(recognizer: recognizer)
+        startRecognitionChunk(
+            recognizer: recognizer,
+            previousPartial: savedPartialForSettlement
+        )
         
         isRestarting = false
     }
@@ -396,8 +404,35 @@ actor TranscriptionServiceImpl: TranscriptionService {
         
         let deduped = newWords.dropFirst(overlapCount).joined(separator: " ")
         if !deduped.isEmpty {
-            accumulatedTranscript += " " + deduped
+            accumulatedTranscript += " " + removeConsecutiveDuplicates(deduped)
         }
+    }
+    
+    /// Strips consecutive duplicate words and 2-word phrases caused by recognizer stutter.
+    /// e.g. "Pinterest Pinterest Pinterest he" → "Pinterest he"
+    /// e.g. "life life of control control" → "life of control"
+    private func removeConsecutiveDuplicates(_ text: String) -> String {
+        let words = text.split(separator: " ").map(String.init)
+        guard words.count >= 2 else { return text }
+        
+        var result: [String] = [words[0]]
+        var i = 1
+        while i < words.count {
+            if i + 1 < words.count,
+               result.count >= 2,
+               result[result.count - 2].lowercased() == words[i].lowercased(),
+               result[result.count - 1].lowercased() == words[i + 1].lowercased() {
+                i += 2
+                continue
+            }
+            if words[i].lowercased() == result.last?.lowercased() {
+                i += 1
+                continue
+            }
+            result.append(words[i])
+            i += 1
+        }
+        return result.joined(separator: " ")
     }
     
     func stopLiveTranscription() async {

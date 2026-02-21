@@ -3,7 +3,7 @@
 //  Resignal
 //
 //  Protocol and implementation for feature gating based on subscription plan.
-//  Tracks monthly usage for free-tier limits and determines section visibility.
+//  Tracks monthly session creation usage for free-tier limits.
 //
 
 import Foundation
@@ -18,20 +18,13 @@ enum FeedbackSection: CaseIterable, Sendable {
     case improvement
     case hiringSignal
     case keyObservations
-    
-    /// Sections available to free-tier users
-    static let freeSections: Set<FeedbackSection> = [.summary, .strengths, .improvement]
-    
-    /// Sections exclusive to Pro-tier users
-    static let proSections: Set<FeedbackSection> = [.hiringSignal, .keyObservations]
 }
 
 // MARK: - Feature Access Constants
 
 /// Constants for free-tier limitations
 enum FeatureAccessConstants {
-    static let maxFreeAnalyses = 3
-    static let maxFreeSessions = 5
+    static let maxFreeSessionCreations = 3
 }
 
 // MARK: - Feature Access Service Protocol
@@ -45,29 +38,20 @@ protocol FeatureAccessServiceProtocol: AnyObject, Sendable {
     /// Convenience: whether the user has Pro access
     var isPro: Bool { get }
     
-    /// Number of analyses performed this calendar month
-    var analysisCountThisMonth: Int { get }
+    /// Number of sessions created this calendar month
+    var sessionCreationCountThisMonth: Int { get }
     
-    /// Whether the user can perform an analysis (Pro or under free limit)
-    var canAnalyze: Bool { get }
+    /// Whether the user can create a new session (Pro or under free limit)
+    var canCreateSession: Bool { get }
     
-    /// Maximum analyses allowed for free tier
-    var maxFreeAnalyses: Int { get }
+    /// Maximum session creations allowed per month for free tier
+    var maxFreeSessionCreations: Int { get }
     
-    /// Maximum saved sessions for free tier
-    var maxFreeSessions: Int { get }
+    /// Number of remaining free session creations this month
+    var remainingFreeSessionCreations: Int { get }
     
-    /// Number of remaining free analyses this month
-    var remainingFreeAnalyses: Int { get }
-    
-    /// Records that the user performed an analysis (increments monthly count)
-    func recordAnalysis()
-    
-    /// Whether the given feedback section is viewable under the current plan
-    func canViewFeedbackSection(_ section: FeedbackSection) -> Bool
-    
-    /// Whether the Ask (follow-up questions) tab is accessible
-    func canUseAskTab() -> Bool
+    /// Records that the user created a new session (increments monthly count)
+    func recordSessionCreation()
 }
 
 // MARK: - Feature Access Service Implementation
@@ -81,7 +65,7 @@ final class FeatureAccessService: FeatureAccessServiceProtocol {
     // MARK: - UserDefaults Keys
     
     private enum Keys {
-        static let analysisCount = "featureAccess.analysisCountThisMonth"
+        static let sessionCreationCount = "featureAccess.analysisCountThisMonth"
         static let lastResetDate = "featureAccess.lastResetDate"
     }
     
@@ -93,7 +77,7 @@ final class FeatureAccessService: FeatureAccessServiceProtocol {
     
     // MARK: - Stored Properties
     
-    private(set) var analysisCountThisMonth: Int
+    private(set) var sessionCreationCountThisMonth: Int
     private var lastResetDate: Date
     
     // MARK: - Computed Properties
@@ -111,24 +95,20 @@ final class FeatureAccessService: FeatureAccessServiceProtocol {
         currentPlan == .pro
     }
     
-    var canAnalyze: Bool {
+    var canCreateSession: Bool {
         if isPro { return true }
         resetMonthlyCountIfNeeded()
-        return analysisCountThisMonth < FeatureAccessConstants.maxFreeAnalyses
+        return sessionCreationCountThisMonth < FeatureAccessConstants.maxFreeSessionCreations
     }
     
-    var maxFreeAnalyses: Int {
-        FeatureAccessConstants.maxFreeAnalyses
+    var maxFreeSessionCreations: Int {
+        FeatureAccessConstants.maxFreeSessionCreations
     }
     
-    var maxFreeSessions: Int {
-        FeatureAccessConstants.maxFreeSessions
-    }
-    
-    var remainingFreeAnalyses: Int {
+    var remainingFreeSessionCreations: Int {
         if isPro { return Int.max }
         resetMonthlyCountIfNeeded()
-        return max(0, FeatureAccessConstants.maxFreeAnalyses - analysisCountThisMonth)
+        return max(0, FeatureAccessConstants.maxFreeSessionCreations - sessionCreationCountThisMonth)
     }
     
     // MARK: - Initialization
@@ -142,8 +122,7 @@ final class FeatureAccessService: FeatureAccessServiceProtocol {
         self.settingsService = settingsService
         self.defaults = defaults
         
-        // Load persisted values
-        self.analysisCountThisMonth = defaults.integer(forKey: Keys.analysisCount)
+        self.sessionCreationCountThisMonth = defaults.integer(forKey: Keys.sessionCreationCount)
         
         if let savedDate = defaults.object(forKey: Keys.lastResetDate) as? Date {
             self.lastResetDate = savedDate
@@ -155,25 +134,16 @@ final class FeatureAccessService: FeatureAccessServiceProtocol {
     
     // MARK: - Public Methods
     
-    func recordAnalysis() {
+    func recordSessionCreation() {
         resetMonthlyCountIfNeeded()
-        analysisCountThisMonth += 1
-        defaults.set(analysisCountThisMonth, forKey: Keys.analysisCount)
-        debugLog("Analysis recorded. Count this month: \(analysisCountThisMonth)")
-    }
-    
-    func canViewFeedbackSection(_ section: FeedbackSection) -> Bool {
-        if isPro { return true }
-        return FeedbackSection.freeSections.contains(section)
-    }
-    
-    func canUseAskTab() -> Bool {
-        isPro
+        sessionCreationCountThisMonth += 1
+        defaults.set(sessionCreationCountThisMonth, forKey: Keys.sessionCreationCount)
+        debugLog("Session creation recorded. Count this month: \(sessionCreationCountThisMonth)")
     }
     
     // MARK: - Private Methods
     
-    /// Resets the monthly analysis count if the calendar month has changed
+    /// Resets the monthly session creation count if the calendar month has changed
     private func resetMonthlyCountIfNeeded() {
         let calendar = Calendar.current
         let now = Date()
@@ -184,11 +154,11 @@ final class FeatureAccessService: FeatureAccessServiceProtocol {
         let currentYear = calendar.component(.year, from: now)
         
         if currentYear != lastYear || currentMonth != lastMonth {
-            analysisCountThisMonth = 0
+            sessionCreationCountThisMonth = 0
             lastResetDate = now
-            defaults.set(0, forKey: Keys.analysisCount)
+            defaults.set(0, forKey: Keys.sessionCreationCount)
             defaults.set(now, forKey: Keys.lastResetDate)
-            debugLog("Monthly analysis count reset")
+            debugLog("Monthly session creation count reset")
         }
     }
     

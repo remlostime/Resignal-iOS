@@ -13,6 +13,7 @@ import UIKit
 /// Provides all metadata needed to identify a client in API requests.
 protocol ClientContextServiceProtocol: Sendable {
     var clientId: String { get }
+    var anonymousUserId: String { get }
     var appVersion: String { get }
     var deviceModel: String { get }
     var platform: String { get }
@@ -66,6 +67,9 @@ final class ClientContextService: ClientContextServiceProtocol, @unchecked Senda
         cachedClientId = newId
         return newId
     }
+    
+    /// Alias for `clientId` that makes the privacy-compliance intent explicit.
+    var anonymousUserId: String { clientId }
     
     /// App version string in format "major.minor.build" (e.g., "1.0.42")
     var appVersion: String {
