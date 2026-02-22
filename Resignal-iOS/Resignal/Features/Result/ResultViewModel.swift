@@ -54,21 +54,14 @@ final class ResultViewModel: ResultViewModelProtocol {
         set { if !newValue { clearError() } }
     }
     
-    var userMessagesThisMonth: Int {
-        let calendar = Calendar.current
-        let now = Date()
-        return chatMessages.filter { msg in
-            msg.isUser && calendar.isDate(msg.timestamp, equalTo: now, toGranularity: .month)
-        }.count
-    }
-    
     var canSendAskMessage: Bool {
-        featureAccessService.canSendAskMessage(userMessagesThisMonth: userMessagesThisMonth)
+        featureAccessService.canSendAskMessage(forSessionId: session.id.uuidString)
     }
     
     var remainingAskMessages: Int {
         if featureAccessService.isPro { return Int.max }
-        return max(0, featureAccessService.maxFreeAskMessagesPerSession - userMessagesThisMonth)
+        let used = featureAccessService.askMessageCount(forSessionId: session.id.uuidString)
+        return max(0, featureAccessService.maxFreeAskMessagesPerSession - used)
     }
     
     // MARK: - Initialization
@@ -179,6 +172,7 @@ final class ResultViewModel: ResultViewModelProtocol {
             // Save assistant message
             try sessionRepository.saveChatMessage(assistantMessage, to: session)
             
+            featureAccessService.recordAskMessage(forSessionId: session.id.uuidString)
             isSendingMessage = false
             
         } catch {
