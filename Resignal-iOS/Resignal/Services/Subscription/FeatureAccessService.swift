@@ -25,6 +25,7 @@ enum FeedbackSection: CaseIterable, Sendable {
 /// Constants for free-tier limitations
 enum FeatureAccessConstants {
     static let maxFreeSessionCreations = 3
+    static let maxFreeAskMessagesPerSession = 3
 }
 
 // MARK: - Feature Access Service Protocol
@@ -49,6 +50,12 @@ protocol FeatureAccessServiceProtocol: AnyObject, Sendable {
     
     /// Number of remaining free session creations this month
     var remainingFreeSessionCreations: Int { get }
+    
+    /// Maximum ask messages allowed per session per month for free tier
+    var maxFreeAskMessagesPerSession: Int { get }
+    
+    /// Whether the user can send an ask message given the current monthly user message count
+    func canSendAskMessage(userMessagesThisMonth: Int) -> Bool
     
     /// Records that the user created a new session (increments monthly count)
     func recordSessionCreation()
@@ -114,6 +121,15 @@ final class FeatureAccessService: FeatureAccessServiceProtocol {
         if isPro { return Int.max }
         resetMonthlyCountIfNeeded()
         return max(0, FeatureAccessConstants.maxFreeSessionCreations - sessionCreationCountThisMonth)
+    }
+    
+    var maxFreeAskMessagesPerSession: Int {
+        FeatureAccessConstants.maxFreeAskMessagesPerSession
+    }
+    
+    func canSendAskMessage(userMessagesThisMonth: Int) -> Bool {
+        if isPro { return true }
+        return userMessagesThisMonth < FeatureAccessConstants.maxFreeAskMessagesPerSession
     }
     
     // MARK: - Initialization

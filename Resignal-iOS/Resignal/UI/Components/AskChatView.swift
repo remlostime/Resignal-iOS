@@ -16,6 +16,7 @@ struct AskChatView: View {
     @Binding var isSending: Bool
     @Binding var isLoading: Bool
     
+    var isLimitReached: Bool = false
     let onSend: () -> Void
     
     @FocusState private var isInputFocused: Bool
@@ -65,34 +66,67 @@ struct AskChatView: View {
             Divider()
                 .background(AppTheme.Colors.divider)
             
-            // Input field
-            HStack(spacing: AppTheme.Spacing.sm) {
-                TextField("Ask a question...", text: $inputText, axis: .vertical)
-                    .font(AppTheme.Typography.body)
-                    .focused($isInputFocused)
-                    .lineLimit(1...4)
-                    .padding(AppTheme.Spacing.sm)
-                    .background(AppTheme.Colors.surface)
-                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small))
-                    .disabled(isSending)
-                
-                Button {
-                    onSend()
-                    isInputFocused = false
-                } label: {
-                    Image(systemName: "arrow.up.circle.fill")
-                        .font(.title2)
-                        .foregroundStyle(
-                            inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSending
-                                ? AppTheme.Colors.textTertiary
-                                : AppTheme.Colors.primary
-                        )
+            if isLimitReached {
+                upgradeBanner
+            } else {
+                // Input field
+                HStack(spacing: AppTheme.Spacing.sm) {
+                    TextField("Ask a question...", text: $inputText, axis: .vertical)
+                        .font(AppTheme.Typography.body)
+                        .focused($isInputFocused)
+                        .lineLimit(1...4)
+                        .padding(AppTheme.Spacing.sm)
+                        .background(AppTheme.Colors.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small))
+                        .disabled(isSending)
+                    
+                    Button {
+                        onSend()
+                        isInputFocused = false
+                    } label: {
+                        Image(systemName: "arrow.up.circle.fill")
+                            .font(.title2)
+                            .foregroundStyle(
+                                inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSending
+                                    ? AppTheme.Colors.textTertiary
+                                    : AppTheme.Colors.primary
+                            )
+                    }
+                    .disabled(inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSending)
                 }
-                .disabled(inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSending)
+                .padding(AppTheme.Spacing.md)
+                .background(AppTheme.Colors.background)
             }
-            .padding(AppTheme.Spacing.md)
-            .background(AppTheme.Colors.background)
         }
+    }
+    
+    private var upgradeBanner: some View {
+        Button {
+            onSend()
+        } label: {
+            HStack(spacing: AppTheme.Spacing.sm) {
+                Image(systemName: "lock.fill")
+                    .font(.body)
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Free follow-ups used")
+                        .font(AppTheme.Typography.callout)
+                        .fontWeight(.semibold)
+                    
+                    Text("Upgrade to Pro for unlimited Ask follow-ups")
+                        .font(AppTheme.Typography.caption)
+                }
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+            }
+            .foregroundStyle(AppTheme.Colors.textPrimary)
+            .padding(AppTheme.Spacing.md)
+            .background(AppTheme.Colors.surface)
+        }
+        .buttonStyle(.plain)
     }
     
     private var emptyStateView: some View {

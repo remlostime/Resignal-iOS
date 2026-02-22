@@ -25,6 +25,7 @@ final class ResultViewModel: ResultViewModelProtocol {
     private let sessionRepository: SessionRepositoryProtocol
     private let chatService: ChatService
     private let clientContextService: ClientContextServiceProtocol
+    private let featureAccessService: FeatureAccessServiceProtocol
     
     let session: Session
     
@@ -39,6 +40,9 @@ final class ResultViewModel: ResultViewModelProtocol {
     var hasLoadedMessages: Bool = false
     var chatError: String?
     
+    // Paywall state
+    var showPaywall: Bool = false
+    
     // MARK: - Computed Properties
     
     var errorMessage: String? {
@@ -50,17 +54,36 @@ final class ResultViewModel: ResultViewModelProtocol {
         set { if !newValue { clearError() } }
     }
     
+    var userMessagesThisMonth: Int {
+        let calendar = Calendar.current
+        let now = Date()
+        return chatMessages.filter { msg in
+            msg.isUser && calendar.isDate(msg.timestamp, equalTo: now, toGranularity: .month)
+        }.count
+    }
+    
+    var canSendAskMessage: Bool {
+        featureAccessService.canSendAskMessage(userMessagesThisMonth: userMessagesThisMonth)
+    }
+    
+    var remainingAskMessages: Int {
+        if featureAccessService.isPro { return Int.max }
+        return max(0, featureAccessService.maxFreeAskMessagesPerSession - userMessagesThisMonth)
+    }
+    
     // MARK: - Initialization
     
     init(
         session: Session,
         sessionRepository: SessionRepositoryProtocol,
         chatService: ChatService,
+        featureAccessService: FeatureAccessServiceProtocol,
         clientContextService: ClientContextServiceProtocol = ClientContextService.shared
     ) {
         self.session = session
         self.sessionRepository = sessionRepository
         self.chatService = chatService
+        self.featureAccessService = featureAccessService
         self.clientContextService = clientContextService
         self.chatMessages = session.chatHistory
     }
@@ -110,6 +133,11 @@ final class ResultViewModel: ResultViewModelProtocol {
     func sendAskMessage() async {
         let trimmedMessage = askMessage.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedMessage.isEmpty else { return }
+        
+        guard canSendAskMessage else {
+            showPaywall = true
+            return
+        }
         
         // Ensure session has an interview ID
         guard let interviewId = session.interviewId else {
