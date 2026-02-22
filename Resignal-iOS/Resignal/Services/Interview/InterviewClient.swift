@@ -50,4 +50,10 @@ protocol InterviewClient: Sendable {
     /// - Returns: Structured feedback including the interview ID
     /// - Throws: InterviewClientError on failure
     nonisolated func fetchInterviewDetail(id: String) async throws -> StructuredFeedback
+    
+    /// Fetches the full interview transcript on demand.
+    /// - Parameter id: The interview ID
+    /// - Returns: The transcript response containing the interview ID and transcript text
+    /// - Throws: InterviewClientError on failure
+    nonisolated func fetchTranscript(id: String) async throws -> TranscriptResponse
 }

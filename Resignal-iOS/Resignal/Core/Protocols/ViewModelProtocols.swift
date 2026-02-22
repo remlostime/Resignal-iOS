@@ -70,9 +70,11 @@ protocol InterviewDetailViewModelProtocol: AnyObject, Observable {
     var showError: Bool { get set }
     var showPaywall: Bool { get set }
     var canSendAskMessage: Bool { get }
+    var transcriptState: ViewState<String> { get }
     
     func loadDetail() async
     func loadMessages() async
+    func loadTranscript() async
     func sendAskMessage() async
     func clearError()
 }

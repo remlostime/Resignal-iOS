@@ -35,6 +35,9 @@ final class InterviewDetailViewModel: InterviewDetailViewModelProtocol {
     // Tab state
     var selectedTab: InterviewDetailTab = .feedback
     
+    // Transcript state
+    var transcriptState: ViewState<String> = .idle
+    
     // Chat state
     var chatMessages: [ChatMessage] = []
     var askMessage: String = ""
@@ -100,6 +103,20 @@ final class InterviewDetailViewModel: InterviewDetailViewModelProtocol {
     /// Clears any error state
     func clearError() {
         chatError = nil
+    }
+    
+    /// Fetches the interview transcript from the backend
+    func loadTranscript() async {
+        guard !transcriptState.isLoading, !transcriptState.isSuccess else { return }
+        transcriptState = .loading
+        
+        do {
+            let response = try await interviewClient.fetchTranscript(id: interviewId)
+            transcriptState = .success(response.transcript)
+        } catch {
+            transcriptState = .error(error.localizedDescription)
+            debugLog("Failed to load transcript: \(error)")
+        }
     }
     
     /// Loads chat messages from the backend

@@ -100,7 +100,7 @@ struct InterviewDetailView: View {
                 feedbackTabContent(feedback: feedback)
                     .tag(InterviewDetailTab.feedback)
                 
-                transcriptTabContent()
+                transcriptTabContent(viewModel: viewModel)
                     .tag(InterviewDetailTab.transcript)
                 
                 askTabContent(viewModel: viewModel)
@@ -108,10 +108,17 @@ struct InterviewDetailView: View {
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
             .onChange(of: viewModel.selectedTab) { _, newTab in
-                if newTab == .ask {
+                switch newTab {
+                case .transcript:
+                    Task {
+                        await viewModel.loadTranscript()
+                    }
+                case .ask:
                     Task {
                         await viewModel.loadMessages()
                     }
+                case .feedback:
+                    break
                 }
             }
         }
@@ -135,28 +142,59 @@ struct InterviewDetailView: View {
         }
     }
     
-    private func transcriptTabContent() -> some View {
-        ScrollView {
-            VStack(spacing: AppTheme.Spacing.md) {
-                VStack(spacing: AppTheme.Spacing.md) {
-                    Image(systemName: "doc.text")
-                        .font(.system(size: 48))
-                        .foregroundStyle(AppTheme.Colors.textTertiary)
-                    
-                    Text("Transcript not available")
-                        .font(AppTheme.Typography.headline)
-                        .foregroundStyle(AppTheme.Colors.textPrimary)
-                    
-                    Text("Transcript viewing will be available in a future update.")
-                        .font(AppTheme.Typography.body)
-                        .foregroundStyle(AppTheme.Colors.textSecondary)
-                        .multilineTextAlignment(.center)
-                }
-                .padding(AppTheme.Spacing.xl)
-                .frame(maxWidth: .infinity)
-                .cardStyle()
+    @ViewBuilder
+    private func transcriptTabContent(viewModel: InterviewDetailViewModel) -> some View {
+        switch viewModel.transcriptState {
+        case .idle, .loading:
+            VStack {
+                ProgressView()
+                Text("Loading transcript...")
+                    .font(AppTheme.Typography.body)
+                    .foregroundStyle(AppTheme.Colors.textSecondary)
+                    .padding(.top, AppTheme.Spacing.sm)
             }
-            .padding(AppTheme.Spacing.md)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            
+        case .success(let transcript):
+            ScrollView {
+                VStack(spacing: AppTheme.Spacing.md) {
+                    Text(transcript)
+                        .font(AppTheme.Typography.body)
+                        .foregroundStyle(AppTheme.Colors.textPrimary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(AppTheme.Spacing.md)
+                        .cardStyle()
+                }
+                .padding(AppTheme.Spacing.md)
+            }
+            
+        case .error(let message):
+            VStack(spacing: AppTheme.Spacing.md) {
+                Image(systemName: "exclamationmark.triangle")
+                    .font(.system(size: 48))
+                    .foregroundStyle(AppTheme.Colors.textTertiary)
+                
+                Text("Failed to load transcript")
+                    .font(AppTheme.Typography.headline)
+                    .foregroundStyle(AppTheme.Colors.textPrimary)
+                
+                Text(message)
+                    .font(AppTheme.Typography.body)
+                    .foregroundStyle(AppTheme.Colors.textSecondary)
+                    .multilineTextAlignment(.center)
+                
+                Button {
+                    Task {
+                        await viewModel.loadTranscript()
+                    }
+                } label: {
+                    Label("Retry", systemImage: "arrow.clockwise")
+                        .font(AppTheme.Typography.body.weight(.medium))
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(AppTheme.Colors.primary)
+            }
+            .padding(AppTheme.Spacing.xl)
         }
     }
     
