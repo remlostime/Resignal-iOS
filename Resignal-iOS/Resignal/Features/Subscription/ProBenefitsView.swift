@@ -79,12 +79,22 @@ struct ProBenefitsView: View {
             FeatureBullet(icon: "infinity", title: "Unlimited sessions", subtitle: "No monthly session limits")
             Divider().padding(.leading, 44)
             FeatureBullet(
-                icon: "sparkles",
-                title: "AI answer rewriting",
-                subtitle: "Get improved versions of your answers"
+                icon: "text.bubble",
+                title: "Unlimited Ask follow-ups",
+                subtitle: "Dig deeper with unlimited follow-up questions"
             )
             Divider().padding(.leading, 44)
-            FeatureBullet(icon: "star.circle", title: "Priority support", subtitle: "Get help when you need it")
+            FeatureBullet(
+                icon: "brain",
+                title: "Better AI models analysis",
+                subtitle: "Get more accurate and detailed feedback"
+            )
+            Divider().padding(.leading, 44)
+            FeatureBullet(
+                icon: "waveform",
+                title: "Better audio recognition quality",
+                subtitle: "Crystal-clear transcription of your responses"
+            )
         }
         .padding(.horizontal, AppTheme.Spacing.md)
         .padding(.vertical, AppTheme.Spacing.sm)
