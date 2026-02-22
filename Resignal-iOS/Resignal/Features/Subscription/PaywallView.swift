@@ -22,6 +22,7 @@ struct PaywallView: View {
     @State private var errorMessage: String?
     @State private var showError = false
     @State private var purchaseCompleted = false
+    @State private var safariURL: URL?
 
     // MARK: - Body
 
@@ -85,6 +86,10 @@ struct PaywallView: View {
                 if completed {
                     dismiss()
                 }
+            }
+            .sheet(item: $safariURL) { url in
+                SafariView(url: url)
+                    .ignoresSafeArea()
             }
         }
     }
@@ -207,15 +212,21 @@ struct PaywallView: View {
             .disabled(isPurchasing)
 
             HStack(spacing: AppTheme.Spacing.md) {
-                Link("Terms of service",
-                     destination: container.settingsService.apiEnvironment.termsOfServiceURL)
-                    .font(AppTheme.Typography.caption)
-                    .foregroundStyle(AppTheme.Colors.textTertiary)
+                Button {
+                    safariURL = container.settingsService.apiEnvironment.termsOfServiceURL
+                } label: {
+                    Text("Terms of service")
+                        .font(AppTheme.Typography.caption)
+                        .foregroundStyle(AppTheme.Colors.textTertiary)
+                }
 
-                Link("Privacy policy",
-                     destination: container.settingsService.apiEnvironment.privacyPolicyURL)
-                    .font(AppTheme.Typography.caption)
-                    .foregroundStyle(AppTheme.Colors.textTertiary)
+                Button {
+                    safariURL = container.settingsService.apiEnvironment.privacyPolicyURL
+                } label: {
+                    Text("Privacy policy")
+                        .font(AppTheme.Typography.caption)
+                        .foregroundStyle(AppTheme.Colors.textTertiary)
+                }
             }
         }
     }
