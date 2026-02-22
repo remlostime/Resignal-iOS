@@ -25,6 +25,7 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             List {
+                planStatusSection
                 membershipSection
                 legalSection
                 aboutSection
@@ -83,6 +84,35 @@ struct SettingsView: View {
     }
     
     // MARK: - Sections
+    
+    private var planStatusSection: some View {
+        Section {
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.sm) {
+                Text(container.featureAccessService.isPro ? "Pro Plan" : "Free Plan")
+                    .font(AppTheme.Typography.title)
+                
+                if container.featureAccessService.isPro {
+                    Label("Unlimited sessions", systemImage: "checkmark.circle.fill")
+                        .font(AppTheme.Typography.callout)
+                        .foregroundStyle(AppTheme.Colors.success)
+                } else {
+                    let used = container.featureAccessService.sessionCreationCountThisMonth
+                    let total = container.featureAccessService.maxFreeSessionCreations
+                    
+                    ProgressView(
+                        value: Double(min(used, total)),
+                        total: Double(total)
+                    )
+                    .tint(used >= total ? AppTheme.Colors.destructive : AppTheme.Colors.primary)
+                    
+                    Text("\(used) of \(total) sessions completed this month")
+                        .font(AppTheme.Typography.caption)
+                        .foregroundStyle(AppTheme.Colors.textSecondary)
+                }
+            }
+            .padding(.vertical, AppTheme.Spacing.xxs)
+        }
+    }
     
     private var membershipSection: some View {
         Section("Membership") {
