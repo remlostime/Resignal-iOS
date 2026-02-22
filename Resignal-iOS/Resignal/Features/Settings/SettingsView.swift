@@ -110,9 +110,12 @@ struct SettingsView: View {
                 }
                 
                 if container.featureAccessService.isPro {
-                    Label("Unlimited sessions", systemImage: "checkmark.circle.fill")
-                        .font(AppTheme.Typography.callout)
-                        .foregroundStyle(AppTheme.Colors.success)
+                    ProgressView(value: 1.0, total: 1.0)
+                        .tint(AppTheme.Colors.primary)
+                    
+                    Text("Unlimited sessions & asks")
+                        .font(AppTheme.Typography.caption)
+                        .foregroundStyle(AppTheme.Colors.textSecondary)
                 } else {
                     let used = container.featureAccessService.sessionCreationCountThisMonth
                     let total = container.featureAccessService.maxFreeSessionCreations
