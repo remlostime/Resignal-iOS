@@ -88,8 +88,26 @@ struct SettingsView: View {
     private var planStatusSection: some View {
         Section {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.sm) {
-                Text(container.featureAccessService.isPro ? "Pro Plan" : "Free Plan")
-                    .font(AppTheme.Typography.title)
+                HStack {
+                    Text(container.featureAccessService.isPro ? "Pro Plan" : "Free Plan")
+                        .font(AppTheme.Typography.title)
+                    
+                    Spacer()
+                    
+                    if !container.featureAccessService.isPro {
+                        Button {
+                            showMembershipSheet = true
+                        } label: {
+                            Text("Upgrade to Pro")
+                                .font(AppTheme.Typography.caption.weight(.semibold))
+                                .foregroundStyle(AppTheme.Colors.background)
+                                .padding(.horizontal, AppTheme.Spacing.sm)
+                                .padding(.vertical, AppTheme.Spacing.xxs)
+                                .background(AppTheme.Colors.primary)
+                                .clipShape(Capsule())
+                        }
+                    }
+                }
                 
                 if container.featureAccessService.isPro {
                     Label("Unlimited sessions", systemImage: "checkmark.circle.fill")
@@ -115,7 +133,7 @@ struct SettingsView: View {
     }
     
     private var membershipSection: some View {
-        Section("Membership") {
+        Section("Subscription") {
             Button {
                 showMembershipSheet = true
             } label: {
@@ -186,7 +204,7 @@ struct SettingsView: View {
     }
     
     private var membershipRowTitle: String {
-        container.featureAccessService.isPro ? "You're on Pro" : "Upgrade to Pro"
+        "Manage subscription"
     }
 }
 
