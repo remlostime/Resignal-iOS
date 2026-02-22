@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import SwiftData
 
 struct SettingsView: View {
     
@@ -65,8 +64,8 @@ struct SettingsView: View {
             }
         } message: {
             Text(
-                "This will permanently delete all your data from our servers "
-                + "and remove all local sessions. This action cannot be undone."
+                "This will permanently delete all your data from our servers. "
+                + "This action cannot be undone."
             )
         }
         .alert("Error", isPresented: $viewModel.showError) {
@@ -224,9 +223,6 @@ struct SettingsView: View {
     SettingsView(
         viewModel: SettingsViewModel(
             userClient: MockUserClient(),
-            sessionRepository: SessionRepository(
-                modelContext: DependencyContainer.preview().modelContainer.mainContext
-            ),
             settingsService: SettingsService()
         ),
         apiEnvironment: .prod

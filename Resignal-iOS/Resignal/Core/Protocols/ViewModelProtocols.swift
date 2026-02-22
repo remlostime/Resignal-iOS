@@ -33,7 +33,6 @@ protocol HomeViewModelProtocol: AnyObject, Observable {
 /// Protocol defining the EditorViewModel interface
 @MainActor
 protocol EditorViewModelProtocol: AnyObject, Observable {
-    var session: Session? { get }
     var inputText: String { get set }
     var attachments: [SessionAttachment] { get set }
     var analysisState: ViewState<String> { get }
@@ -41,7 +40,6 @@ protocol EditorViewModelProtocol: AnyObject, Observable {
     var analysisResult: StructuredFeedback? { get }
     var canAnalyze: Bool { get }
     var characterCountMessage: String { get }
-    var isEditing: Bool { get }
     var isAnalyzing: Bool { get }
     var errorMessage: String? { get }
     var showError: Bool { get set }

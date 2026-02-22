@@ -56,7 +56,6 @@ struct HomeView: View {
             SettingsView(
                 viewModel: SettingsViewModel(
                     userClient: container.userClient,
-                    sessionRepository: container.sessionRepository,
                     settingsService: container.settingsService
                 ),
                 apiEnvironment: container.settingsService.apiEnvironment
@@ -169,10 +168,10 @@ struct HomeView: View {
         .sheet(isPresented: $showCreateSessionSheet) {
             CreateSessionSheet(
                 onRecordSelected: {
-                    handleNewSession { router.navigate(to: .recording(session: nil)) }
+                    handleNewSession { router.navigate(to: .recording) }
                 },
                 onTypeSelected: {
-                    handleNewSession { router.navigate(to: .editor(session: nil)) }
+                    handleNewSession { router.navigate(to: .editor()) }
                 }
             )
         }
@@ -251,10 +250,10 @@ struct HomeView: View {
         .sheet(isPresented: $showCreateSessionSheet) {
             CreateSessionSheet(
                 onRecordSelected: {
-                    handleNewSession { router.navigate(to: .recording(session: nil)) }
+                    handleNewSession { router.navigate(to: .recording) }
                 },
                 onTypeSelected: {
-                    handleNewSession { router.navigate(to: .editor(session: nil)) }
+                    handleNewSession { router.navigate(to: .editor()) }
                 }
             )
         }

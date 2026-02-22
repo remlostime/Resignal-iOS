@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import SwiftData
 import Observation
 
 /// Protocol defining the dependency container interface
@@ -14,7 +13,6 @@ import Observation
 protocol DependencyContainerProtocol {
     var aiClient: any AIClient { get }
     var settingsService: SettingsServiceProtocol { get }
-    var sessionRepository: SessionRepositoryProtocol { get }
     var recordingService: RecordingService { get }
     var transcriptionService: TranscriptionService { get }
     var attachmentService: AttachmentService { get }
@@ -34,9 +32,7 @@ final class DependencyContainer: DependencyContainerProtocol {
     
     // MARK: - Properties
     
-    let modelContainer: ModelContainer
     let settingsService: SettingsServiceProtocol
-    let sessionRepository: SessionRepositoryProtocol
     let recordingService: RecordingService
     let transcriptionService: TranscriptionService
     let attachmentService: AttachmentService
@@ -72,31 +68,10 @@ final class DependencyContainer: DependencyContainerProtocol {
     init(isPreview: Bool = false) {
         self.isPreview = isPreview
         
-        // Initialize SwiftData model container
-        do {
-            let schema = Schema([
-                Session.self,
-                SessionAttachment.self,
-                ChatMessage.self
-            ])
-            let modelConfiguration = ModelConfiguration(
-                schema: schema,
-                isStoredInMemoryOnly: isPreview
-            )
-            self.modelContainer = try ModelContainer(
-                for: schema,
-                configurations: [modelConfiguration]
-            )
-        } catch {
-            fatalError("Failed to create ModelContainer: \(error)")
-        }
-        
         // Initialize services
         let settings = SettingsService()
         self.settingsService = settings
-        self.sessionRepository = SessionRepository(modelContext: modelContainer.mainContext)
         
-        // Initialize services using persisted API environment and AI model
         let baseURL = settings.apiEnvironment.baseURL
         let aiModelValue = settings.aiModel.apiValue
         if isPreview {

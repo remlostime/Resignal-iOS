@@ -7,6 +7,16 @@
 
 import Foundation
 
+/// Interview rubric categories for contextual vocabulary selection
+enum Rubric: String, Codable, Sendable {
+    case softwareEngineering
+    case productManagement
+    case design
+    case dataScience
+    case behavioral
+    case general
+}
+
 /// Provides contextual vocabulary terms to improve speech recognition accuracy
 protocol ContextualVocabularyProvider: Sendable {
     /// Returns all vocabulary terms across all domains (deduplicated)

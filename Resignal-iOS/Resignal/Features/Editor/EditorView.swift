@@ -17,7 +17,6 @@ struct EditorView: View {
     @Environment(DependencyContainer.self) private var container
     @Environment(\.dismiss) private var dismiss
     
-    let existingSession: Session?
     let initialTranscript: String?
     let audioURL: URL?
     
@@ -28,8 +27,7 @@ struct EditorView: View {
     
     // MARK: - Initialization
     
-    init(existingSession: Session? = nil, initialTranscript: String? = nil, audioURL: URL? = nil) {
-        self.existingSession = existingSession
+    init(initialTranscript: String? = nil, audioURL: URL? = nil) {
         self.initialTranscript = initialTranscript
         self.audioURL = audioURL
     }
@@ -44,7 +42,7 @@ struct EditorView: View {
                 ProgressView()
             }
         }
-        .navigationTitle(existingSession == nil ? "New Session" : "Edit Session")
+        .navigationTitle("New Session")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(viewModel?.isAnalyzing ?? false)
         .toolbar {
@@ -60,10 +58,8 @@ struct EditorView: View {
             if viewModel == nil {
                 viewModel = EditorViewModel(
                     aiClient: container.aiClient,
-                    sessionRepository: container.sessionRepository,
                     attachmentService: container.attachmentService,
                     featureAccessService: container.featureAccessService,
-                    session: existingSession,
                     initialTranscript: initialTranscript,
                     audioURL: audioURL
                 )
@@ -218,7 +214,6 @@ struct EditorView: View {
     private func actionSection(viewModel: EditorViewModel) -> some View {
         VStack(spacing: AppTheme.Spacing.sm) {
             if viewModel.isAnalyzing {
-                // Progress view
                 VStack(spacing: AppTheme.Spacing.sm) {
                     ProgressView(value: viewModel.analysisProgress)
                         .tint(AppTheme.Colors.primary)
@@ -276,7 +271,6 @@ struct EditorView: View {
         
         let filename = "image_\(UUID().uuidString).jpg"
         
-        // Save compressed data as file
         if let attachment = try? await container.attachmentService.saveFile(
             data: compressedData,
             filename: filename,
@@ -284,7 +278,6 @@ struct EditorView: View {
         ) {
             await MainActor.run {
                 guard let viewModel = viewModel else { return }
-                // Remove any existing image attachments first (only 1 allowed)
                 viewModel.attachments.removeAll { $0.attachmentType == .image }
                 viewModel.attachments.append(attachment)
             }
@@ -301,7 +294,6 @@ struct AttachmentChipView: View {
     
     var body: some View {
         HStack(spacing: AppTheme.Spacing.sm) {
-            // Thumbnail preview
             ZStack {
                 RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small)
                     .fill(AppTheme.Colors.surface)
@@ -365,9 +357,8 @@ enum EditorAccessibility {
 
 #Preview {
     NavigationStack {
-        EditorView(existingSession: nil)
+        EditorView()
     }
     .environment(Router())
     .environment(DependencyContainer.preview())
 }
-

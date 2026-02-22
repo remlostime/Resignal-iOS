@@ -16,12 +16,10 @@ final class EditorViewModel: EditorViewModelProtocol {
     // MARK: - Properties
     
     private let aiClient: any AIClient
-    private let sessionRepository: SessionRepositoryProtocol
     private let attachmentService: AttachmentService
     private let featureAccessService: FeatureAccessServiceProtocol
     
     // Session data
-    var session: Session?
     var inputText: String = ""
     var attachments: [SessionAttachment] = []
     private var audioURL: URL?
@@ -48,10 +46,6 @@ final class EditorViewModel: EditorViewModelProtocol {
         return "\(count) characters"
     }
     
-    var isEditing: Bool {
-        session != nil
-    }
-    
     var isAnalyzing: Bool {
         analysisState.isLoading
     }
@@ -69,25 +63,17 @@ final class EditorViewModel: EditorViewModelProtocol {
     
     init(
         aiClient: any AIClient,
-        sessionRepository: SessionRepositoryProtocol,
         attachmentService: AttachmentService,
         featureAccessService: FeatureAccessServiceProtocol,
-        session: Session? = nil,
         initialTranscript: String? = nil,
         audioURL: URL? = nil
     ) {
         self.aiClient = aiClient
-        self.sessionRepository = sessionRepository
         self.attachmentService = attachmentService
         self.featureAccessService = featureAccessService
-        self.session = session
         self.audioURL = audioURL
         
-        // Pre-populate from existing session or initial transcript
-        if let session = session {
-            self.inputText = session.inputText
-            self.attachments = session.attachments
-        } else if let initialTranscript = initialTranscript, !initialTranscript.isEmpty {
+        if let initialTranscript = initialTranscript, !initialTranscript.isEmpty {
             self.inputText = initialTranscript
         }
     }
@@ -184,7 +170,6 @@ final class EditorViewModel: EditorViewModelProtocol {
     
     /// Prepares the first image attachment for API analysis
     private func prepareImageForAnalysis() async -> ImageAttachment? {
-        // Get the first image attachment
         guard let imageAttachment = attachments.first(where: { $0.attachmentType == .image }) else {
             return nil
         }

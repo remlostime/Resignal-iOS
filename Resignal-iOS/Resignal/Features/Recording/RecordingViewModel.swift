@@ -22,7 +22,6 @@ final class RecordingViewModel {
     private let audioUploadService: AudioUploadService
     private let audioAPI: AudioAPI
     private let liveActivityService: LiveActivityService
-    private let session: Session?
     
     var recordingState: RecordingState = .idle
     var duration: TimeInterval = 0
@@ -88,17 +87,14 @@ final class RecordingViewModel {
         transcriptionService: TranscriptionService,
         audioUploadService: AudioUploadService,
         audioAPI: AudioAPI,
-        liveActivityService: LiveActivityService,
-        session: Session? = nil
+        liveActivityService: LiveActivityService
     ) {
         self.recordingService = recordingService
         self.transcriptionService = transcriptionService
         self.audioUploadService = audioUploadService
         self.audioAPI = audioAPI
         self.liveActivityService = liveActivityService
-        self.session = session
         
-        // Listen for stop recording notification from Live Activity
         setupNotificationObserver()
         
         Task {
@@ -130,7 +126,6 @@ final class RecordingViewModel {
         guard canStop else { return }
         
         if let url = await stopRecording() {
-            // Notify the view that recording was stopped from Live Activity
             onStopFromLiveActivity?(url, transcriptText)
         }
     }
@@ -180,7 +175,7 @@ final class RecordingViewModel {
             
             startTimers()
             
-            try? await liveActivityService.startActivity(sessionName: session?.title)
+            try? await liveActivityService.startActivity(sessionName: nil)
             
             if isWhisperMode {
                 transcriptText = "Recording..."
@@ -296,7 +291,6 @@ final class RecordingViewModel {
             let stream = try await transcriptionService.startLiveTranscription()
             
             for await partialTranscript in stream {
-                // Combine with any transcript saved before pause
                 if savedTranscriptBeforePause.isEmpty {
                     transcriptText = partialTranscript
                 } else {
@@ -311,19 +305,15 @@ final class RecordingViewModel {
     private func transcribeRecording(url: URL) async {
         print("📝 Starting file transcription for: \(url.path)")
         
-        // Store the current live transcript as backup (this was working during recording)
         let liveTranscriptBackup = transcriptText
         print("📝 Live transcript backup: \(liveTranscriptBackup.count) characters")
         
-        // Check audio file size for diagnostics
         if let fileSize = try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int {
             print("📝 Audio file size: \(fileSize) bytes")
         }
         
-        // Wait for app to be in foreground (needed when stopped from Live Activity)
         await waitForForeground()
         
-        // Wait for audio system to settle
         try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
         
         do {
@@ -332,7 +322,6 @@ final class RecordingViewModel {
             let fileWordCount = fileTranscript.split(separator: " ").count
             print("📝 File transcription: \(fileWordCount) words, live backup: \(liveWordCount) words")
             
-            // Keep whichever transcript captured more content
             if fileWordCount >= liveWordCount {
                 transcriptText = fileTranscript
             } else {
@@ -352,11 +341,9 @@ final class RecordingViewModel {
     }
     
     /// Uploads the recording to the backend via AudioUploadService for Whisper transcription.
-    /// Observes upload state to show progress in the transcript text box.
     private func transcribeViaWhisper(url: URL) async {
         transcriptText = "Preparing audio..."
         
-        // Observe upload state for real-time progress updates in the UI
         uploadObserveTask = Task { [weak self] in
             guard let self else { return }
             let stream = await self.audioUploadService.observeState()
@@ -382,7 +369,7 @@ final class RecordingViewModel {
         do {
             let transcript = try await audioUploadService.uploadInterviewAudio(
                 fileURL: url,
-                interviewId: session?.interviewId
+                interviewId: nil
             )
             transcriptText = transcript
         } catch {
@@ -398,7 +385,6 @@ final class RecordingViewModel {
     
     /// Waits until the app is in the foreground (required for speech recognition from file)
     private func waitForForeground() async {
-        // Check if already in foreground
         if UIApplication.shared.applicationState == .active {
             print("📝 App already in foreground")
             return
@@ -406,7 +392,6 @@ final class RecordingViewModel {
         
         print("📝 Waiting for app to come to foreground...")
         
-        // Wait for app to become active
         await withCheckedContinuation { continuation in
             var observer: NSObjectProtocol?
             observer = NotificationCenter.default.addObserver(
@@ -426,21 +411,18 @@ final class RecordingViewModel {
     // MARK: - Timers
     
     private func startTimers() {
-        // Duration timer
         durationTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.updateDuration()
             }
         }
         
-        // Audio level timer
         levelTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.updateAudioLevel()
             }
         }
         
-        // Live Activity timer (update every second)
         liveActivityTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 await self?.updateLiveActivity()

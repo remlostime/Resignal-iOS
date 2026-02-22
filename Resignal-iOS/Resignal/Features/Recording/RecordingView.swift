@@ -16,7 +16,6 @@ struct RecordingView: View {
     @Environment(DependencyContainer.self) private var container
     @Environment(\.dismiss) private var dismiss
     
-    let existingSession: Session?
     let onComplete: ((URL, String) -> Void)?
     
     @State private var viewModel: RecordingViewModel?
@@ -24,8 +23,7 @@ struct RecordingView: View {
     
     // MARK: - Initialization
     
-    init(existingSession: Session? = nil, onComplete: ((URL, String) -> Void)? = nil) {
-        self.existingSession = existingSession
+    init(onComplete: ((URL, String) -> Void)? = nil) {
         self.onComplete = onComplete
     }
     
@@ -62,8 +60,7 @@ struct RecordingView: View {
                     transcriptionService: container.transcriptionService,
                     audioUploadService: container.audioUploadService,
                     audioAPI: container.settingsService.audioAPI,
-                    liveActivityService: container.liveActivityService,
-                    session: existingSession
+                    liveActivityService: container.liveActivityService
                 )
                 
                 vm.onStopFromLiveActivity = { [onComplete] url, transcript in
