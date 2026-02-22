@@ -110,8 +110,15 @@ struct SettingsView: View {
                 }
                 
                 if container.featureAccessService.isPro {
-                    ProgressView(value: 1.0, total: 1.0)
-                        .tint(AppTheme.Colors.primary)
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(
+                            LinearGradient(
+                                colors: [.red, .orange, .yellow, .green, .cyan, .blue, .purple],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(height: 4)
                     
                     Text("Unlimited sessions & asks")
                         .font(AppTheme.Typography.caption)
