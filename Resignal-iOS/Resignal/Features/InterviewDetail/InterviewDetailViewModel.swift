@@ -1,36 +1,39 @@
 //
-//  ResultViewModel.swift
+//  InterviewDetailViewModel.swift
 //  Resignal
 //
-//  ViewModel for the analysis result screen.
+//  ViewModel for the server-driven interview detail screen.
 //
 
 import Foundation
 import SwiftUI
 
-/// Tab selection for result view
-enum ResultTab: String, CaseIterable {
+/// Tab selection for interview detail view
+enum InterviewDetailTab: String, CaseIterable {
     case feedback = "Feedback"
     case transcript = "Transcript"
     case ask = "Ask"
 }
 
-/// ViewModel managing the result screen state
+/// ViewModel managing the interview detail screen state
 @MainActor
 @Observable
-final class ResultViewModel: ResultViewModelProtocol {
+final class InterviewDetailViewModel: InterviewDetailViewModelProtocol {
     
     // MARK: - Properties
     
-    private let sessionRepository: SessionRepositoryProtocol
+    private let interviewClient: any InterviewClient
     private let chatService: ChatService
     private let clientContextService: ClientContextServiceProtocol
     private let featureAccessService: FeatureAccessServiceProtocol
     
-    let session: Session
+    let interviewId: String
+    
+    // Detail state
+    var state: ViewState<StructuredFeedback> = .idle
     
     // Tab state
-    var selectedTab: ResultTab = .feedback
+    var selectedTab: InterviewDetailTab = .feedback
     
     // Chat state
     var chatMessages: [ChatMessage] = []
@@ -45,8 +48,12 @@ final class ResultViewModel: ResultViewModelProtocol {
     
     // MARK: - Computed Properties
     
+    var feedback: StructuredFeedback? {
+        state.value
+    }
+    
     var errorMessage: String? {
-        chatError
+        chatError ?? state.error
     }
     
     var showError: Bool {
@@ -55,33 +62,40 @@ final class ResultViewModel: ResultViewModelProtocol {
     }
     
     var canSendAskMessage: Bool {
-        featureAccessService.canSendAskMessage(forSessionId: session.id.uuidString)
-    }
-    
-    var remainingAskMessages: Int {
-        if featureAccessService.isPro { return Int.max }
-        let used = featureAccessService.askMessageCount(forSessionId: session.id.uuidString)
-        return max(0, featureAccessService.maxFreeAskMessagesPerSession - used)
+        featureAccessService.canSendAskMessage(forSessionId: interviewId)
     }
     
     // MARK: - Initialization
     
     init(
-        session: Session,
-        sessionRepository: SessionRepositoryProtocol,
+        interviewId: String,
+        interviewClient: any InterviewClient,
         chatService: ChatService,
         featureAccessService: FeatureAccessServiceProtocol,
         clientContextService: ClientContextServiceProtocol = ClientContextService.shared
     ) {
-        self.session = session
-        self.sessionRepository = sessionRepository
+        self.interviewId = interviewId
+        self.interviewClient = interviewClient
         self.chatService = chatService
         self.featureAccessService = featureAccessService
         self.clientContextService = clientContextService
-        self.chatMessages = session.chatHistory
     }
     
     // MARK: - Public Methods
+    
+    /// Fetches the interview detail from the backend
+    func loadDetail() async {
+        guard !state.isLoading else { return }
+        state = .loading
+        
+        do {
+            let detail = try await interviewClient.fetchInterviewDetail(id: interviewId)
+            state = .success(detail)
+        } catch {
+            state = .error(error.localizedDescription)
+            debugLog("Failed to load interview detail: \(error)")
+        }
+    }
     
     /// Clears any error state
     func clearError() {
@@ -90,32 +104,17 @@ final class ResultViewModel: ResultViewModelProtocol {
     
     /// Loads chat messages from the backend
     func loadMessages() async {
-        // Skip if already loading or already loaded
         guard !isLoadingMessages, !hasLoadedMessages else { return }
-        
-        // Ensure session has an interview ID
-        guard let interviewId = session.interviewId else {
-            // Fall back to local messages if no server ID
-            chatMessages = session.chatHistory
-            hasLoadedMessages = true
-            return
-        }
         
         isLoadingMessages = true
         
         do {
             let serverMessages = try await chatService.loadMessages(interviewId: interviewId)
-            
-            // Replace local messages with server messages
             chatMessages = serverMessages
             hasLoadedMessages = true
             isLoadingMessages = false
-            
             debugLog("Loaded \(serverMessages.count) messages from server")
-            
         } catch {
-            // On error, fall back to local messages
-            chatMessages = session.chatHistory
             hasLoadedMessages = true
             isLoadingMessages = false
             debugLog("Failed to load messages from server: \(error)")
@@ -132,24 +131,9 @@ final class ResultViewModel: ResultViewModelProtocol {
             return
         }
         
-        // Ensure session has an interview ID
-        guard let interviewId = session.interviewId else {
-            chatError = "Session not synced with server. Please analyze the interview first."
-            return
-        }
-        
-        // Add user message
         let userMessage = ChatMessage(role: .user, content: trimmedMessage)
         chatMessages.append(userMessage)
         
-        // Save user message
-        do {
-            try sessionRepository.saveChatMessage(userMessage, to: session)
-        } catch {
-            debugLog("Failed to save user message: \(error)")
-        }
-        
-        // Clear input
         askMessage = ""
         isSendingMessage = true
         
@@ -161,7 +145,6 @@ final class ResultViewModel: ResultViewModelProtocol {
                 userId: userId
             )
             
-            // Add assistant message with server ID
             let assistantMessage = ChatMessage(
                 role: .ai,
                 content: reply,
@@ -169,12 +152,8 @@ final class ResultViewModel: ResultViewModelProtocol {
             )
             chatMessages.append(assistantMessage)
             
-            // Save assistant message
-            try sessionRepository.saveChatMessage(assistantMessage, to: session)
-            
-            featureAccessService.recordAskMessage(forSessionId: session.id.uuidString)
+            featureAccessService.recordAskMessage(forSessionId: interviewId)
             isSendingMessage = false
-            
         } catch {
             chatError = error.localizedDescription
             isSendingMessage = false
@@ -182,22 +161,11 @@ final class ResultViewModel: ResultViewModelProtocol {
         }
     }
     
-    /// Clears chat history
-    func clearChatHistory() {
-        do {
-            try sessionRepository.deleteChatHistory(from: session)
-            chatMessages.removeAll()
-        } catch {
-            chatError = "Failed to clear chat history"
-            debugLog("Clear chat error: \(error)")
-        }
-    }
-    
     // MARK: - Private Methods
-
+    
     private func debugLog(_ message: String) {
         #if DEBUG
-        print("[ResultViewModel] \(message)")
+        print("[InterviewDetailViewModel] \(message)")
         #endif
     }
 }

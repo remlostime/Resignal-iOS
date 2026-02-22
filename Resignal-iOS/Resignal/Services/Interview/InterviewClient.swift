@@ -14,6 +14,7 @@ enum InterviewClientError: Error, LocalizedError, Sendable {
     case invalidResponse
     case rateLimited
     case unauthorized
+    case notFound
 
     var errorDescription: String? {
         switch self {
@@ -27,6 +28,8 @@ enum InterviewClientError: Error, LocalizedError, Sendable {
             return "Rate limit exceeded. Please try again later."
         case .unauthorized:
             return "Authentication required"
+        case .notFound:
+            return "Interview not found"
         }
     }
 }
@@ -41,4 +44,10 @@ protocol InterviewClient: Sendable {
     /// - Returns: The list response including interviews and pagination info
     /// - Throws: InterviewClientError on failure
     nonisolated func fetchInterviews(page: Int, pageSize: Int) async throws -> InterviewListResponse
+    
+    /// Fetches the full feedback details for a specific interview.
+    /// - Parameter id: The interview ID
+    /// - Returns: Structured feedback including the interview ID
+    /// - Throws: InterviewClientError on failure
+    nonisolated func fetchInterviewDetail(id: String) async throws -> StructuredFeedback
 }

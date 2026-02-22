@@ -238,8 +238,8 @@ struct EditorView: View {
             ) {
                 Task {
                     isTextEditorFocused = false
-                    if let session = await viewModel.analyze() {
-                        router.replace(with: .result(session: session))
+                    if let interviewId = await viewModel.analyze() {
+                        router.replace(with: .interviewDetail(interviewId: interviewId))
                     }
                 }
             }

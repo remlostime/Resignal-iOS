@@ -13,6 +13,9 @@ struct StructuredFeedback: Codable, Sendable, Equatable {
     
     // MARK: - Properties
     
+    /// Server-assigned interview identifier (nil when embedded in other responses)
+    let id: String?
+    
     /// Server-generated title for the session
     let title: String
     
@@ -34,6 +37,7 @@ struct StructuredFeedback: Codable, Sendable, Equatable {
     // MARK: - CodingKeys
     
     enum CodingKeys: String, CodingKey {
+        case id
         case title
         case summary
         case strengths
@@ -45,6 +49,7 @@ struct StructuredFeedback: Codable, Sendable, Equatable {
     // MARK: - Initialization
     
     init(
+        id: String? = nil,
         title: String,
         summary: String,
         strengths: [String],
@@ -52,6 +57,7 @@ struct StructuredFeedback: Codable, Sendable, Equatable {
         hiringSignal: String,
         keyObservations: [String]
     ) {
+        self.id = id
         self.title = title
         self.summary = summary
         self.strengths = strengths

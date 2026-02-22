@@ -11,7 +11,7 @@ import SwiftUI
 enum Route: Hashable {
     case home
     case editor(session: Session?, initialTranscript: String? = nil, audioURL: URL? = nil)
-    case result(session: Session)
+    case interviewDetail(interviewId: String)
     case recording(session: Session?)
     
     func hash(into hasher: inout Hasher) {
@@ -23,9 +23,9 @@ enum Route: Hashable {
             hasher.combine(session?.id)
             hasher.combine(transcript)
             hasher.combine(audioURL)
-        case .result(let session):
-            hasher.combine("result")
-            hasher.combine(session.id)
+        case .interviewDetail(let interviewId):
+            hasher.combine("interviewDetail")
+            hasher.combine(interviewId)
         case .recording(let session):
             hasher.combine("recording")
             hasher.combine(session?.id)
@@ -38,8 +38,8 @@ enum Route: Hashable {
             return true
         case (.editor(let lhsSession, let lhsTranscript, let lhsURL), .editor(let rhsSession, let rhsTranscript, let rhsURL)):
             return lhsSession?.id == rhsSession?.id && lhsTranscript == rhsTranscript && lhsURL == rhsURL
-        case (.result(let lhsSession), .result(let rhsSession)):
-            return lhsSession.id == rhsSession.id
+        case (.interviewDetail(let lhsId), .interviewDetail(let rhsId)):
+            return lhsId == rhsId
         case (.recording(let lhsSession), .recording(let rhsSession)):
             return lhsSession?.id == rhsSession?.id
         default:

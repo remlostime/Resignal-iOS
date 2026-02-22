@@ -76,8 +76,7 @@ struct HomeView: View {
         .onAppear {
             if viewModel == nil {
                 viewModel = HomeViewModel(
-                    interviewClient: container.interviewClient,
-                    sessionRepository: container.sessionRepository
+                    interviewClient: container.interviewClient
                 )
             }
         }
@@ -210,7 +209,7 @@ struct HomeView: View {
                     InterviewRowView(interview: interview)
                         .contentShape(Rectangle())
                         .onTapGesture {
-                            handleInterviewTap(interview, viewModel: viewModel)
+                            handleInterviewTap(interview)
                         }
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             Button(role: .destructive) {
@@ -268,17 +267,8 @@ struct HomeView: View {
     
     // MARK: - Navigation
     
-    private func handleInterviewTap(_ interview: InterviewDTO, viewModel: HomeViewModel) {
-        guard let session = viewModel.findLocalSession(for: interview) else {
-            router.navigate(to: .editor(session: nil))
-            return
-        }
-        
-        if session.hasAnalysis {
-            router.navigate(to: .result(session: session))
-        } else {
-            router.navigate(to: .editor(session: session))
-        }
+    private func handleInterviewTap(_ interview: InterviewDTO) {
+        router.navigate(to: .interviewDetail(interviewId: interview.id))
     }
     
     // MARK: - Session Creation Gating

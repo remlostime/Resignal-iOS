@@ -153,8 +153,8 @@ struct RootView: View {
         case .editor(let session, let initialTranscript, let audioURL):
             EditorView(existingSession: session, initialTranscript: initialTranscript, audioURL: audioURL)
             
-        case .result(let session):
-            ResultView(session: session)
+        case .interviewDetail(let interviewId):
+            InterviewDetailView(interviewId: interviewId)
             
         case .recording(let session):
             RecordingView(existingSession: session) { url, transcript in

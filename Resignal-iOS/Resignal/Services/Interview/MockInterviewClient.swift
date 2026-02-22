@@ -43,6 +43,22 @@ actor MockInterviewClient: InterviewClient {
         }
     }
 
+    nonisolated func fetchInterviewDetail(id: String) async throws -> StructuredFeedback {
+        try await Task.sleep(for: .seconds(delay))
+        try Task.checkCancellation()
+
+        if shouldSucceed {
+            return StructuredFeedback(id: id, title: StructuredFeedback.sample.title,
+                                     summary: StructuredFeedback.sample.summary,
+                                     strengths: StructuredFeedback.sample.strengths,
+                                     improvement: StructuredFeedback.sample.improvement,
+                                     hiringSignal: StructuredFeedback.sample.hiringSignal,
+                                     keyObservations: StructuredFeedback.sample.keyObservations)
+        } else {
+            throw InterviewClientError.apiError("Mock fetch detail failed")
+        }
+    }
+
     // MARK: - Sample Data
 
     private static let sampleInterviews: [InterviewDTO] = [
