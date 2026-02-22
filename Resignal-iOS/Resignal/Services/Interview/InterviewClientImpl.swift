@@ -127,7 +127,6 @@ actor InterviewClientImpl: InterviewClient {
         switch httpResponse.statusCode {
         case 200:
             let decoder = JSONDecoder()
-            decoder.keyDecodingStrategy = .convertFromSnakeCase
             do {
                 return try decoder.decode(StructuredFeedback.self, from: data)
             } catch {
