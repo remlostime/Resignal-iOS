@@ -24,7 +24,6 @@ final class InterviewDetailViewModel: InterviewDetailViewModelProtocol {
     
     private let interviewClient: any InterviewClient
     private let chatService: ChatService
-    private let clientContextService: ClientContextServiceProtocol
     private let featureAccessService: FeatureAccessServiceProtocol
     
     let interviewId: String
@@ -74,14 +73,12 @@ final class InterviewDetailViewModel: InterviewDetailViewModelProtocol {
         interviewId: String,
         interviewClient: any InterviewClient,
         chatService: ChatService,
-        featureAccessService: FeatureAccessServiceProtocol,
-        clientContextService: ClientContextServiceProtocol = ClientContextService.shared
+        featureAccessService: FeatureAccessServiceProtocol
     ) {
         self.interviewId = interviewId
         self.interviewClient = interviewClient
         self.chatService = chatService
         self.featureAccessService = featureAccessService
-        self.clientContextService = clientContextService
     }
     
     // MARK: - Public Methods
@@ -138,7 +135,7 @@ final class InterviewDetailViewModel: InterviewDetailViewModelProtocol {
         }
     }
     
-    /// Sends a chat message
+    /// Sends a chat message (user identity derived from JWT, no userId needed)
     func sendAskMessage() async {
         let trimmedMessage = askMessage.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedMessage.isEmpty else { return }
@@ -155,11 +152,9 @@ final class InterviewDetailViewModel: InterviewDetailViewModelProtocol {
         isSendingMessage = true
         
         do {
-            let userId = clientContextService.clientId
             let (reply, messageId) = try await chatService.sendMessage(
                 trimmedMessage,
-                interviewId: interviewId,
-                userId: userId
+                interviewId: interviewId
             )
             
             let assistantMessage = ChatMessage(

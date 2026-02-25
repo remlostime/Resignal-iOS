@@ -195,21 +195,35 @@ struct DevSettingsView: View {
     @ViewBuilder
     private var clientIdSection: some View {
         Section {
-            TextField("Override value", text: clientIdOverrideBinding)
+            TextField("Override anonymousId", text: clientIdOverrideBinding)
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
                 .font(AppTheme.Typography.body)
             
             HStack {
-                Text("Effective ID")
+                Text("Anonymous ID")
                     .font(AppTheme.Typography.caption)
                     .foregroundStyle(AppTheme.Colors.textSecondary)
                 Spacer()
-                Text(ClientContextService.shared.clientId)
+                Text(container.identityManager.anonymousId)
                     .font(AppTheme.Typography.caption)
                     .foregroundStyle(AppTheme.Colors.textSecondary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
+            }
+            
+            HStack {
+                Text("Authenticated")
+                    .font(AppTheme.Typography.caption)
+                    .foregroundStyle(AppTheme.Colors.textSecondary)
+                Spacer()
+                Text(container.identityManager.isAuthenticated ? "Yes" : "No")
+                    .font(AppTheme.Typography.caption)
+                    .foregroundStyle(
+                        container.identityManager.isAuthenticated
+                            ? AppTheme.Colors.success
+                            : AppTheme.Colors.destructive
+                    )
             }
             
             if !container.settingsService.clientIdOverride.isEmpty {
@@ -219,9 +233,9 @@ struct DevSettingsView: View {
                 .foregroundStyle(AppTheme.Colors.destructive)
             }
         } header: {
-            Text("x-client-id")
+            Text("Identity")
         } footer: {
-            Text("Override the auto-generated x-client-id for all API requests. Leave empty to use the default.")
+            Text("Override the auto-generated anonymousId for registration. Leave empty to use the default. JWT is used for all API requests.")
                 .font(AppTheme.Typography.caption)
         }
     }

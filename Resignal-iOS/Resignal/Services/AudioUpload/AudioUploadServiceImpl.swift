@@ -32,7 +32,7 @@ actor AudioUploadServiceImpl: AudioUploadService {
     // MARK: - Dependencies
 
     private let baseURL: String
-    private let clientContextService: ClientContextServiceProtocol
+    private let identityManager: IdentityManagerProtocol
     private let chunkManager: AudioChunkManager
     private let uploadDelegate: BackgroundUploadDelegate
     private let urlSession: URLSession
@@ -48,11 +48,11 @@ actor AudioUploadServiceImpl: AudioUploadService {
 
     init(
         baseURL: String,
-        clientContextService: ClientContextServiceProtocol = ClientContextService.shared,
+        identityManager: IdentityManagerProtocol,
         chunkManager: AudioChunkManager = AudioChunkManagerImpl()
     ) {
         self.baseURL = baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        self.clientContextService = clientContextService
+        self.identityManager = identityManager
         self.chunkManager = chunkManager
 
         let delegate = BackgroundUploadDelegate()
@@ -70,12 +70,12 @@ actor AudioUploadServiceImpl: AudioUploadService {
     /// Test-only initializer that accepts a custom URLSession (e.g. for stubbing).
     init(
         baseURL: String,
-        clientContextService: ClientContextServiceProtocol,
+        identityManager: IdentityManagerProtocol,
         chunkManager: AudioChunkManager,
         urlSession: URLSession
     ) {
         self.baseURL = baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        self.clientContextService = clientContextService
+        self.identityManager = identityManager
         self.chunkManager = chunkManager
         self.uploadDelegate = BackgroundUploadDelegate()
         self.urlSession = urlSession
@@ -312,10 +312,12 @@ extension AudioUploadServiceImpl {
     }
 
     private func applyAuthHeaders(to request: inout URLRequest) {
-        request.setValue(clientContextService.clientId, forHTTPHeaderField: "x-client-id")
-        request.setValue(clientContextService.appVersion, forHTTPHeaderField: "x-client-version")
-        request.setValue(clientContextService.platform, forHTTPHeaderField: "x-client-platform")
-        request.setValue(clientContextService.deviceModel, forHTTPHeaderField: "x-device-model")
+        if let token = identityManager.currentToken {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        request.setValue(identityManager.appVersion, forHTTPHeaderField: "x-client-version")
+        request.setValue(identityManager.platform, forHTTPHeaderField: "x-client-platform")
+        request.setValue(identityManager.deviceModel, forHTTPHeaderField: "x-device-model")
     }
 
     private func buildURL(path: String) throws -> URL {

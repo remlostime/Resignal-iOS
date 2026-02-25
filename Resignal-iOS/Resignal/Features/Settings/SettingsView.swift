@@ -222,7 +222,7 @@ struct SettingsView: View {
 #Preview {
     SettingsView(
         viewModel: SettingsViewModel(
-            userClient: MockUserClient(),
+            apiClient: MockAPIClient(),
             settingsService: SettingsService()
         ),
         apiEnvironment: .prod

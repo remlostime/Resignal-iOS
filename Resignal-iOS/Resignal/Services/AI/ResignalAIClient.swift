@@ -7,8 +7,8 @@
 
 import Foundation
 
-/// Resignal backend API client
-/// Integrates with the Resignal backend at https://resignal-backend.vercel.app
+/// Resignal backend API client for interview analysis.
+/// Uses the centralized APIClient for authenticated requests.
 actor ResignalAIClient: AIClient {
 
     // MARK: - Request/Response Models
@@ -47,9 +47,8 @@ actor ResignalAIClient: AIClient {
 
     // MARK: - Properties
 
-    private let baseURL: String
     private let model: String
-    private let clientContextService: ClientContextServiceProtocol
+    private let apiClient: APIClientProtocol
     private var _isAnalyzing: Bool = false
     private var currentTask: Task<AnalysisResponse, Error>?
 
@@ -66,25 +65,21 @@ actor ResignalAIClient: AIClient {
     // MARK: - Initialization
 
     init(
-        baseURL: String = "https://resignal-backend.vercel.app",
         model: String = "gemini",
-        clientContextService: ClientContextServiceProtocol = ClientContextService.shared
+        apiClient: APIClientProtocol
     ) {
-        self.baseURL = baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         self.model = model
-        self.clientContextService = clientContextService
+        self.apiClient = apiClient
     }
 
     // MARK: - AIClient Implementation
 
     nonisolated func analyze(_ request: AnalysisRequest) async throws -> AnalysisResponse {
-        // Validate input
         let trimmedInput = request.inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmedInput.count >= ValidationConstants.minimumInputCharacters else {
             throw AIClientError.invalidInput("Input text must be at least \(ValidationConstants.minimumInputCharacters) characters")
         }
 
-        // Create and store the task for cancellation support
         let task = Task<AnalysisResponse, Error> {
             try await performAnalysis(request: request)
         }
@@ -116,58 +111,27 @@ actor ResignalAIClient: AIClient {
         await setIsAnalyzing(true)
         defer { Task { await setIsAnalyzing(false) } }
         
-        // Send only the raw transcript
         let completeInput = request.inputText
-
-        // Create the request with optional image and model
         let chatRequest = ChatRequest(input: completeInput, image: request.image, model: model)
 
-        // Create URL request
-        guard let url = URL(string: "\(baseURL)/api/interviews") else {
-            throw AIClientError.networkError("Invalid URL")
-        }
-
-        var urlRequest = URLRequest(url: url)
-        urlRequest.httpMethod = "POST"
-        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        urlRequest.setValue(clientContextService.clientId, forHTTPHeaderField: "x-client-id")
-        urlRequest.setValue(clientContextService.appVersion, forHTTPHeaderField: "x-client-version")
-        urlRequest.setValue(clientContextService.platform, forHTTPHeaderField: "x-client-platform")
-        urlRequest.setValue(clientContextService.deviceModel, forHTTPHeaderField: "x-device-model")
-        urlRequest.timeoutInterval = 60
-
-        let encoder = JSONEncoder()
-        urlRequest.httpBody = try encoder.encode(chatRequest)
-
-        // Execute request
-        let (data, response) = try await URLSession.shared.data(for: urlRequest)
+        let (data, _) = try await apiClient.requestRaw(
+            "/api/interviews",
+            method: .post,
+            body: chatRequest,
+            timeoutInterval: 60
+        )
 
         try Task.checkCancellation()
 
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw AIClientError.networkError("Invalid response")
-        }
-
-        switch httpResponse.statusCode {
-        case 200...299:
-            let decoder = JSONDecoder()
+        let decoder = JSONDecoder()
+        do {
             let chatResponse = try decoder.decode(ChatResponse.self, from: data)
-
             return AnalysisResponse(feedback: chatResponse.reply, interviewId: chatResponse.interviewId)
-
-        case 500:
-            // Try to parse error response
-            if let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
+        } catch {
+            if let errorResponse = try? decoder.decode(ErrorResponse.self, from: data) {
                 throw AIClientError.apiError(errorResponse.error)
             }
-            throw AIClientError.apiError("Server error (HTTP 500)")
-
-        default:
-            // Try to parse error response for other status codes
-            if let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
-                throw AIClientError.apiError(errorResponse.error)
-            }
-            throw AIClientError.apiError("HTTP \(httpResponse.statusCode)")
+            throw AIClientError.apiError("Failed to decode response")
         }
     }
     

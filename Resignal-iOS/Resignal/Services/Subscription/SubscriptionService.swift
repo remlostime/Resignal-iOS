@@ -25,10 +25,12 @@ final class SubscriptionService: SubscriptionServiceProtocol {
     /// `nonisolated(unsafe)` allows cancellation from `deinit` which runs nonisolated.
     private nonisolated(unsafe) var transactionListenerTask: Task<Void, Never>?
     
+    private let billingClient: BillingClientProtocol
+    
     // MARK: - Initialization
     
-    init() {
-        // Check current entitlements immediately on init
+    init(billingClient: BillingClientProtocol) {
+        self.billingClient = billingClient
         Task {
             await checkCurrentEntitlements()
         }
@@ -66,7 +68,7 @@ final class SubscriptionService: SubscriptionServiceProtocol {
             case .success(let verification):
                 let transaction = try checkVerification(verification)
                 
-                // Update plan based on verified transaction
+                await verifyReceiptWithBackend()
                 await updatePlanFromTransaction(transaction)
                 await transaction.finish()
                 
@@ -194,6 +196,28 @@ final class SubscriptionService: SubscriptionServiceProtocol {
         }
     }
     
+    /// Sends the App Store receipt to the backend for server-side verification.
+    /// Failures are logged but do not block the purchase flow.
+    private func verifyReceiptWithBackend() async {
+        guard let receiptURL = Bundle.main.appStoreReceiptURL,
+              let receiptData = try? Data(contentsOf: receiptURL) else {
+            debugLog("No App Store receipt found")
+            return
+        }
+
+        let base64Receipt = receiptData.base64EncodedString()
+
+        do {
+            let response = try await billingClient.verifyReceipt(receiptData: base64Receipt)
+            if response.isPro {
+                currentPlan = .pro
+            }
+            debugLog("Backend receipt verification: isPro=\(response.isPro)")
+        } catch {
+            debugLog("Backend receipt verification failed: \(error.localizedDescription)")
+        }
+    }
+
     private func debugLog(_ message: String) {
         #if DEBUG
         print("[SubscriptionService] \(message)")

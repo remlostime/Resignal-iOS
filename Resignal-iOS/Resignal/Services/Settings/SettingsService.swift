@@ -97,7 +97,6 @@ enum AudioAPI: String, CaseIterable, Sendable {
 @MainActor
 protocol SettingsServiceProtocol: AnyObject, Sendable {
     var useMockAI: Bool { get set }
-    var hasRegisteredUser: Bool { get set }
     var hasSeenOnboarding: Bool { get set }
     var hasAcceptedTerms: Bool { get set }
     var hasSeenRecordingNotice: Bool { get set }
@@ -111,7 +110,7 @@ protocol SettingsServiceProtocol: AnyObject, Sendable {
     var mockSubscriptionEnabled: Bool { get set }
     /// The mock plan to use when mockSubscriptionEnabled is true
     var mockPlan: Plan { get set }
-    /// When non-empty, overrides the Keychain-generated x-client-id for all API requests
+    /// When non-empty, overrides the Keychain-generated anonymousId for registration
     var clientIdOverride: String { get set }
     #endif
 }
@@ -125,7 +124,6 @@ final class SettingsService: SettingsServiceProtocol {
     
     private enum Keys {
         static let useMockAI = "useMockAI"
-        static let hasRegisteredUser = "hasRegisteredUser"
         static let hasSeenOnboarding = "hasSeenOnboarding"
         static let hasAcceptedTerms = "hasAcceptedTerms"
         static let hasSeenRecordingNotice = "hasSeenRecordingNotice"
@@ -146,12 +144,6 @@ final class SettingsService: SettingsServiceProtocol {
     var useMockAI: Bool {
         didSet {
             defaults.set(useMockAI, forKey: Keys.useMockAI)
-        }
-    }
-    
-    var hasRegisteredUser: Bool {
-        didSet {
-            defaults.set(hasRegisteredUser, forKey: Keys.hasRegisteredUser)
         }
     }
     
@@ -227,7 +219,6 @@ final class SettingsService: SettingsServiceProtocol {
         
         // Load settings
         self.useMockAI = defaults.object(forKey: Keys.useMockAI) as? Bool ?? true
-        self.hasRegisteredUser = defaults.object(forKey: Keys.hasRegisteredUser) as? Bool ?? false
         self.hasSeenOnboarding = defaults.object(forKey: Keys.hasSeenOnboarding) as? Bool ?? false
         self.hasAcceptedTerms = defaults.object(forKey: Keys.hasAcceptedTerms) as? Bool ?? false
         self.hasSeenRecordingNotice = defaults.object(forKey: Keys.hasSeenRecordingNotice) as? Bool ?? false
