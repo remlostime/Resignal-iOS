@@ -23,7 +23,7 @@ struct AuthResponse: Codable, Sendable {
 
 struct AuthUser: Codable, Sendable {
     let id: String
-    let isPro: Bool
+    let plan: Plan
 }
 
 // MARK: - Standardized API Error Response
