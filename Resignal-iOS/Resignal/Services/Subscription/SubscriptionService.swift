@@ -68,7 +68,7 @@ final class SubscriptionService: SubscriptionServiceProtocol {
             case .success(let verification):
                 let transaction = try checkVerification(verification)
                 
-                await verifyReceiptWithBackend()
+                await verifyTransactionWithBackend(verification.jwsRepresentation)
                 await updatePlanFromTransaction(transaction)
                 await transaction.finish()
                 
@@ -106,6 +106,7 @@ final class SubscriptionService: SubscriptionServiceProtocol {
             await checkCurrentEntitlements()
             
             if currentPlan == .pro {
+                await verifyCurrentEntitlementWithBackend()
                 purchaseState = .restored
                 debugLog("Purchases restored successfully")
             } else {
@@ -131,8 +132,10 @@ final class SubscriptionService: SubscriptionServiceProtocol {
                         try self.checkVerification(result)
                     }
                     
+                    let jwsRepresentation = result.jwsRepresentation
                     await MainActor.run {
                         Task {
+                            await self.verifyTransactionWithBackend(jwsRepresentation)
                             await self.updatePlanFromTransaction(transaction)
                             await transaction.finish()
                         }
@@ -196,25 +199,33 @@ final class SubscriptionService: SubscriptionServiceProtocol {
         }
     }
     
-    /// Sends the App Store receipt to the backend for server-side verification.
+    /// Sends a StoreKit 2 JWS signed transaction to the backend for server-side verification.
     /// Failures are logged but do not block the purchase flow.
-    private func verifyReceiptWithBackend() async {
-        guard let receiptURL = Bundle.main.appStoreReceiptURL,
-              let receiptData = try? Data(contentsOf: receiptURL) else {
-            debugLog("No App Store receipt found")
-            return
-        }
-
-        let base64Receipt = receiptData.base64EncodedString()
-
+    private func verifyTransactionWithBackend(_ jwsRepresentation: String) async {
         do {
-            let response = try await billingClient.verifyReceipt(receiptData: base64Receipt)
+            let response = try await billingClient.verifyTransaction(signedTransaction: jwsRepresentation)
             if response.isPro {
                 currentPlan = .pro
             }
-            debugLog("Backend receipt verification: isPro=\(response.isPro)")
+            debugLog("Backend transaction verification: isPro=\(response.isPro)")
         } catch {
-            debugLog("Backend receipt verification failed: \(error.localizedDescription)")
+            debugLog("Backend transaction verification failed: \(error.localizedDescription)")
+        }
+    }
+    
+    /// Finds the active Pro entitlement and sends its JWS to the backend for verification.
+    private func verifyCurrentEntitlementWithBackend() async {
+        for await result in Transaction.currentEntitlements {
+            do {
+                let transaction = try checkVerification(result)
+                if SubscriptionProductID.all.contains(transaction.productID),
+                   transaction.revocationDate == nil {
+                    await verifyTransactionWithBackend(result.jwsRepresentation)
+                    return
+                }
+            } catch {
+                debugLog("Entitlement verification failed: \(error.localizedDescription)")
+            }
         }
     }
 

@@ -82,7 +82,7 @@ enum APIError: LocalizedError, Sendable {
         case "USER_NOT_FOUND": return .userNotFound
         case "PRO_REQUIRED": return .proRequired
         case "RATE_LIMITED": return .rateLimited
-        case "INVALID_INPUT": return .invalidInput(message)
+        case "INVALID_INPUT", "INVALID_RECEIPT": return .invalidInput(message)
         case "NOT_FOUND": return .notFound
         case "INTERNAL_ERROR": return .internalError(message)
         default: return .internalError(message)
