@@ -202,6 +202,7 @@ final class SubscriptionService: SubscriptionServiceProtocol {
     /// Sends a StoreKit 2 JWS signed transaction to the backend for server-side verification.
     /// Failures are logged but do not block the purchase flow.
     private func verifyTransactionWithBackend(_ jwsRepresentation: String) async {
+        debugLog("JWS: \(jwsRepresentation)")
         do {
             let response = try await billingClient.verifyTransaction(signedTransaction: jwsRepresentation)
             if response.isPro {

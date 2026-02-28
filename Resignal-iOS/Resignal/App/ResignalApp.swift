@@ -173,7 +173,7 @@ struct RootView: View {
             await container.subscriptionService.listenForTransactions()
         }
         #if DEBUG
-        .onReceive(NotificationCenter.default.publisher(for: UIDevice.deviceDidShakeNotification)) { _ in
+        .onShake {
             showDevSettings = true
         }
         .sheet(isPresented: $showDevSettings) {
