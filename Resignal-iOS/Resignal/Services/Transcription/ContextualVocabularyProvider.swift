@@ -49,6 +49,11 @@ final class ContextualVocabularyProviderImpl: ContextualVocabularyProvider {
             loaded[name] = Self.loadTerms(from: url)
         }
         self.termsByFile = loaded
+
+        let uniqueCount = Set(loaded.values.flatMap { $0 }).count
+        let fileCount = loaded.count
+        let totalFiles = Self.allFileNames.count
+        print("📖 ContextualVocabulary: loaded \(uniqueCount) unique terms from \(fileCount)/\(totalFiles) files")
     }
 
     func allTerms() -> [String] {

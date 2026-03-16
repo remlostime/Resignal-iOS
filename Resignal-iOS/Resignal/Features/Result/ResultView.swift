@@ -20,7 +20,6 @@ struct ResultView: View {
     @State private var viewModel: ResultViewModel?
     @State private var fullscreenImage: UIImage?
     @State private var showFullscreenImage = false
-    @State private var showPaywall = false
     
     // MARK: - Body
     
@@ -101,11 +100,6 @@ struct ResultView: View {
                 showFullscreenImage = false
             }
         }
-        .sheet(isPresented: $showPaywall) {
-            PaywallView()
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
-        }
     }
     
     private func feedbackTabContent(viewModel: ResultViewModel) -> some View {
@@ -116,11 +110,7 @@ struct ResultView: View {
                 
                 // Feedback content
                 if let feedback = session.structuredFeedback {
-                    FeedbackSectionsView(
-                        feedback: feedback,
-                        featureAccessService: container.featureAccessService,
-                        onUpgradeTapped: { showPaywall = true }
-                    )
+                    FeedbackSectionsView(feedback: feedback)
                 } else {
                     emptyFeedbackView
                 }
@@ -204,63 +194,30 @@ struct ResultView: View {
         }
     }
     
-    @ViewBuilder
     private func askTabContent(viewModel: ResultViewModel) -> some View {
-        if container.featureAccessService.canUseAskTab() {
-            AskChatView(
-                messages: Binding(
-                    get: { viewModel.chatMessages },
-                    set: { viewModel.chatMessages = $0 }
-                ),
-                inputText: Binding(
-                    get: { viewModel.askMessage },
-                    set: { viewModel.askMessage = $0 }
-                ),
-                isSending: Binding(
-                    get: { viewModel.isSendingMessage },
-                    set: { viewModel.isSendingMessage = $0 }
-                ),
-                isLoading: Binding(
-                    get: { viewModel.isLoadingMessages },
-                    set: { _ in }
-                ),
-                onSend: {
-                    Task {
-                        await viewModel.sendAskMessage()
-                    }
+        AskChatView(
+            messages: Binding(
+                get: { viewModel.chatMessages },
+                set: { viewModel.chatMessages = $0 }
+            ),
+            inputText: Binding(
+                get: { viewModel.askMessage },
+                set: { viewModel.askMessage = $0 }
+            ),
+            isSending: Binding(
+                get: { viewModel.isSendingMessage },
+                set: { viewModel.isSendingMessage = $0 }
+            ),
+            isLoading: Binding(
+                get: { viewModel.isLoadingMessages },
+                set: { _ in }
+            ),
+            onSend: {
+                Task {
+                    await viewModel.sendAskMessage()
                 }
-            )
-        } else {
-            lockedAskTabView
-        }
-    }
-    
-    private var lockedAskTabView: some View {
-        VStack(spacing: AppTheme.Spacing.lg) {
-            Spacer()
-            
-            Image(systemName: "lock.circle")
-                .font(.system(size: 48))
-                .foregroundStyle(AppTheme.Colors.textTertiary)
-            
-            Text("Follow-up Questions")
-                .font(AppTheme.Typography.title)
-                .foregroundStyle(AppTheme.Colors.textPrimary)
-            
-            Text("Unlock Pro to ask AI follow-up questions about your interview performance")
-                .font(AppTheme.Typography.body)
-                .foregroundStyle(AppTheme.Colors.textSecondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, AppTheme.Spacing.xl)
-            
-            PrimaryButton("Unlock Pro", icon: "star.fill") {
-                showPaywall = true
             }
-            .padding(.horizontal, AppTheme.Spacing.xl)
-            
-            Spacer()
-            Spacer()
-        }
+        )
     }
     
     private var sessionInfoView: some View {

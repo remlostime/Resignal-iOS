@@ -49,4 +49,8 @@ protocol UserClient: Sendable {
     /// - Returns: Registration response
     /// - Throws: UserClientError if registration fails
     nonisolated func registerUser() async throws -> UserRegistrationResponse
+    
+    /// Requests deletion of all server-side data associated with the current anonymous user.
+    /// - Throws: UserClientError if the request fails
+    nonisolated func deleteAllData() async throws
 }

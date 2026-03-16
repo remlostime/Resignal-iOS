@@ -112,13 +112,11 @@ struct PaywallView: View {
 
     private var featureListSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            FeatureBullet(icon: "infinity", title: "Unlimited practice", subtitle: "No monthly analysis limits")
+            FeatureBullet(icon: "infinity", title: "Unlimited sessions", subtitle: "No monthly session limits")
             Divider().padding(.leading, 44)
             FeatureBullet(icon: "sparkles", title: "AI answer rewriting", subtitle: "Get improved versions of your answers")
             Divider().padding(.leading, 44)
-            FeatureBullet(icon: "bubble.left.and.bubble.right", title: "Follow-up questions", subtitle: "Ask AI about your performance")
-            Divider().padding(.leading, 44)
-            FeatureBullet(icon: "square.and.arrow.up", title: "Export & save history", subtitle: "Unlimited session history and sharing")
+            FeatureBullet(icon: "star.circle", title: "Priority support", subtitle: "Get help when you need it")
         }
         .padding(.horizontal, AppTheme.Spacing.md)
         .padding(.vertical, AppTheme.Spacing.sm)
@@ -195,11 +193,13 @@ struct PaywallView: View {
             .disabled(isPurchasing)
 
             HStack(spacing: AppTheme.Spacing.md) {
-                Link("Terms of service", destination: URL(string: "https://resignal.app/terms")!)
+                Link("Terms of service",
+                     destination: container.settingsService.apiEnvironment.termsOfServiceURL)
                     .font(AppTheme.Typography.caption)
                     .foregroundStyle(AppTheme.Colors.textTertiary)
 
-                Link("Privacy policy", destination: URL(string: "https://resignal.app/privacy")!)
+                Link("Privacy policy",
+                     destination: container.settingsService.apiEnvironment.privacyPolicyURL)
                     .font(AppTheme.Typography.caption)
                     .foregroundStyle(AppTheme.Colors.textTertiary)
             }
