@@ -25,7 +25,6 @@ protocol HomeViewModelProtocol: AnyObject, Observable {
     func confirmDelete(_ interview: InterviewDTO)
     func executePendingDelete()
     func cancelDelete()
-    func findLocalSession(for interview: InterviewDTO) -> Session?
     func clearError()
 }
 
@@ -34,40 +33,49 @@ protocol HomeViewModelProtocol: AnyObject, Observable {
 /// Protocol defining the EditorViewModel interface
 @MainActor
 protocol EditorViewModelProtocol: AnyObject, Observable {
-    var session: Session? { get }
     var inputText: String { get set }
     var attachments: [SessionAttachment] { get set }
-    var analysisState: ViewState<Session> { get }
+    var analysisState: ViewState<String> { get }
     var analysisProgress: Double { get }
     var analysisResult: StructuredFeedback? { get }
     var canAnalyze: Bool { get }
     var characterCountMessage: String { get }
-    var isEditing: Bool { get }
     var isAnalyzing: Bool { get }
     var errorMessage: String? { get }
     var showError: Bool { get set }
     var showAttachmentPicker: Bool { get set }
     
-    func analyze() async -> Session?
+    func analyze() async -> String?
     func cancelAnalysis()
-    func saveDraft() -> Session?
     func clearError()
     func addAttachment(_ attachment: SessionAttachment)
     func removeAttachment(_ attachment: SessionAttachment)
     func toggleAttachmentPicker()
 }
 
-// MARK: - ResultViewModelProtocol
+// MARK: - InterviewDetailViewModelProtocol
 
-/// Protocol defining the ResultViewModel interface
+/// Protocol defining the InterviewDetailViewModel interface
 @MainActor
-protocol ResultViewModelProtocol: AnyObject, Observable {
-    var session: Session { get }
+protocol InterviewDetailViewModelProtocol: AnyObject, Observable {
+    var interviewId: String { get }
+    var state: ViewState<StructuredFeedback> { get }
+    var feedback: StructuredFeedback? { get }
+    var selectedTab: InterviewDetailTab { get set }
+    var chatMessages: [ChatMessage] { get set }
+    var askMessage: String { get set }
+    var isSendingMessage: Bool { get }
+    var isLoadingMessages: Bool { get }
     var errorMessage: String? { get }
     var showError: Bool { get set }
     var showPaywall: Bool { get set }
     var canSendAskMessage: Bool { get }
+    var transcriptState: ViewState<String> { get }
     
+    func loadDetail() async
+    func loadMessages() async
+    func loadTranscript() async
+    func sendAskMessage() async
     func clearError()
 }
 

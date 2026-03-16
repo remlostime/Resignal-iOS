@@ -31,6 +31,14 @@ actor InterviewClientImpl: InterviewClient {
         try await performFetch(page: page, pageSize: pageSize)
     }
 
+    nonisolated func fetchInterviewDetail(id: String) async throws -> StructuredFeedback {
+        try await performFetchDetail(id: id)
+    }
+
+    nonisolated func fetchTranscript(id: String) async throws -> TranscriptResponse {
+        try await performFetchTranscript(id: id)
+    }
+
     // MARK: - Private
 
     private func performFetch(page: Int, pageSize: Int) async throws -> InterviewListResponse {
@@ -79,6 +87,116 @@ actor InterviewClientImpl: InterviewClient {
 
         case 401:
             throw InterviewClientError.unauthorized
+
+        case 429:
+            throw InterviewClientError.rateLimited
+
+        case 400...499:
+            let message = String(data: data, encoding: .utf8) ?? "Client error"
+            throw InterviewClientError.apiError("HTTP \(httpResponse.statusCode): \(message)")
+
+        case 500...599:
+            let message = String(data: data, encoding: .utf8) ?? "Server error"
+            throw InterviewClientError.apiError("HTTP \(httpResponse.statusCode): \(message)")
+
+        default:
+            throw InterviewClientError.apiError("Unexpected status code: \(httpResponse.statusCode)")
+        }
+    }
+
+    private func performFetchTranscript(id: String) async throws -> TranscriptResponse {
+        guard let url = URL(string: "\(baseURL)/api/interviews/\(id)/transcript") else {
+            throw InterviewClientError.networkError("Invalid URL")
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue(clientContextService.clientId, forHTTPHeaderField: "x-client-id")
+        request.setValue(clientContextService.appVersion, forHTTPHeaderField: "x-client-version")
+        request.setValue(clientContextService.platform, forHTTPHeaderField: "x-client-platform")
+        request.setValue(clientContextService.deviceModel, forHTTPHeaderField: "x-device-model")
+        request.timeoutInterval = 30
+
+        let (data, response): (Data, URLResponse)
+        do {
+            (data, response) = try await URLSession.shared.data(for: request)
+        } catch {
+            throw InterviewClientError.networkError("Request failed: \(error.localizedDescription)")
+        }
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw InterviewClientError.invalidResponse
+        }
+
+        switch httpResponse.statusCode {
+        case 200:
+            let decoder = JSONDecoder()
+            do {
+                return try decoder.decode(TranscriptResponse.self, from: data)
+            } catch {
+                throw InterviewClientError.invalidResponse
+            }
+
+        case 401:
+            throw InterviewClientError.unauthorized
+
+        case 404:
+            throw InterviewClientError.notFound
+
+        case 429:
+            throw InterviewClientError.rateLimited
+
+        case 400...499:
+            let message = String(data: data, encoding: .utf8) ?? "Client error"
+            throw InterviewClientError.apiError("HTTP \(httpResponse.statusCode): \(message)")
+
+        case 500...599:
+            let message = String(data: data, encoding: .utf8) ?? "Server error"
+            throw InterviewClientError.apiError("HTTP \(httpResponse.statusCode): \(message)")
+
+        default:
+            throw InterviewClientError.apiError("Unexpected status code: \(httpResponse.statusCode)")
+        }
+    }
+
+    private func performFetchDetail(id: String) async throws -> StructuredFeedback {
+        guard let url = URL(string: "\(baseURL)/api/interviews/\(id)") else {
+            throw InterviewClientError.networkError("Invalid URL")
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue(clientContextService.clientId, forHTTPHeaderField: "x-client-id")
+        request.setValue(clientContextService.appVersion, forHTTPHeaderField: "x-client-version")
+        request.setValue(clientContextService.platform, forHTTPHeaderField: "x-client-platform")
+        request.setValue(clientContextService.deviceModel, forHTTPHeaderField: "x-device-model")
+        request.timeoutInterval = 30
+
+        let (data, response): (Data, URLResponse)
+        do {
+            (data, response) = try await URLSession.shared.data(for: request)
+        } catch {
+            throw InterviewClientError.networkError("Request failed: \(error.localizedDescription)")
+        }
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw InterviewClientError.invalidResponse
+        }
+
+        switch httpResponse.statusCode {
+        case 200:
+            let decoder = JSONDecoder()
+            do {
+                return try decoder.decode(StructuredFeedback.self, from: data)
+            } catch {
+                throw InterviewClientError.invalidResponse
+            }
+
+        case 401:
+            throw InterviewClientError.unauthorized
+
+        case 404:
+            throw InterviewClientError.notFound
 
         case 429:
             throw InterviewClientError.rateLimited

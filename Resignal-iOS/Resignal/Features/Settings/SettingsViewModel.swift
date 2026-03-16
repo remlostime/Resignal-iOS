@@ -3,7 +3,7 @@
 //  Resignal
 //
 //  ViewModel for the user-facing Settings screen.
-//  Handles data deletion (both server-side and local).
+//  Handles data deletion via the server API.
 //
 
 import Foundation
@@ -15,7 +15,6 @@ final class SettingsViewModel {
     // MARK: - Dependencies
     
     private let userClient: any UserClient
-    private let sessionRepository: SessionRepositoryProtocol
     private let settingsService: SettingsServiceProtocol
     
     // MARK: - State
@@ -32,11 +31,9 @@ final class SettingsViewModel {
     
     init(
         userClient: any UserClient,
-        sessionRepository: SessionRepositoryProtocol,
         settingsService: SettingsServiceProtocol
     ) {
         self.userClient = userClient
-        self.sessionRepository = sessionRepository
         self.settingsService = settingsService
     }
     
@@ -46,14 +43,13 @@ final class SettingsViewModel {
         showDeleteConfirmation = true
     }
     
-    /// Deletes all user data from the server and clears local sessions.
+    /// Deletes all user data from the server.
     func deleteAllData() async {
         isDeleting = true
         defer { isDeleting = false }
         
         do {
             try await userClient.deleteAllData()
-            try sessionRepository.deleteAll()
             showDeleteSuccess = true
         } catch {
             errorMessage = error.localizedDescription

@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import SwiftData
 
 @main
 struct ResignalApp: App {
@@ -23,7 +22,6 @@ struct ResignalApp: App {
             RootView()
                 .environment(container)
                 .environment(router)
-                .modelContainer(container.modelContainer)
                 .background(AppTheme.Colors.background)
                 .preferredColorScheme(.light)
                 .onOpenURL { url in
@@ -39,7 +37,6 @@ struct ResignalApp: App {
         
         switch url.host {
         case "stopRecording":
-            // Post notification to stop recording
             NotificationCenter.default.post(
                 name: .stopRecordingFromLiveActivity,
                 object: nil
@@ -117,29 +114,23 @@ struct RootView: View {
     
     /// Registers user with backend on first app launch
     private func registerUserIfNeeded() async {
-        // Check if user is already registered
         guard !container.settingsService.hasRegisteredUser else {
             return
         }
         
         do {
-            // Attempt registration
             let response = try await container.userClient.registerUser()
             
             if response.success {
-                // Mark as registered on success
                 container.settingsService.hasRegisteredUser = true
                 print("✅ User registration successful: \(response.message ?? "No message")")
             } else {
-                // Don't mark as registered if response indicates failure
                 print("⚠️ User registration returned unsuccessful response: \(response.message ?? "No message")")
             }
         } catch UserClientError.alreadyRegistered {
-            // User already registered on backend, mark as registered locally
             container.settingsService.hasRegisteredUser = true
             print("ℹ️ User already registered on backend")
         } catch {
-            // Log error but don't mark as registered - will retry next launch
             print("❌ User registration failed: \(error.localizedDescription)")
         }
     }
@@ -150,18 +141,16 @@ struct RootView: View {
         case .home:
             HomeView()
             
-        case .editor(let session, let initialTranscript, let audioURL):
-            EditorView(existingSession: session, initialTranscript: initialTranscript, audioURL: audioURL)
+        case .editor(let initialTranscript, let audioURL):
+            EditorView(initialTranscript: initialTranscript, audioURL: audioURL)
             
-        case .result(let session):
-            ResultView(session: session)
+        case .interviewDetail(let interviewId):
+            InterviewDetailView(interviewId: interviewId)
             
-        case .recording(let session):
-            RecordingView(existingSession: session) { url, transcript in
-                // Navigate to editor with the recorded transcript and audio URL
-                router.replace(with: .editor(session: session, initialTranscript: transcript, audioURL: url))
+        case .recording:
+            RecordingView { url, transcript in
+                router.replace(with: .editor(initialTranscript: transcript, audioURL: url))
             }
         }
     }
 }
-

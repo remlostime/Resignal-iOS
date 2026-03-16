@@ -43,6 +43,46 @@ actor MockInterviewClient: InterviewClient {
         }
     }
 
+    nonisolated func fetchInterviewDetail(id: String) async throws -> StructuredFeedback {
+        try await Task.sleep(for: .seconds(delay))
+        try Task.checkCancellation()
+
+        if shouldSucceed {
+            return StructuredFeedback(id: id, title: StructuredFeedback.sample.title,
+                                     summary: StructuredFeedback.sample.summary,
+                                     strengths: StructuredFeedback.sample.strengths,
+                                     improvement: StructuredFeedback.sample.improvement,
+                                     hiringSignal: StructuredFeedback.sample.hiringSignal,
+                                     keyObservations: StructuredFeedback.sample.keyObservations)
+        } else {
+            throw InterviewClientError.apiError("Mock fetch detail failed")
+        }
+    }
+
+    nonisolated func fetchTranscript(id: String) async throws -> TranscriptResponse {
+        try await Task.sleep(for: .seconds(delay))
+        try Task.checkCancellation()
+
+        if shouldSucceed {
+            let sampleTranscript = [
+                "Interviewer: Tell me about your experience with React.",
+                "",
+                "Candidate: I've been working with React for about 5 years now.",
+                "I started with class components and have since transitioned",
+                "to hooks and functional components.",
+                "",
+                "Interviewer: Can you describe a challenging project?",
+                "",
+                "Candidate: Sure, I led the migration of our legacy dashboard",
+                "from Angular to React. It involved coordinating with three",
+                "teams and took about six months to complete."
+            ].joined(separator: "\n")
+            return TranscriptResponse(id: id, transcript: sampleTranscript)
+        } else {
+            throw InterviewClientError.apiError("Mock fetch transcript failed")
+        }
+    }
+
     // MARK: - Sample Data
 
     private static let sampleInterviews: [InterviewDTO] = [

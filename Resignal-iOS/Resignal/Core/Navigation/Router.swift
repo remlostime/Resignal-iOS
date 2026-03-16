@@ -10,25 +10,23 @@ import SwiftUI
 /// Defines all possible navigation destinations in the app
 enum Route: Hashable {
     case home
-    case editor(session: Session?, initialTranscript: String? = nil, audioURL: URL? = nil)
-    case result(session: Session)
-    case recording(session: Session?)
+    case editor(initialTranscript: String? = nil, audioURL: URL? = nil)
+    case interviewDetail(interviewId: String)
+    case recording
     
     func hash(into hasher: inout Hasher) {
         switch self {
         case .home:
             hasher.combine("home")
-        case .editor(let session, let transcript, let audioURL):
+        case .editor(let transcript, let audioURL):
             hasher.combine("editor")
-            hasher.combine(session?.id)
             hasher.combine(transcript)
             hasher.combine(audioURL)
-        case .result(let session):
-            hasher.combine("result")
-            hasher.combine(session.id)
-        case .recording(let session):
+        case .interviewDetail(let interviewId):
+            hasher.combine("interviewDetail")
+            hasher.combine(interviewId)
+        case .recording:
             hasher.combine("recording")
-            hasher.combine(session?.id)
         }
     }
     
@@ -36,12 +34,12 @@ enum Route: Hashable {
         switch (lhs, rhs) {
         case (.home, .home):
             return true
-        case (.editor(let lhsSession, let lhsTranscript, let lhsURL), .editor(let rhsSession, let rhsTranscript, let rhsURL)):
-            return lhsSession?.id == rhsSession?.id && lhsTranscript == rhsTranscript && lhsURL == rhsURL
-        case (.result(let lhsSession), .result(let rhsSession)):
-            return lhsSession.id == rhsSession.id
-        case (.recording(let lhsSession), .recording(let rhsSession)):
-            return lhsSession?.id == rhsSession?.id
+        case (.editor(let lhsTranscript, let lhsURL), .editor(let rhsTranscript, let rhsURL)):
+            return lhsTranscript == rhsTranscript && lhsURL == rhsURL
+        case (.interviewDetail(let lhsId), .interviewDetail(let rhsId)):
+            return lhsId == rhsId
+        case (.recording, .recording):
+            return true
         default:
             return false
         }
@@ -74,4 +72,3 @@ final class Router {
         path.append(route)
     }
 }
-

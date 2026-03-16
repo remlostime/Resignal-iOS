@@ -16,7 +16,6 @@ final class HomeViewModel: HomeViewModelProtocol {
     // MARK: - Properties
     
     private let interviewClient: any InterviewClient
-    private let sessionRepository: SessionRepositoryProtocol
     
     var interviews: [InterviewDTO] = []
     var searchText: String = ""
@@ -27,12 +26,8 @@ final class HomeViewModel: HomeViewModelProtocol {
     
     // MARK: - Initialization
     
-    init(
-        interviewClient: any InterviewClient,
-        sessionRepository: SessionRepositoryProtocol
-    ) {
+    init(interviewClient: any InterviewClient) {
         self.interviewClient = interviewClient
-        self.sessionRepository = sessionRepository
     }
     
     // MARK: - Computed Properties
@@ -64,12 +59,6 @@ final class HomeViewModel: HomeViewModelProtocol {
         }
     }
     
-    /// Looks up the local SwiftData Session that corresponds to an API interview
-    func findLocalSession(for interview: InterviewDTO) -> Session? {
-        let allSessions = (try? sessionRepository.fetchAll()) ?? []
-        return allSessions.first { $0.interviewId == interview.id }
-    }
-    
     /// Prepares for interview deletion (shows confirmation)
     func confirmDelete(_ interview: InterviewDTO) {
         interviewToDelete = interview
@@ -79,15 +68,6 @@ final class HomeViewModel: HomeViewModelProtocol {
     /// Confirms and executes pending deletion
     func executePendingDelete() {
         guard let interview = interviewToDelete else { return }
-        
-        if let session = findLocalSession(for: interview) {
-            do {
-                try sessionRepository.delete(session)
-            } catch {
-                state = .error("Failed to delete session: \(error.localizedDescription)")
-                debugLog("Error deleting session: \(error)")
-            }
-        }
         
         interviews.removeAll { $0.id == interview.id }
         state = .success(interviews)

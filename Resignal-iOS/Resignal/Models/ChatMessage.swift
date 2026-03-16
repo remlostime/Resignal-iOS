@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import SwiftData
 
 /// Role of a chat message sender
 enum ChatRole: String, Codable, Sendable {
@@ -15,12 +14,11 @@ enum ChatRole: String, Codable, Sendable {
 }
 
 /// Represents a single message in a chat conversation
-@Model
-final class ChatMessage {
+struct ChatMessage: Identifiable, Sendable, Equatable {
     
     // MARK: - Properties
     
-    @Attribute(.unique) var id: UUID
+    let id: UUID
     var role: String
     var content: String
     var timestamp: Date

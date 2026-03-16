@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import SwiftData
 
 /// Types of attachments that can be added to sessions
 enum AttachmentType: String, Codable, Sendable {
@@ -15,12 +14,11 @@ enum AttachmentType: String, Codable, Sendable {
 }
 
 /// Represents a file or image attachment for a session
-@Model
-final class SessionAttachment {
+struct SessionAttachment: Identifiable, Sendable, Equatable {
     
     // MARK: - Properties
     
-    @Attribute(.unique) var id: UUID
+    let id: UUID
     var type: String
     var fileURL: String
     var filename: String

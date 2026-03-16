@@ -16,18 +16,16 @@ final class EditorViewModel: EditorViewModelProtocol {
     // MARK: - Properties
     
     private let aiClient: any AIClient
-    private let sessionRepository: SessionRepositoryProtocol
     private let attachmentService: AttachmentService
     private let featureAccessService: FeatureAccessServiceProtocol
     
     // Session data
-    var session: Session?
     var inputText: String = ""
     var attachments: [SessionAttachment] = []
     private var audioURL: URL?
     
     // UI state
-    var analysisState: ViewState<Session> = .idle
+    var analysisState: ViewState<String> = .idle
     var analysisProgress: Double = 0
     var showAttachmentPicker: Bool = false
     
@@ -48,10 +46,6 @@ final class EditorViewModel: EditorViewModelProtocol {
         return "\(count) characters"
     }
     
-    var isEditing: Bool {
-        session != nil
-    }
-    
     var isAnalyzing: Bool {
         analysisState.isLoading
     }
@@ -69,52 +63,39 @@ final class EditorViewModel: EditorViewModelProtocol {
     
     init(
         aiClient: any AIClient,
-        sessionRepository: SessionRepositoryProtocol,
         attachmentService: AttachmentService,
         featureAccessService: FeatureAccessServiceProtocol,
-        session: Session? = nil,
         initialTranscript: String? = nil,
         audioURL: URL? = nil
     ) {
         self.aiClient = aiClient
-        self.sessionRepository = sessionRepository
         self.attachmentService = attachmentService
         self.featureAccessService = featureAccessService
-        self.session = session
         self.audioURL = audioURL
         
-        // Pre-populate from existing session or initial transcript
-        if let session = session {
-            self.inputText = session.inputText
-            self.attachments = session.attachments
-        } else if let initialTranscript = initialTranscript, !initialTranscript.isEmpty {
+        if let initialTranscript = initialTranscript, !initialTranscript.isEmpty {
             self.inputText = initialTranscript
         }
     }
     
     // MARK: - Public Methods
     
-    /// Starts the AI analysis
-    func analyze() async -> Session? {
+    /// Starts the AI analysis and returns the server-generated interview ID
+    func analyze() async -> String? {
         guard canAnalyze else { return nil }
         
         analysisState = .loading
         analysisProgress = 0
         
-        // Simulate progress with ease-out curve over ~15 seconds
         let progressTask = Task {
             let totalSteps = 30
-            let totalDuration: Double = 15.0  // seconds
+            let totalDuration: Double = 15.0
             
             for step in 1...totalSteps {
-                // Ease-out: faster at start, slower at end
                 let linearProgress = Double(step) / Double(totalSteps)
-                let easedProgress = 1.0 - pow(1.0 - linearProgress, 2)  // quadratic ease-out
-                
-                // Cap at 95% so it doesn't feel "stuck" if API takes longer
+                let easedProgress = 1.0 - pow(1.0 - linearProgress, 2)
                 analysisProgress = min(easedProgress * 0.95, 0.95)
                 
-                // Variable delay: shorter at start, longer at end
                 let stepDuration = totalDuration / Double(totalSteps)
                 try? await Task.sleep(for: .milliseconds(Int(stepDuration * 1000)))
                 
@@ -128,19 +109,16 @@ final class EditorViewModel: EditorViewModelProtocol {
         }
         
         do {
-            // Prepare image attachment if available
             let imageAttachment = await prepareImageForAnalysis()
-            
             let request = AnalysisRequest(inputText: inputText, image: imageAttachment)
-            
             let response = try await aiClient.analyze(request)
             analysisResult = response.feedback
             
-            // Save or update session
-            let savedSession = try saveSession(with: response.feedback, interviewId: response.interviewId)
-            analysisState = .success(savedSession)
+            let interviewId = response.interviewId ?? ""
+            analysisState = .success(interviewId)
+            featureAccessService.recordSessionCreation()
             
-            return savedSession
+            return interviewId
             
         } catch let error as AIClientError {
             analysisState = .error(error.localizedDescription)
@@ -158,16 +136,6 @@ final class EditorViewModel: EditorViewModelProtocol {
         aiClient.cancel()
         analysisState = .idle
         analysisProgress = 0
-    }
-    
-    /// Saves the session without analysis (draft)
-    func saveDraft() -> Session? {
-        do {
-            return try saveSession(with: nil)
-        } catch {
-            analysisState = .error("Failed to save draft: \(error.localizedDescription)")
-            return nil
-        }
     }
     
     /// Clears any error state
@@ -194,52 +162,6 @@ final class EditorViewModel: EditorViewModelProtocol {
     
     // MARK: - Private Methods
     
-    private func saveSession(with feedback: StructuredFeedback?, interviewId: String? = nil) throws -> Session {
-        // Use server-provided title if available
-        let serverTitle = feedback?.title
-        
-        if let existingSession = session {
-            // Update existing session
-            existingSession.inputText = inputText
-            existingSession.structuredFeedback = feedback
-            existingSession.interviewId = interviewId
-            existingSession.version += 1
-            
-            // Update title from server if session has no custom title
-            if existingSession.title.isEmpty, let title = serverTitle {
-                existingSession.title = title
-            }
-            
-            // Save attachments
-            for attachment in attachments {
-                if !existingSession.attachments.contains(where: { $0.id == attachment.id }) {
-                    try sessionRepository.saveAttachment(attachment, to: existingSession)
-                }
-            }
-            
-            try sessionRepository.update(existingSession, title: nil, tags: nil)
-            return existingSession
-        } else {
-            // Create new session with server-provided title
-            let newSession = Session(
-                title: serverTitle ?? "",
-                role: nil,
-                inputText: inputText,
-                structuredFeedback: feedback,
-                rubric: .general,
-                tags: [],
-                audioFileURL: audioURL,
-                attachments: attachments,
-                interviewId: interviewId
-            )
-            
-            try sessionRepository.save(newSession)
-            featureAccessService.recordSessionCreation()
-            session = newSession
-            return newSession
-        }
-    }
-    
     private func debugLog(_ message: String) {
         #if DEBUG
         print("[EditorViewModel] \(message)")
@@ -248,7 +170,6 @@ final class EditorViewModel: EditorViewModelProtocol {
     
     /// Prepares the first image attachment for API analysis
     private func prepareImageForAnalysis() async -> ImageAttachment? {
-        // Get the first image attachment
         guard let imageAttachment = attachments.first(where: { $0.attachmentType == .image }) else {
             return nil
         }
