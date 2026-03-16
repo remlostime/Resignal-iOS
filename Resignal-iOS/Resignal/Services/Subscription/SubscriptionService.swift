@@ -25,10 +25,12 @@ final class SubscriptionService: SubscriptionServiceProtocol {
     /// `nonisolated(unsafe)` allows cancellation from `deinit` which runs nonisolated.
     private nonisolated(unsafe) var transactionListenerTask: Task<Void, Never>?
     
+    private let billingClient: BillingClientProtocol
+    
     // MARK: - Initialization
     
-    init() {
-        // Check current entitlements immediately on init
+    init(billingClient: BillingClientProtocol) {
+        self.billingClient = billingClient
         Task {
             await checkCurrentEntitlements()
         }
@@ -66,7 +68,7 @@ final class SubscriptionService: SubscriptionServiceProtocol {
             case .success(let verification):
                 let transaction = try checkVerification(verification)
                 
-                // Update plan based on verified transaction
+                await verifyTransactionWithBackend(verification.jwsRepresentation)
                 await updatePlanFromTransaction(transaction)
                 await transaction.finish()
                 
@@ -104,6 +106,7 @@ final class SubscriptionService: SubscriptionServiceProtocol {
             await checkCurrentEntitlements()
             
             if currentPlan == .pro {
+                await verifyCurrentEntitlementWithBackend()
                 purchaseState = .restored
                 debugLog("Purchases restored successfully")
             } else {
@@ -129,8 +132,10 @@ final class SubscriptionService: SubscriptionServiceProtocol {
                         try self.checkVerification(result)
                     }
                     
+                    let jwsRepresentation = result.jwsRepresentation
                     await MainActor.run {
                         Task {
+                            await self.verifyTransactionWithBackend(jwsRepresentation)
                             await self.updatePlanFromTransaction(transaction)
                             await transaction.finish()
                         }
@@ -194,6 +199,37 @@ final class SubscriptionService: SubscriptionServiceProtocol {
         }
     }
     
+    /// Sends a StoreKit 2 JWS signed transaction to the backend for server-side verification.
+    /// Failures are logged but do not block the purchase flow.
+    private func verifyTransactionWithBackend(_ jwsRepresentation: String) async {
+        debugLog("JWS: \(jwsRepresentation)")
+        do {
+            let response = try await billingClient.verifyTransaction(signedTransaction: jwsRepresentation)
+            if response.isPro {
+                currentPlan = .pro
+            }
+            debugLog("Backend transaction verification: isPro=\(response.isPro)")
+        } catch {
+            debugLog("Backend transaction verification failed: \(error.localizedDescription)")
+        }
+    }
+    
+    /// Finds the active Pro entitlement and sends its JWS to the backend for verification.
+    private func verifyCurrentEntitlementWithBackend() async {
+        for await result in Transaction.currentEntitlements {
+            do {
+                let transaction = try checkVerification(result)
+                if SubscriptionProductID.all.contains(transaction.productID),
+                   transaction.revocationDate == nil {
+                    await verifyTransactionWithBackend(result.jwsRepresentation)
+                    return
+                }
+            } catch {
+                debugLog("Entitlement verification failed: \(error.localizedDescription)")
+            }
+        }
+    }
+
     private func debugLog(_ message: String) {
         #if DEBUG
         print("[SubscriptionService] \(message)")

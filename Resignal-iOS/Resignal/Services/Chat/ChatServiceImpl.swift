@@ -2,7 +2,7 @@
 //  ChatServiceImpl.swift
 //  Resignal
 //
-//  Implementation of chat service using direct API calls to the Resignal backend.
+//  Implementation of chat service using the centralized APIClient.
 //
 
 import Foundation
@@ -12,13 +12,11 @@ actor ChatServiceImpl: ChatService {
     
     // MARK: - API Response Models
     
-    /// Response model for GET /api/interviews/:interviewId/messages
     private struct MessagesResponse: Decodable {
         let success: Bool
         let messages: [MessageDTO]
     }
     
-    /// Individual message from the API
     private struct MessageDTO: Decodable {
         let id: String
         let interviewId: String
@@ -27,48 +25,36 @@ actor ChatServiceImpl: ChatService {
         let createdAt: String
     }
     
-    /// Request model for POST /api/messages
+    /// Request model for POST /api/messages (userId removed; identity from JWT)
     private struct SendMessageRequest: Encodable {
         let interviewId: String
         let message: String
-        let userId: String
         let model: String?
         
         enum CodingKeys: String, CodingKey {
             case interviewId = "interview_id"
             case message
-            case userId = "user_id"
             case model
         }
     }
     
-    /// Response model for POST /api/messages
     private struct SendMessageResponse: Decodable {
         let success: Bool
         let reply: String
         let messageId: String
     }
     
-    /// Error response from the API
-    private struct ErrorResponse: Decodable {
-        let error: String
-    }
-    
     // MARK: - Properties
     
-    private let baseURL: String
     private let model: String
-    private let clientContextService: ClientContextServiceProtocol
-    private let urlSession: URLSession
+    private let apiClient: APIClientProtocol
     
-    // ISO8601 date formatter for parsing API dates
     private static let dateFormatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter
     }()
     
-    // Fallback formatter without fractional seconds
     private static let fallbackDateFormatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
@@ -78,15 +64,11 @@ actor ChatServiceImpl: ChatService {
     // MARK: - Initialization
     
     init(
-        baseURL: String = "https://resignal-backend.vercel.app",
         model: String = "gemini",
-        clientContextService: ClientContextServiceProtocol = ClientContextService.shared,
-        urlSession: URLSession = .shared
+        apiClient: APIClientProtocol
     ) {
-        self.baseURL = baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         self.model = model
-        self.clientContextService = clientContextService
-        self.urlSession = urlSession
+        self.apiClient = apiClient
     }
     
     // MARK: - ChatService Implementation
@@ -96,44 +78,19 @@ actor ChatServiceImpl: ChatService {
             throw ChatError.invalidInterviewId
         }
         
-        // Create URL request
-        guard let url = URL(string: "\(baseURL)/api/interviews/\(interviewId)/messages") else {
-            throw ChatError.networkError("Invalid URL")
-        }
-        
-        var urlRequest = URLRequest(url: url)
-        urlRequest.httpMethod = "GET"
-        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        addClientHeaders(to: &urlRequest)
-        urlRequest.timeoutInterval = 30
-        
-        // Execute request
-        let (data, response) = try await executeRequest(urlRequest)
-        
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw ChatError.networkError("Invalid response")
-        }
-        
-        switch httpResponse.statusCode {
-        case 200...299:
-            let decoder = JSONDecoder()
-            let messagesResponse = try decoder.decode(MessagesResponse.self, from: data)
-            return messagesResponse.messages.map { dto in
-                mapDTOToChatMessage(dto)
-            }
-            
-        case 404:
-            throw ChatError.sessionNotFound
-            
-        default:
-            throw parseErrorResponse(data: data, statusCode: httpResponse.statusCode)
+        do {
+            let response: MessagesResponse = try await apiClient.request(
+                "/api/interviews/\(interviewId)/messages"
+            )
+            return response.messages.map { mapDTOToChatMessage($0) }
+        } catch let error as APIError {
+            throw mapToChatError(error)
         }
     }
     
     func sendMessage(
         _ message: String,
-        interviewId: String,
-        userId: String
+        interviewId: String
     ) async throws -> (reply: String, messageId: String) {
         let trimmedMessage = message.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedMessage.isEmpty else {
@@ -144,78 +101,38 @@ actor ChatServiceImpl: ChatService {
             throw ChatError.invalidInterviewId
         }
         
-        // Create URL request
-        guard let url = URL(string: "\(baseURL)/api/messages") else {
-            throw ChatError.networkError("Invalid URL")
-        }
-        
-        var urlRequest = URLRequest(url: url)
-        urlRequest.httpMethod = "POST"
-        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        addClientHeaders(to: &urlRequest)
-        urlRequest.timeoutInterval = 60
-        
-        // Encode request body
         let requestBody = SendMessageRequest(
             interviewId: interviewId,
             message: trimmedMessage,
-            userId: userId,
             model: model
         )
         
-        let encoder = JSONEncoder()
-        urlRequest.httpBody = try encoder.encode(requestBody)
-        
-        // Execute request
-        let (data, response) = try await executeRequest(urlRequest)
-        
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw ChatError.networkError("Invalid response")
-        }
-        
-        switch httpResponse.statusCode {
-        case 200...299:
-            let decoder = JSONDecoder()
-            let sendResponse = try decoder.decode(SendMessageResponse.self, from: data)
-            return (reply: sendResponse.reply, messageId: sendResponse.messageId)
-            
-        case 404:
-            throw ChatError.sessionNotFound
-            
-        default:
-            throw parseErrorResponse(data: data, statusCode: httpResponse.statusCode)
+        do {
+            let response: SendMessageResponse = try await apiClient.request(
+                "/api/messages",
+                method: .post,
+                body: requestBody,
+                timeoutInterval: 60
+            )
+            return (reply: response.reply, messageId: response.messageId)
+        } catch let error as APIError {
+            throw mapToChatError(error)
         }
     }
     
     // MARK: - Private Helpers
     
-    private func addClientHeaders(to request: inout URLRequest) {
-        request.setValue(clientContextService.clientId, forHTTPHeaderField: "x-client-id")
-        request.setValue(clientContextService.appVersion, forHTTPHeaderField: "x-client-version")
-        request.setValue(clientContextService.platform, forHTTPHeaderField: "x-client-platform")
-        request.setValue(clientContextService.deviceModel, forHTTPHeaderField: "x-device-model")
-    }
-    
-    private func executeRequest(_ request: URLRequest) async throws -> (Data, URLResponse) {
-        do {
-            return try await urlSession.data(for: request)
-        } catch {
-            throw ChatError.networkError(error.localizedDescription)
-        }
-    }
-    
-    private func parseErrorResponse(data: Data, statusCode: Int) -> ChatError {
-        if let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
-            if statusCode >= 500 {
-                return .serverError(errorResponse.error)
-            }
+    private func mapToChatError(_ error: APIError) -> ChatError {
+        switch error {
+        case .notFound:
+            return .sessionNotFound
+        case .networkError(let msg):
+            return .networkError(msg)
+        case .internalError(let msg):
+            return .serverError(msg)
+        default:
             return .aiRequestFailed
         }
-        
-        if statusCode >= 500 {
-            return .serverError("HTTP \(statusCode)")
-        }
-        return .networkError("HTTP \(statusCode)")
     }
     
     private func mapDTOToChatMessage(_ dto: MessageDTO) -> ChatMessage {
@@ -250,16 +167,13 @@ actor MockChatService: ChatService {
             throw ChatError.invalidInterviewId
         }
         
-        // Simulate network delay
         try await Task.sleep(nanoseconds: 200_000_000)
-        
         return mockMessages
     }
     
     func sendMessage(
         _ message: String,
-        interviewId: String,
-        userId: String
+        interviewId: String
     ) async throws -> (reply: String, messageId: String) {
         guard !shouldFail else {
             throw ChatError.aiRequestFailed
@@ -274,9 +188,7 @@ actor MockChatService: ChatService {
             throw ChatError.invalidInterviewId
         }
         
-        // Simulate processing time
         try await Task.sleep(nanoseconds: 500_000_000)
-        
         return (reply: mockReply, messageId: mockMessageId)
     }
 }

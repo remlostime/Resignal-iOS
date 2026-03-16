@@ -55,7 +55,7 @@ struct HomeView: View {
         .sheet(isPresented: $showSettings) {
             SettingsView(
                 viewModel: SettingsViewModel(
-                    userClient: container.userClient,
+                    apiClient: container.apiClient,
                     settingsService: container.settingsService
                 ),
                 apiEnvironment: container.settingsService.apiEnvironment

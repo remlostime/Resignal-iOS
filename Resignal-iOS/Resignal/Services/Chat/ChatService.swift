@@ -40,19 +40,12 @@ enum ChatError: LocalizedError {
 /// Protocol defining chat service capabilities
 protocol ChatService: Actor {
     /// Load messages for an interview from the backend
-    /// - Parameter interviewId: The server-generated interview ID
-    /// - Returns: Array of chat messages
     func loadMessages(interviewId: String) async throws -> [ChatMessage]
     
-    /// Send a message about an interview and get AI response
-    /// - Parameters:
-    ///   - message: The user's question or message
-    ///   - interviewId: The server-generated interview ID
-    ///   - userId: The user's ID
-    /// - Returns: AI's response message and the server-generated message ID
+    /// Send a message about an interview and get AI response.
+    /// User identity is derived from the JWT token; no userId parameter needed.
     func sendMessage(
         _ message: String,
-        interviewId: String,
-        userId: String
+        interviewId: String
     ) async throws -> (reply: String, messageId: String)
 }

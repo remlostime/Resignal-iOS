@@ -54,11 +54,21 @@ extension Notification.Name {
     static let stopRecordingFromLiveActivity = Notification.Name("stopRecordingFromLiveActivity")
 }
 
+// MARK: - Auth State
+
+enum AuthState {
+    case checking
+    case authenticated
+    case failed(String)
+}
+
 /// Root view with navigation stack
 struct RootView: View {
     
     @Environment(Router.self) private var router
     @Environment(DependencyContainer.self) private var container
+    
+    @State private var authState: AuthState = .checking
     
     #if DEBUG
     @State private var showDevSettings = false
@@ -66,21 +76,84 @@ struct RootView: View {
     
     var body: some View {
         Group {
-            if container.settingsService.hasSeenOnboarding {
-                mainContent
-            } else {
+            if !container.settingsService.hasSeenOnboarding {
                 OnboardingView(
                     viewModel: OnboardingViewModel(
                         settingsService: container.settingsService
                     )
                 )
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
+            } else {
+                switch authState {
+                case .checking:
+                    ProgressView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(AppTheme.Colors.background)
+                case .authenticated:
+                    mainContent
+                case .failed(let message):
+                    authErrorView(message: message)
+                }
             }
         }
         .animation(AppTheme.Animation.slow, value: container.settingsService.hasSeenOnboarding)
+        .task {
+            await ensureAuthenticated()
+        }
     }
     
-    /// The main app content shown after onboarding
+    // MARK: - Auth
+    
+    private func ensureAuthenticated() async {
+        let identity = container.identityManager
+        
+        if identity.isAuthenticated {
+            authState = .authenticated
+            return
+        }
+        
+        authState = .checking
+        
+        do {
+            try await identity.register(baseURL: container.settingsService.apiEnvironment.baseURL)
+            authState = .authenticated
+        } catch {
+            authState = .failed(error.localizedDescription)
+        }
+    }
+    
+    // MARK: - Views
+    
+    private func authErrorView(message: String) -> some View {
+        VStack(spacing: 16) {
+            Image(systemName: "wifi.exclamationmark")
+                .font(.system(size: 48))
+                .foregroundStyle(.secondary)
+            
+            Text("Connection Error")
+                .font(.title2.bold())
+            
+            Text(message)
+                .font(.body)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+            
+            Button {
+                Task { await ensureAuthenticated() }
+            } label: {
+                Text("Retry")
+                    .fontWeight(.semibold)
+                    .frame(maxWidth: 200)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(AppTheme.Colors.primary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(AppTheme.Colors.background)
+    }
+    
+    /// The main app content shown after onboarding and authentication
     private var mainContent: some View {
         @Bindable var router = router
         
@@ -94,45 +167,19 @@ struct RootView: View {
         .background(AppTheme.Colors.background)
         .scrollContentBackground(.hidden)
         .task {
-            await registerUserIfNeeded()
-        }
-        .task {
             await container.subscriptionService.loadProducts()
         }
         .task {
             await container.subscriptionService.listenForTransactions()
         }
         #if DEBUG
-        .onReceive(NotificationCenter.default.publisher(for: UIDevice.deviceDidShakeNotification)) { _ in
+        .onShake {
             showDevSettings = true
         }
         .sheet(isPresented: $showDevSettings) {
             DevSettingsView()
         }
         #endif
-    }
-    
-    /// Registers user with backend on first app launch
-    private func registerUserIfNeeded() async {
-        guard !container.settingsService.hasRegisteredUser else {
-            return
-        }
-        
-        do {
-            let response = try await container.userClient.registerUser()
-            
-            if response.success {
-                container.settingsService.hasRegisteredUser = true
-                print("✅ User registration successful: \(response.message ?? "No message")")
-            } else {
-                print("⚠️ User registration returned unsuccessful response: \(response.message ?? "No message")")
-            }
-        } catch UserClientError.alreadyRegistered {
-            container.settingsService.hasRegisteredUser = true
-            print("ℹ️ User already registered on backend")
-        } catch {
-            print("❌ User registration failed: \(error.localizedDescription)")
-        }
     }
     
     @ViewBuilder

@@ -3,29 +3,70 @@
 //  Resignal
 //
 //  Detects device shake gestures for triggering dev settings.
+//  Uses a UIViewControllerRepresentable that becomes first responder,
+//  ensuring motion events are delivered on real devices (not just simulator).
 //  Only compiled in DEBUG builds.
 //
 
 #if DEBUG
 
-import UIKit
+import SwiftUI
 
-// MARK: - Shake Notification
+// MARK: - View Modifier
 
-extension UIDevice {
-    /// Notification posted when a device shake gesture is detected.
-    static let deviceDidShakeNotification = Notification.Name("deviceDidShakeNotification")
+struct DeviceShakeViewModifier: ViewModifier {
+    let action: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .background(
+                ShakeDetectorRepresentable(action: action)
+                    .frame(width: 0, height: 0)
+            )
+    }
 }
 
-// MARK: - UIWindow Extension
+extension View {
+    func onShake(perform action: @escaping () -> Void) -> some View {
+        modifier(DeviceShakeViewModifier(action: action))
+    }
+}
 
-extension UIWindow {
-    open override func motionEnded(_ motion: UIEvent.EventSubtype, with event: UIEvent?) {
-        super.motionEnded(motion, with: event)
-        
-        if motion == .motionShake {
-            NotificationCenter.default.post(name: UIDevice.deviceDidShakeNotification, object: nil)
-        }
+// MARK: - UIKit Bridge
+
+private struct ShakeDetectorRepresentable: UIViewControllerRepresentable {
+    let action: () -> Void
+
+    func makeUIViewController(context: Context) -> ShakeDetectorViewController {
+        ShakeDetectorViewController(onShake: action)
+    }
+
+    func updateUIViewController(_ controller: ShakeDetectorViewController, context: Context) {
+        controller.onShake = action
+    }
+}
+
+final class ShakeDetectorViewController: UIViewController {
+    var onShake: () -> Void
+
+    init(onShake: @escaping () -> Void) {
+        self.onShake = onShake
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError() }
+
+    override var canBecomeFirstResponder: Bool { true }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        becomeFirstResponder()
+    }
+
+    override func motionEnded(_ motion: UIEvent.EventSubtype, with event: UIEvent?) {
+        guard motion == .motionShake else { return }
+        onShake()
     }
 }
 

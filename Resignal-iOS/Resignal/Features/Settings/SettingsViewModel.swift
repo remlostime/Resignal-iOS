@@ -14,7 +14,7 @@ final class SettingsViewModel {
     
     // MARK: - Dependencies
     
-    private let userClient: any UserClient
+    private let apiClient: APIClientProtocol
     private let settingsService: SettingsServiceProtocol
     
     // MARK: - State
@@ -30,10 +30,10 @@ final class SettingsViewModel {
     // MARK: - Initialization
     
     init(
-        userClient: any UserClient,
+        apiClient: APIClientProtocol,
         settingsService: SettingsServiceProtocol
     ) {
-        self.userClient = userClient
+        self.apiClient = apiClient
         self.settingsService = settingsService
     }
     
@@ -44,12 +44,16 @@ final class SettingsViewModel {
     }
     
     /// Deletes all user data from the server.
+    /// User identity is derived from the JWT token.
     func deleteAllData() async {
         isDeleting = true
         defer { isDeleting = false }
         
         do {
-            try await userClient.deleteAllData()
+            let _: EmptyResponse = try await apiClient.request(
+                "/api/users/data",
+                method: .delete
+            )
             showDeleteSuccess = true
         } catch {
             errorMessage = error.localizedDescription
@@ -57,3 +61,6 @@ final class SettingsViewModel {
         }
     }
 }
+
+/// Placeholder for endpoints that return an empty or ignored body.
+private struct EmptyResponse: Decodable {}
