@@ -70,6 +70,21 @@ enum AudioAPI: String, CaseIterable, Sendable {
     }
 }
 
+// MARK: - Audio API
+
+/// Represents the available audio transcription APIs
+enum AudioAPI: String, CaseIterable, Sendable {
+    case apple = "apple"
+    case openaiWhisper = "openaiWhisper"
+    
+    var displayName: String {
+        switch self {
+        case .apple: return "Apple"
+        case .openaiWhisper: return "OpenAI Whisper"
+        }
+    }
+}
+
 /// Protocol defining settings service interface
 @MainActor
 protocol SettingsServiceProtocol: AnyObject, Sendable {
@@ -79,6 +94,13 @@ protocol SettingsServiceProtocol: AnyObject, Sendable {
     var apiEnvironment: APIEnvironment { get set }
     var aiModel: AIModel { get set }
     var audioAPI: AudioAPI { get set }
+    
+    #if DEBUG
+    /// Whether mock subscription mode is enabled (overrides real StoreKit status)
+    var mockSubscriptionEnabled: Bool { get set }
+    /// The mock plan to use when mockSubscriptionEnabled is true
+    var mockPlan: Plan { get set }
+    #endif
 }
 
 /// Service for managing app settings
@@ -94,6 +116,10 @@ final class SettingsService: SettingsServiceProtocol {
         static let apiEnvironment = "apiEnvironment"
         static let aiModel = "aiModel"
         static let audioAPI = "audioAPI"
+        #if DEBUG
+        static let mockSubscriptionEnabled = "mockSubscriptionEnabled"
+        static let mockPlan = "mockPlan"
+        #endif
     }
     
     // MARK: - Properties
@@ -129,6 +155,20 @@ final class SettingsService: SettingsServiceProtocol {
             defaults.set(audioAPI.rawValue, forKey: Keys.audioAPI)
         }
     }
+    
+    #if DEBUG
+    var mockSubscriptionEnabled: Bool {
+        didSet {
+            defaults.set(mockSubscriptionEnabled, forKey: Keys.mockSubscriptionEnabled)
+        }
+    }
+    
+    var mockPlan: Plan {
+        didSet {
+            defaults.set(mockPlan.rawValue, forKey: Keys.mockPlan)
+        }
+    }
+    #endif
     
     // MARK: - Computed Properties
     
@@ -168,6 +208,16 @@ final class SettingsService: SettingsServiceProtocol {
         } else {
             self.audioAPI = .apple
         }
+        
+        #if DEBUG
+        self.mockSubscriptionEnabled = defaults.object(forKey: Keys.mockSubscriptionEnabled) as? Bool ?? false
+        if let rawPlan = defaults.string(forKey: Keys.mockPlan),
+           let plan = Plan(rawValue: rawPlan) {
+            self.mockPlan = plan
+        } else {
+            self.mockPlan = .free
+        }
+        #endif
     }
     
 }

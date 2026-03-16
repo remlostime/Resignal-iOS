@@ -37,6 +37,7 @@ struct DevSettingsView: View {
     var body: some View {
         NavigationStack {
             List {
+                subscriptionMockSection
                 apiEnvironmentSection
                 aiModelSection
                 audioAPISection
@@ -95,6 +96,45 @@ struct DevSettingsView: View {
     }
     
     // MARK: - Sections
+    
+    @ViewBuilder
+    private var subscriptionMockSection: some View {
+        Section {
+            Toggle("Enable Mock Subscription", isOn: mockSubscriptionEnabledBinding)
+            
+            if container.settingsService.mockSubscriptionEnabled {
+                HStack {
+                    Text("Plan")
+                    Spacer()
+                    Picker("Plan", selection: mockPlanBinding) {
+                        Text("Free").tag(Plan.free)
+                        Text("Pro").tag(Plan.pro)
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 160)
+                }
+                
+                HStack {
+                    Text("Current Status")
+                        .font(AppTheme.Typography.caption)
+                        .foregroundStyle(AppTheme.Colors.textSecondary)
+                    Spacer()
+                    Text(container.featureAccessService.isPro ? "Pro" : "Free")
+                        .font(AppTheme.Typography.caption)
+                        .foregroundStyle(
+                            container.featureAccessService.isPro
+                                ? AppTheme.Colors.success
+                                : AppTheme.Colors.textSecondary
+                        )
+                }
+            }
+        } header: {
+            Text("Subscription (Mock)")
+        } footer: {
+            Text("When enabled, overrides real StoreKit subscription status. Use this to test Pro features without App Store configuration.")
+                .font(AppTheme.Typography.caption)
+        }
+    }
     
     @ViewBuilder
     private var apiEnvironmentSection: some View {
@@ -178,7 +218,51 @@ struct DevSettingsView: View {
         }
     }
     
+    @ViewBuilder
+    private var audioAPISection: some View {
+        Section {
+            Menu {
+                Picker("Audio API", selection: audioAPIBinding) {
+                    ForEach(AudioAPI.allCases, id: \.self) { api in
+                        Text(api.displayName).tag(api)
+                    }
+                }
+            } label: {
+                HStack {
+                    Text("Transcription")
+                    Spacer()
+                    Text(currentAudioAPI.displayName)
+                        .foregroundStyle(AppTheme.Colors.textSecondary)
+                }
+            }
+            .tint(AppTheme.Colors.textPrimary)
+        } header: {
+            Text("Audio API")
+        } footer: {
+            Text("Select the audio transcription provider.")
+                .font(AppTheme.Typography.caption)
+        }
+    }
+    
     // MARK: - Bindings
+    
+    private var mockSubscriptionEnabledBinding: Binding<Bool> {
+        Binding(
+            get: { container.settingsService.mockSubscriptionEnabled },
+            set: { newValue in
+                container.settingsService.mockSubscriptionEnabled = newValue
+            }
+        )
+    }
+    
+    private var mockPlanBinding: Binding<Plan> {
+        Binding(
+            get: { container.settingsService.mockPlan },
+            set: { newValue in
+                container.settingsService.mockPlan = newValue
+            }
+        )
+    }
     
     /// Picker binding that intercepts changes to show the restart confirmation alert
     /// instead of applying the change immediately.
@@ -198,6 +282,15 @@ struct DevSettingsView: View {
             set: { newValue in
                 guard newValue != currentModel else { return }
                 pendingModel = newValue
+            }
+        )
+    }
+    
+    private var audioAPIBinding: Binding<AudioAPI> {
+        Binding(
+            get: { currentAudioAPI },
+            set: { newValue in
+                container.settingsService.audioAPI = newValue
             }
         )
     }
