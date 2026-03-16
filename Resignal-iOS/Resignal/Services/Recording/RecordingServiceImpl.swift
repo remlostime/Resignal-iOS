@@ -58,7 +58,7 @@ final class RecordingServiceImpl: NSObject, RecordingService {
         // Configure audio session
         let audioSession = AVAudioSession.sharedInstance()
         do {
-            try audioSession.setCategory(.record, mode: .default)
+            try audioSession.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetooth])
             try audioSession.setActive(true)
         } catch {
             throw RecordingError.audioSessionFailed
