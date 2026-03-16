@@ -38,7 +38,8 @@ struct ResultView: View {
                 viewModel = ResultViewModel(
                     session: session,
                     sessionRepository: container.sessionRepository,
-                    chatService: container.chatService
+                    chatService: container.chatService,
+                    featureAccessService: container.featureAccessService
                 )
             }
         }
@@ -99,6 +100,14 @@ struct ResultView: View {
             FullscreenImageView(image: fullscreenImage) {
                 showFullscreenImage = false
             }
+        }
+        .sheet(isPresented: Binding(
+            get: { viewModel.showPaywall },
+            set: { viewModel.showPaywall = $0 }
+        )) {
+            PaywallView()
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
         }
     }
     
@@ -212,6 +221,7 @@ struct ResultView: View {
                 get: { viewModel.isLoadingMessages },
                 set: { _ in }
             ),
+            isLimitReached: !viewModel.canSendAskMessage,
             onSend: {
                 Task {
                     await viewModel.sendAskMessage()

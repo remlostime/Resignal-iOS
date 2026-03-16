@@ -25,6 +25,7 @@ enum FeedbackSection: CaseIterable, Sendable {
 /// Constants for free-tier limitations
 enum FeatureAccessConstants {
     static let maxFreeSessionCreations = 3
+    static let maxFreeAskMessagesPerSession = 3
 }
 
 // MARK: - Feature Access Service Protocol
@@ -50,8 +51,25 @@ protocol FeatureAccessServiceProtocol: AnyObject, Sendable {
     /// Number of remaining free session creations this month
     var remainingFreeSessionCreations: Int { get }
     
+    /// Maximum ask messages allowed per session per month for free tier
+    var maxFreeAskMessagesPerSession: Int { get }
+    
+    /// Whether the user can send an ask message in the given session this month
+    func canSendAskMessage(forSessionId sessionId: String) -> Bool
+    
+    /// Number of free-plan ask messages sent in the given session this month
+    func askMessageCount(forSessionId sessionId: String) -> Int
+    
+    /// Records that the user sent an ask message in the given session (free plan only)
+    func recordAskMessage(forSessionId sessionId: String)
+    
     /// Records that the user created a new session (increments monthly count)
     func recordSessionCreation()
+    
+    #if DEBUG
+    /// Overrides the session creation count for testing paywall gating
+    func overrideSessionCreationCount(_ count: Int)
+    #endif
 }
 
 // MARK: - Feature Access Service Implementation
@@ -66,6 +84,7 @@ final class FeatureAccessService: FeatureAccessServiceProtocol {
     
     private enum Keys {
         static let sessionCreationCount = "featureAccess.analysisCountThisMonth"
+        static let askMessageCounts = "featureAccess.askMessageCountsThisMonth"
         static let lastResetDate = "featureAccess.lastResetDate"
     }
     
@@ -78,6 +97,7 @@ final class FeatureAccessService: FeatureAccessServiceProtocol {
     // MARK: - Stored Properties
     
     private(set) var sessionCreationCountThisMonth: Int
+    private(set) var askMessageCountsThisMonth: [String: Int]
     private var lastResetDate: Date
     
     // MARK: - Computed Properties
@@ -111,6 +131,22 @@ final class FeatureAccessService: FeatureAccessServiceProtocol {
         return max(0, FeatureAccessConstants.maxFreeSessionCreations - sessionCreationCountThisMonth)
     }
     
+    var maxFreeAskMessagesPerSession: Int {
+        FeatureAccessConstants.maxFreeAskMessagesPerSession
+    }
+    
+    func canSendAskMessage(forSessionId sessionId: String) -> Bool {
+        if isPro { return true }
+        resetMonthlyCountIfNeeded()
+        return askMessageCountsThisMonth[sessionId, default: 0] < FeatureAccessConstants.maxFreeAskMessagesPerSession
+    }
+    
+    func askMessageCount(forSessionId sessionId: String) -> Int {
+        if isPro { return 0 }
+        resetMonthlyCountIfNeeded()
+        return askMessageCountsThisMonth[sessionId, default: 0]
+    }
+    
     // MARK: - Initialization
     
     init(
@@ -123,6 +159,7 @@ final class FeatureAccessService: FeatureAccessServiceProtocol {
         self.defaults = defaults
         
         self.sessionCreationCountThisMonth = defaults.integer(forKey: Keys.sessionCreationCount)
+        self.askMessageCountsThisMonth = (defaults.dictionary(forKey: Keys.askMessageCounts) as? [String: Int]) ?? [:]
         
         if let savedDate = defaults.object(forKey: Keys.lastResetDate) as? Date {
             self.lastResetDate = savedDate
@@ -135,11 +172,28 @@ final class FeatureAccessService: FeatureAccessServiceProtocol {
     // MARK: - Public Methods
     
     func recordSessionCreation() {
+        guard !isPro else { return }
         resetMonthlyCountIfNeeded()
         sessionCreationCountThisMonth += 1
         defaults.set(sessionCreationCountThisMonth, forKey: Keys.sessionCreationCount)
         debugLog("Session creation recorded. Count this month: \(sessionCreationCountThisMonth)")
     }
+    
+    func recordAskMessage(forSessionId sessionId: String) {
+        guard !isPro else { return }
+        resetMonthlyCountIfNeeded()
+        askMessageCountsThisMonth[sessionId, default: 0] += 1
+        defaults.set(askMessageCountsThisMonth, forKey: Keys.askMessageCounts)
+        debugLog("Ask message recorded for session \(sessionId). Count this month: \(askMessageCountsThisMonth[sessionId, default: 0])")
+    }
+    
+    #if DEBUG
+    func overrideSessionCreationCount(_ count: Int) {
+        sessionCreationCountThisMonth = max(0, count)
+        defaults.set(sessionCreationCountThisMonth, forKey: Keys.sessionCreationCount)
+        debugLog("Session creation count overridden to \(sessionCreationCountThisMonth)")
+    }
+    #endif
     
     // MARK: - Private Methods
     
@@ -155,10 +209,12 @@ final class FeatureAccessService: FeatureAccessServiceProtocol {
         
         if currentYear != lastYear || currentMonth != lastMonth {
             sessionCreationCountThisMonth = 0
+            askMessageCountsThisMonth = [:]
             lastResetDate = now
             defaults.set(0, forKey: Keys.sessionCreationCount)
+            defaults.set(askMessageCountsThisMonth, forKey: Keys.askMessageCounts)
             defaults.set(now, forKey: Keys.lastResetDate)
-            debugLog("Monthly session creation count reset")
+            debugLog("Monthly counters reset")
         }
     }
     

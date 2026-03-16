@@ -65,6 +65,8 @@ protocol ResultViewModelProtocol: AnyObject, Observable {
     var session: Session { get }
     var errorMessage: String? { get }
     var showError: Bool { get set }
+    var showPaywall: Bool { get set }
+    var canSendAskMessage: Bool { get }
     
     func clearError()
 }

@@ -25,6 +25,7 @@ final class ResultViewModel: ResultViewModelProtocol {
     private let sessionRepository: SessionRepositoryProtocol
     private let chatService: ChatService
     private let clientContextService: ClientContextServiceProtocol
+    private let featureAccessService: FeatureAccessServiceProtocol
     
     let session: Session
     
@@ -39,6 +40,9 @@ final class ResultViewModel: ResultViewModelProtocol {
     var hasLoadedMessages: Bool = false
     var chatError: String?
     
+    // Paywall state
+    var showPaywall: Bool = false
+    
     // MARK: - Computed Properties
     
     var errorMessage: String? {
@@ -50,17 +54,29 @@ final class ResultViewModel: ResultViewModelProtocol {
         set { if !newValue { clearError() } }
     }
     
+    var canSendAskMessage: Bool {
+        featureAccessService.canSendAskMessage(forSessionId: session.id.uuidString)
+    }
+    
+    var remainingAskMessages: Int {
+        if featureAccessService.isPro { return Int.max }
+        let used = featureAccessService.askMessageCount(forSessionId: session.id.uuidString)
+        return max(0, featureAccessService.maxFreeAskMessagesPerSession - used)
+    }
+    
     // MARK: - Initialization
     
     init(
         session: Session,
         sessionRepository: SessionRepositoryProtocol,
         chatService: ChatService,
+        featureAccessService: FeatureAccessServiceProtocol,
         clientContextService: ClientContextServiceProtocol = ClientContextService.shared
     ) {
         self.session = session
         self.sessionRepository = sessionRepository
         self.chatService = chatService
+        self.featureAccessService = featureAccessService
         self.clientContextService = clientContextService
         self.chatMessages = session.chatHistory
     }
@@ -111,6 +127,11 @@ final class ResultViewModel: ResultViewModelProtocol {
         let trimmedMessage = askMessage.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedMessage.isEmpty else { return }
         
+        guard canSendAskMessage else {
+            showPaywall = true
+            return
+        }
+        
         // Ensure session has an interview ID
         guard let interviewId = session.interviewId else {
             chatError = "Session not synced with server. Please analyze the interview first."
@@ -151,6 +172,7 @@ final class ResultViewModel: ResultViewModelProtocol {
             // Save assistant message
             try sessionRepository.saveChatMessage(assistantMessage, to: session)
             
+            featureAccessService.recordAskMessage(forSessionId: session.id.uuidString)
             isSendingMessage = false
             
         } catch {

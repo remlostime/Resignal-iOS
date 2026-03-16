@@ -22,6 +22,7 @@ struct PaywallView: View {
     @State private var errorMessage: String?
     @State private var showError = false
     @State private var purchaseCompleted = false
+    @State private var safariURL: URL?
 
     // MARK: - Body
 
@@ -86,6 +87,10 @@ struct PaywallView: View {
                     dismiss()
                 }
             }
+            .sheet(item: $safariURL) { url in
+                SafariView(url: url)
+                    .ignoresSafeArea()
+            }
         }
     }
 
@@ -114,9 +119,23 @@ struct PaywallView: View {
         VStack(alignment: .leading, spacing: 0) {
             FeatureBullet(icon: "infinity", title: "Unlimited sessions", subtitle: "No monthly session limits")
             Divider().padding(.leading, 44)
-            FeatureBullet(icon: "sparkles", title: "AI answer rewriting", subtitle: "Get improved versions of your answers")
+            FeatureBullet(
+                icon: "text.bubble",
+                title: "Unlimited Ask follow-ups",
+                subtitle: "Dig deeper with unlimited follow-up questions"
+            )
             Divider().padding(.leading, 44)
-            FeatureBullet(icon: "star.circle", title: "Priority support", subtitle: "Get help when you need it")
+            FeatureBullet(
+                icon: "brain",
+                title: "Better AI models analysis",
+                subtitle: "Get more accurate and detailed feedback"
+            )
+            Divider().padding(.leading, 44)
+            FeatureBullet(
+                icon: "waveform",
+                title: "Better audio recognition quality",
+                subtitle: "Crystal-clear transcription of your responses"
+            )
         }
         .padding(.horizontal, AppTheme.Spacing.md)
         .padding(.vertical, AppTheme.Spacing.sm)
@@ -193,15 +212,21 @@ struct PaywallView: View {
             .disabled(isPurchasing)
 
             HStack(spacing: AppTheme.Spacing.md) {
-                Link("Terms of service",
-                     destination: container.settingsService.apiEnvironment.termsOfServiceURL)
-                    .font(AppTheme.Typography.caption)
-                    .foregroundStyle(AppTheme.Colors.textTertiary)
+                Button {
+                    safariURL = container.settingsService.apiEnvironment.termsOfServiceURL
+                } label: {
+                    Text("Terms of service")
+                        .font(AppTheme.Typography.caption)
+                        .foregroundStyle(AppTheme.Colors.textTertiary)
+                }
 
-                Link("Privacy policy",
-                     destination: container.settingsService.apiEnvironment.privacyPolicyURL)
-                    .font(AppTheme.Typography.caption)
-                    .foregroundStyle(AppTheme.Colors.textTertiary)
+                Button {
+                    safariURL = container.settingsService.apiEnvironment.privacyPolicyURL
+                } label: {
+                    Text("Privacy policy")
+                        .font(AppTheme.Typography.caption)
+                        .foregroundStyle(AppTheme.Colors.textTertiary)
+                }
             }
         }
     }
@@ -265,7 +290,7 @@ struct PaywallView: View {
 // MARK: - Feature Bullet
 
 /// A feature bullet row — icon + title + subtitle
-private struct FeatureBullet: View {
+struct FeatureBullet: View {
     let icon: String
     let title: String
     let subtitle: String
