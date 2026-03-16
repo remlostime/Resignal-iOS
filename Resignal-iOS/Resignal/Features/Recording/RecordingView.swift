@@ -59,6 +59,8 @@ struct RecordingView: View {
                 let vm = RecordingViewModel(
                     recordingService: container.recordingService,
                     transcriptionService: container.transcriptionService,
+                    audioUploadService: container.audioUploadService,
+                    audioAPI: container.settingsService.audioAPI,
                     liveActivityService: container.liveActivityService,
                     session: existingSession
                 )

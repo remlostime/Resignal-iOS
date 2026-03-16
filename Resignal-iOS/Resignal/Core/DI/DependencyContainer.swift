@@ -23,6 +23,7 @@ protocol DependencyContainerProtocol {
     var liveActivityService: LiveActivityService { get }
     var subscriptionService: SubscriptionServiceProtocol { get }
     var featureAccessService: FeatureAccessServiceProtocol { get }
+    var audioUploadService: AudioUploadService { get }
 }
 
 /// Main dependency container that provides all app dependencies
@@ -43,6 +44,7 @@ final class DependencyContainer: DependencyContainerProtocol {
     let liveActivityService: LiveActivityService
     let subscriptionService: SubscriptionServiceProtocol
     let featureAccessService: FeatureAccessServiceProtocol
+    let audioUploadService: AudioUploadService
     private let isPreview: Bool
     
     // Cached AI client with invalidation tracking (for useMockAI toggle)
@@ -102,6 +104,7 @@ final class DependencyContainer: DependencyContainerProtocol {
             self.chatService = MockChatService()
             self.userClient = MockUserClient()
             self.liveActivityService = MockLiveActivityService()
+            self.audioUploadService = MockAudioUploadService()
             #if DEBUG
             let subscription = MockSubscriptionService()
             self.subscriptionService = subscription
@@ -117,6 +120,7 @@ final class DependencyContainer: DependencyContainerProtocol {
             self.chatService = ChatServiceImpl(baseURL: baseURL, model: aiModelValue)
             self.userClient = UserClientImpl(baseURL: baseURL)
             self.liveActivityService = LiveActivityServiceImpl()
+            self.audioUploadService = AudioUploadServiceImpl(baseURL: baseURL)
             let subscription = SubscriptionService()
             self.subscriptionService = subscription
         }
