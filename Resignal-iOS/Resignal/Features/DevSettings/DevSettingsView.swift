@@ -38,6 +38,7 @@ struct DevSettingsView: View {
         NavigationStack {
             List {
                 subscriptionMockSection
+                onboardingSection
                 apiEnvironmentSection
                 aiModelSection
                 audioAPISection
@@ -132,6 +133,22 @@ struct DevSettingsView: View {
             Text("Subscription (Mock)")
         } footer: {
             Text("When enabled, overrides real StoreKit subscription status. Use this to test Pro features without App Store configuration.")
+                .font(AppTheme.Typography.caption)
+        }
+    }
+    
+    @ViewBuilder
+    private var onboardingSection: some View {
+        Section {
+            Button("Reset Onboarding") {
+                container.settingsService.hasSeenOnboarding = false
+                dismiss()
+            }
+            .foregroundStyle(AppTheme.Colors.destructive)
+        } header: {
+            Text("Onboarding")
+        } footer: {
+            Text("Resets the onboarding flag so the welcome screen appears on next launch.")
                 .font(AppTheme.Typography.caption)
         }
     }

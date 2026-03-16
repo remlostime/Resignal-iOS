@@ -68,9 +68,26 @@ struct RootView: View {
     #endif
     
     var body: some View {
+        Group {
+            if container.settingsService.hasSeenOnboarding {
+                mainContent
+            } else {
+                OnboardingView(
+                    viewModel: OnboardingViewModel(
+                        settingsService: container.settingsService
+                    )
+                )
+                .transition(.opacity.combined(with: .scale(scale: 0.98)))
+            }
+        }
+        .animation(AppTheme.Animation.slow, value: container.settingsService.hasSeenOnboarding)
+    }
+    
+    /// The main app content shown after onboarding
+    private var mainContent: some View {
         @Bindable var router = router
         
-        NavigationStack(path: $router.path) {
+        return NavigationStack(path: $router.path) {
             HomeView()
                 .navigationDestination(for: Route.self) { route in
                     destinationView(for: route)
