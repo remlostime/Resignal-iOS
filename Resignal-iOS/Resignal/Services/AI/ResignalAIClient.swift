@@ -18,12 +18,14 @@ actor ResignalAIClient: AIClient {
         let task: String
         let locale: String
         let image: ImageAttachment?
+        let model: String?
         
-        init(input: String, task: String = "feedback", locale: String = "en", image: ImageAttachment? = nil) {
+        init(input: String, task: String = "feedback", locale: String = "en", image: ImageAttachment? = nil, model: String? = nil) {
             self.input = input
             self.task = task
             self.locale = locale
             self.image = image
+            self.model = model
         }
     }
 
@@ -46,6 +48,7 @@ actor ResignalAIClient: AIClient {
     // MARK: - Properties
 
     private let baseURL: String
+    private let model: String
     private let clientContextService: ClientContextServiceProtocol
     private var _isAnalyzing: Bool = false
     private var currentTask: Task<AnalysisResponse, Error>?
@@ -64,9 +67,11 @@ actor ResignalAIClient: AIClient {
 
     init(
         baseURL: String = "https://resignal-backend.vercel.app",
+        model: String = "gemini",
         clientContextService: ClientContextServiceProtocol = ClientContextService.shared
     ) {
         self.baseURL = baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        self.model = model
         self.clientContextService = clientContextService
     }
 
@@ -114,8 +119,8 @@ actor ResignalAIClient: AIClient {
         // Send only the raw transcript
         let completeInput = request.inputText
 
-        // Create the request with optional image
-        let chatRequest = ChatRequest(input: completeInput, image: request.image)
+        // Create the request with optional image and model
+        let chatRequest = ChatRequest(input: completeInput, image: request.image, model: model)
 
         // Create URL request
         guard let url = URL(string: "\(baseURL)/api/interviews") else {

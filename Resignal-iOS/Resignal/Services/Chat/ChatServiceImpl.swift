@@ -32,11 +32,13 @@ actor ChatServiceImpl: ChatService {
         let interviewId: String
         let message: String
         let userId: String
+        let model: String?
         
         enum CodingKeys: String, CodingKey {
             case interviewId = "interview_id"
             case message
             case userId = "user_id"
+            case model
         }
     }
     
@@ -55,6 +57,7 @@ actor ChatServiceImpl: ChatService {
     // MARK: - Properties
     
     private let baseURL: String
+    private let model: String
     private let clientContextService: ClientContextServiceProtocol
     private let urlSession: URLSession
     
@@ -76,10 +79,12 @@ actor ChatServiceImpl: ChatService {
     
     init(
         baseURL: String = "https://resignal-backend.vercel.app",
+        model: String = "gemini",
         clientContextService: ClientContextServiceProtocol = ClientContextService.shared,
         urlSession: URLSession = .shared
     ) {
         self.baseURL = baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        self.model = model
         self.clientContextService = clientContextService
         self.urlSession = urlSession
     }
@@ -154,7 +159,8 @@ actor ChatServiceImpl: ChatService {
         let requestBody = SendMessageRequest(
             interviewId: interviewId,
             message: trimmedMessage,
-            userId: userId
+            userId: userId,
+            model: model
         )
         
         let encoder = JSONEncoder()
