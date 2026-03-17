@@ -84,8 +84,12 @@ actor TranscriptionServiceImpl: TranscriptionService {
         
         print("📝 Transcribing audio file: \(audioURL.lastPathComponent)")
         
+        // Reactivate audio session — recording service deactivates it in stopRecording(),
+        // but the speech recognizer may need it active even for file-based recognition.
+        try? AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
+        
         let request = SFSpeechURLRecognitionRequest(url: audioURL)
-        request.shouldReportPartialResults = false
+        request.shouldReportPartialResults = true
         request.requiresOnDeviceRecognition = false
         request.contextualStrings = contextualStrings
         request.addsPunctuation = true
@@ -93,23 +97,37 @@ actor TranscriptionServiceImpl: TranscriptionService {
         
         return try await withCheckedThrowingContinuation { continuation in
             var hasResumed = false
+            var bestPartialResult: String = ""
             
             recognitionTask = recognizer.recognitionTask(with: request) { result, error in
-                // Prevent multiple resumes which would crash
                 guard !hasResumed else { return }
                 
                 if let error = error {
                     hasResumed = true
                     print("📝 Speech recognition error: \(error.localizedDescription)")
-                    continuation.resume(throwing: TranscriptionError.transcriptionFailed)
+                    if !bestPartialResult.isEmpty {
+                        continuation.resume(returning: bestPartialResult)
+                    } else {
+                        continuation.resume(throwing: TranscriptionError.transcriptionFailed)
+                    }
                     return
                 }
                 
                 if let result = result {
-                    print("📝 Got result, isFinal: \(result.isFinal), text length: \(result.bestTranscription.formattedString.count)")
+                    let text = result.bestTranscription.formattedString
+                    print("📝 Got result, isFinal: \(result.isFinal), text length: \(text.count)")
+                    
+                    if !text.isEmpty && text.count > bestPartialResult.count {
+                        bestPartialResult = text
+                    }
+                    
                     if result.isFinal {
                         hasResumed = true
-                        continuation.resume(returning: result.bestTranscription.formattedString)
+                        if text.isEmpty && !bestPartialResult.isEmpty {
+                            continuation.resume(returning: bestPartialResult)
+                        } else {
+                            continuation.resume(returning: text)
+                        }
                     }
                 }
             }
@@ -154,7 +172,6 @@ actor TranscriptionServiceImpl: TranscriptionService {
             
             // Install audio tap - this runs continuously across chunk restarts
             inputNode.installTap(onBus: 0, bufferSize: 4096, format: recordingFormat) { [weak self] buffer, _ in
-                // Append buffer to current recognition request
                 self?.recognitionRequest?.append(buffer)
             }
             
@@ -436,6 +453,8 @@ actor TranscriptionServiceImpl: TranscriptionService {
     }
     
     func stopLiveTranscription() async {
+        guard isTranscriptionActive || audioEngine != nil else { return }
+        
         // Prevent chunk restarts during shutdown
         chunkRestartTask?.cancel()
         chunkRestartTask = nil
@@ -453,7 +472,9 @@ actor TranscriptionServiceImpl: TranscriptionService {
         recognitionRequest?.endAudio()
         
         // Give the recognizer up to 1.5s to deliver its final result
-        try? await Task.sleep(nanoseconds: 1_500_000_000)
+        if recognitionTask != nil {
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+        }
         
         // Commit any remaining partial transcript
         if !currentChunkTranscript.isEmpty {

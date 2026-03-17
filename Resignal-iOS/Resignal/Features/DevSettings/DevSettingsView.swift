@@ -322,32 +322,6 @@ struct DevSettingsView: View {
         }
     }
     
-    @ViewBuilder
-    private var audioAPISection: some View {
-        Section {
-            Menu {
-                Picker("Audio API", selection: audioAPIBinding) {
-                    ForEach(AudioAPI.allCases, id: \.self) { api in
-                        Text(api.displayName).tag(api)
-                    }
-                }
-            } label: {
-                HStack {
-                    Text("Transcription")
-                    Spacer()
-                    Text(currentAudioAPI.displayName)
-                        .foregroundStyle(AppTheme.Colors.textSecondary)
-                }
-            }
-            .tint(AppTheme.Colors.textPrimary)
-        } header: {
-            Text("Audio API")
-        } footer: {
-            Text("Select the audio transcription provider.")
-                .font(AppTheme.Typography.caption)
-        }
-    }
-    
     // MARK: - Bindings
     
     private var mockSubscriptionEnabledBinding: Binding<Bool> {
@@ -404,15 +378,6 @@ struct DevSettingsView: View {
             set: { newValue in
                 guard newValue != currentModel else { return }
                 pendingModel = newValue
-            }
-        )
-    }
-    
-    private var audioAPIBinding: Binding<AudioAPI> {
-        Binding(
-            get: { currentAudioAPI },
-            set: { newValue in
-                container.settingsService.audioAPI = newValue
             }
         )
     }

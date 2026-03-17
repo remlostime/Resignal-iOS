@@ -9,7 +9,6 @@
 //    4. POST /api/interviews/:id/transcribe-complete → signal backend to finalize
 //    5. GET  /api/transcriptions/:id       → poll until transcript is ready
 //
-//  Uses a background URLSession so uploads survive the app being backgrounded.
 //  Each chunk is retried up to 2 times on transient network failure.
 //
 
@@ -34,15 +33,12 @@ actor AudioUploadServiceImpl: AudioUploadService {
     private let baseURL: String
     private let identityManager: IdentityManagerProtocol
     private let chunkManager: AudioChunkManager
-    private let uploadDelegate: BackgroundUploadDelegate
-    private let urlSession: URLSession
 
     // MARK: - State
 
     private var currentState: TranscriptionUploadState = .idle
     private var stateContinuations: [UUID: AsyncStream<TranscriptionUploadState>.Continuation] = [:]
     private var isCancelled = false
-    private var activeTask: URLSessionTask?
 
     // MARK: - Initialization
 
@@ -54,31 +50,6 @@ actor AudioUploadServiceImpl: AudioUploadService {
         self.baseURL = baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         self.identityManager = identityManager
         self.chunkManager = chunkManager
-
-        let delegate = BackgroundUploadDelegate()
-        self.uploadDelegate = delegate
-
-        let identifier = "app.resignal.audioupload.\(UUID().uuidString)"
-        let config = URLSessionConfiguration.background(withIdentifier: identifier)
-        config.sessionSendsLaunchEvents = true
-        config.isDiscretionary = false
-        config.timeoutIntervalForRequest = Config.requestTimeout
-        config.timeoutIntervalForResource = Config.requestTimeout * 2
-        self.urlSession = URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
-    }
-
-    /// Test-only initializer that accepts a custom URLSession (e.g. for stubbing).
-    init(
-        baseURL: String,
-        identityManager: IdentityManagerProtocol,
-        chunkManager: AudioChunkManager,
-        urlSession: URLSession
-    ) {
-        self.baseURL = baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        self.identityManager = identityManager
-        self.chunkManager = chunkManager
-        self.uploadDelegate = BackgroundUploadDelegate()
-        self.urlSession = urlSession
     }
 
     // MARK: - AudioUploadService
@@ -139,8 +110,6 @@ actor AudioUploadServiceImpl: AudioUploadService {
 
     func cancel() {
         isCancelled = true
-        activeTask?.cancel()
-        activeTask = nil
         setState(.failed(errorMessage: AudioUploadError.cancelled.localizedDescription))
     }
 
@@ -209,7 +178,7 @@ extension AudioUploadServiceImpl {
         )
     }
 
-    /// POST /api/transcriptions/:jobId/chunks  (multipart/form-data via background session)
+    /// POST /api/transcriptions/:jobId/chunks  (multipart/form-data)
     private func uploadSingleChunk(chunk: AudioChunkMetadata, jobId: String) async throws {
         let url = try buildURL(path: "/api/transcriptions/\(jobId)/chunks")
         let boundary = "Boundary-\(UUID().uuidString)"
@@ -217,6 +186,7 @@ extension AudioUploadServiceImpl {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = Config.requestTimeout
         applyAuthHeaders(to: &request)
 
         let bodyFileURL = try MultipartBodyBuilder.buildMultipartFile(
@@ -226,7 +196,8 @@ extension AudioUploadServiceImpl {
         )
         defer { try? FileManager.default.removeItem(at: bodyFileURL) }
 
-        let (data, response) = try await performUploadTask(request: request, fileURL: bodyFileURL)
+        let bodyData = try Data(contentsOf: bodyFileURL)
+        let (data, response) = try await URLSession.shared.upload(for: request, from: bodyData)
         try validateHTTPResponse(response, data: data)
     }
 
@@ -280,37 +251,6 @@ extension AudioUploadServiceImpl {
 
 extension AudioUploadServiceImpl {
 
-    /// Performs a file-based upload through the background session, bridging
-    /// delegate callbacks into async/await via a continuation.
-    private func performUploadTask(
-        request: URLRequest,
-        fileURL: URL
-    ) async throws -> (Data, URLResponse) {
-        try await withCheckedThrowingContinuation { [weak self] continuation in
-            guard let self else {
-                continuation.resume(throwing: AudioUploadError.cancelled)
-                return
-            }
-
-            let task = self.urlSession.uploadTask(with: request, fromFile: fileURL)
-            self.uploadDelegate.registerContinuation(for: task.taskIdentifier) { result in
-                switch result {
-                case .success(let pair):
-                    continuation.resume(returning: pair)
-                case .failure(let error):
-                    continuation.resume(throwing: error)
-                }
-            }
-
-            Task { await self.setActiveTask(task) }
-            task.resume()
-        }
-    }
-
-    private func setActiveTask(_ task: URLSessionTask) {
-        activeTask = task
-    }
-
     private func applyAuthHeaders(to request: inout URLRequest) {
         if let token = identityManager.currentToken {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
@@ -340,9 +280,16 @@ extension AudioUploadServiceImpl {
             throw AudioUploadError.fileTooLarge
         default:
             let message: String
-            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let error = json["error"] as? String {
-                message = error
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                if let errorObj = json["error"] as? [String: Any], let msg = errorObj["message"] as? String {
+                    message = msg
+                } else if let msg = json["message"] as? String {
+                    message = msg
+                } else if let error = json["error"] as? String {
+                    message = error
+                } else {
+                    message = HTTPURLResponse.localizedString(forStatusCode: http.statusCode)
+                }
             } else {
                 message = HTTPURLResponse.localizedString(forStatusCode: http.statusCode)
             }
