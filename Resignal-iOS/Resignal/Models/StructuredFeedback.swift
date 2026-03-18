@@ -34,18 +34,6 @@ struct StructuredFeedback: Codable, Sendable, Equatable {
     /// Key observations from the interview
     let keyObservations: [String]
     
-    // MARK: - CodingKeys
-    
-    enum CodingKeys: String, CodingKey {
-        case id
-        case title
-        case summary
-        case strengths
-        case improvement
-        case hiringSignal = "hiring_signal"
-        case keyObservations = "key_observations"
-    }
-    
     // MARK: - Initialization
     
     init(
