@@ -34,6 +34,10 @@ actor InterviewClientImpl: InterviewClient {
         try await performFetchTranscript(id: id)
     }
 
+    nonisolated func deleteInterview(id: String) async throws {
+        try await performDelete(id: id)
+    }
+
     // MARK: - Private
 
     private nonisolated func performFetch(page: Int, pageSize: Int) async throws -> InterviewListResponse {
@@ -64,6 +68,17 @@ actor InterviewClientImpl: InterviewClient {
     private nonisolated func performFetchTranscript(id: String) async throws -> TranscriptResponse {
         do {
             return try await apiClient.request("/api/interviews/\(id)/transcript")
+        } catch let error as APIError {
+            throw mapToInterviewError(error)
+        }
+    }
+
+    private nonisolated func performDelete(id: String) async throws {
+        do {
+            let _: DeleteInterviewResponse = try await apiClient.request(
+                "/api/interviews/\(id)",
+                method: .delete
+            )
         } catch let error as APIError {
             throw mapToInterviewError(error)
         }
