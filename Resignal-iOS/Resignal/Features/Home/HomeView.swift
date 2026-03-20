@@ -230,6 +230,7 @@ struct HomeView: View {
                 ))
             }
             .listStyle(.plain)
+            .contentMargins(.bottom, 80, for: .scrollContent)
             .refreshable {
                 await viewModel.loadInterviews()
             }
@@ -299,18 +300,14 @@ struct InterviewRowView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
-            HStack {
-                Text(interview.displayTitle)
-                    .font(AppTheme.Typography.headline)
-                    .foregroundStyle(AppTheme.Colors.textPrimary)
-                    .lineLimit(1)
-                
-                Spacer()
-                
-                Text(interview.createdAt.relativeFormatted)
-                    .font(AppTheme.Typography.caption)
-                    .foregroundStyle(AppTheme.Colors.textTertiary)
-            }
+            Text(interview.displayTitle)
+                .font(AppTheme.Typography.headline)
+                .foregroundStyle(AppTheme.Colors.textPrimary)
+                .lineLimit(2)
+            
+            Text(interview.createdAt.relativeFormatted)
+                .font(AppTheme.Typography.caption)
+                .foregroundStyle(AppTheme.Colors.textTertiary)
             
             if let summary = interview.summary, !summary.isEmpty {
                 Text(summary)

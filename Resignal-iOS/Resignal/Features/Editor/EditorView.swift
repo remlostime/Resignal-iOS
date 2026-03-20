@@ -60,6 +60,7 @@ struct EditorView: View {
                     aiClient: container.aiClient,
                     attachmentService: container.attachmentService,
                     featureAccessService: container.featureAccessService,
+                    appReviewService: container.appReviewService,
                     initialTranscript: initialTranscript,
                     audioURL: audioURL
                 )

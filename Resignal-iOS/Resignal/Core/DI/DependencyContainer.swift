@@ -25,6 +25,7 @@ protocol DependencyContainerProtocol {
     var identityManager: IdentityManagerProtocol { get }
     var apiClient: APIClientProtocol { get }
     var billingClient: BillingClientProtocol { get }
+    var appReviewService: AppReviewServiceProtocol { get }
 }
 
 /// Main dependency container that provides all app dependencies
@@ -47,6 +48,7 @@ final class DependencyContainer: DependencyContainerProtocol {
     let identityManager: IdentityManagerProtocol
     let apiClient: APIClientProtocol
     let billingClient: BillingClientProtocol
+    let appReviewService: AppReviewServiceProtocol
     private let isPreview: Bool
     
     private var _cachedAIClient: (any AIClient)?
@@ -125,6 +127,10 @@ final class DependencyContainer: DependencyContainerProtocol {
             subscriptionService: self.subscriptionService,
             settingsService: settings
         )
+        
+        self.appReviewService = isPreview
+            ? MockAppReviewService()
+            : AppReviewService()
     }
     
     // MARK: - Private Methods
