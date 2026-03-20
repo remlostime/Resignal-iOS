@@ -303,7 +303,7 @@ struct InterviewRowView: View {
                 Text(interview.displayTitle)
                     .font(AppTheme.Typography.headline)
                     .foregroundStyle(AppTheme.Colors.textPrimary)
-                    .lineLimit(1)
+                    .lineLimit(2)
                 
                 Spacer()
                 
