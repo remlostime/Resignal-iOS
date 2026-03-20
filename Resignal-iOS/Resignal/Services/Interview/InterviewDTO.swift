@@ -38,3 +38,8 @@ struct PaginationInfo: Codable, Sendable, Equatable {
     let totalPages: Int
     let totalItems: Int
 }
+
+/// Response from DELETE /api/interviews/{id}
+struct DeleteInterviewResponse: Decodable, Sendable {
+    let success: Bool
+}

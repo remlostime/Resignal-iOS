@@ -23,7 +23,7 @@ protocol HomeViewModelProtocol: AnyObject, Observable {
     
     func loadInterviews() async
     func confirmDelete(_ interview: InterviewDTO)
-    func executePendingDelete()
+    func executePendingDelete() async
     func cancelDelete()
     func clearError()
 }

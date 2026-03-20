@@ -65,14 +65,23 @@ final class HomeViewModel: HomeViewModelProtocol {
         showDeleteConfirmation = true
     }
     
-    /// Confirms and executes pending deletion
-    func executePendingDelete() {
+    /// Confirms and executes pending deletion against the server API
+    func executePendingDelete() async {
         guard let interview = interviewToDelete else { return }
         
         interviews.removeAll { $0.id == interview.id }
         state = .success(interviews)
         interviewToDelete = nil
         showDeleteConfirmation = false
+        
+        do {
+            try await interviewClient.deleteInterview(id: interview.id)
+        } catch {
+            interviews.append(interview)
+            interviews.sort { $0.createdAt > $1.createdAt }
+            state = .error("Failed to delete interview: \(error.localizedDescription)")
+            debugLog("Error deleting interview: \(error)")
+        }
     }
     
     /// Cancels pending deletion

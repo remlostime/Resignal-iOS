@@ -109,7 +109,9 @@ struct HomeView: View {
                 viewModel.cancelDelete()
             }
             Button("Delete", role: .destructive) {
-                viewModel.executePendingDelete()
+                Task {
+                    await viewModel.executePendingDelete()
+                }
             }
         } message: {
             Text("This action cannot be undone.")

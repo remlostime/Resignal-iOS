@@ -56,4 +56,9 @@ protocol InterviewClient: Sendable {
     /// - Returns: The transcript response containing the interview ID and transcript text
     /// - Throws: InterviewClientError on failure
     nonisolated func fetchTranscript(id: String) async throws -> TranscriptResponse
+
+    /// Permanently deletes an interview and all associated data on the server.
+    /// - Parameter id: UUID of the interview to delete
+    /// - Throws: InterviewClientError on failure
+    nonisolated func deleteInterview(id: String) async throws
 }

@@ -83,6 +83,14 @@ actor MockInterviewClient: InterviewClient {
         }
     }
 
+    nonisolated func deleteInterview(id: String) async throws {
+        try await Task.sleep(for: .seconds(delay))
+        try Task.checkCancellation()
+        if !shouldSucceed {
+            throw InterviewClientError.apiError("Mock delete failed")
+        }
+    }
+
     // MARK: - Sample Data
 
     private static let sampleInterviews: [InterviewDTO] = [
