@@ -35,8 +35,9 @@ The project follows a **layered architecture** with clear separation of concerns
 │  (Reusable views)    │  Protocols / Extensions      │
 ├──────────────────────┴──────────────────────────────┤
 │                  Services Layer                      │
-│  AI │ Recording │ Transcription │ Chat │ Attachment  │
-│  LiveActivity │ User │ Settings │ ClientContext      │
+│  AI │ Recording │ Transcription │ AudioUpload │ Chat │
+│  Attachment │ LiveActivity │ User │ Settings │       │
+│  ClientContext                                       │
 ├─────────────────────────────────────────────────────┤
 │              Persistence Layer                       │
 │          SessionRepository (SwiftData)               │
@@ -84,6 +85,7 @@ Resignal-iOS/
 │   ├── Services/                     # Business logic services
 │   │   ├── AI/                       # AIClient protocol + actor implementations
 │   │   ├── Attachment/               # File management, compression, thumbnails
+│   │   ├── AudioUpload/              # Chunked upload to backend + Whisper transcription polling
 │   │   ├── Chat/                     # Backend-integrated messaging
 │   │   ├── ClientContext/            # Device identity (Keychain-persisted client ID)
 │   │   ├── Recording/               # AVAudioRecorder + LiveActivity integration
@@ -118,7 +120,7 @@ Views lazily initialize ViewModels in `.onAppear` and use `@Bindable` or custom 
 
 Every major component is defined by a protocol:
 
-- **Service protocols**: `AIClient`, `RecordingService`, `TranscriptionService`, `ChatService`, `AttachmentService`, `UserClient`, `LiveActivityService`, `SettingsServiceProtocol`
+- **Service protocols**: `AIClient`, `RecordingService`, `TranscriptionService`, `AudioUploadService`, `ChatService`, `AttachmentService`, `UserClient`, `LiveActivityService`, `SettingsServiceProtocol`
 - **ViewModel protocols**: `HomeViewModelProtocol`, `EditorViewModelProtocol`, `ResultViewModelProtocol`
 - **Container protocol**: `DependencyContainerProtocol`
 - **Repository protocol**: `SessionRepositoryProtocol`
@@ -173,6 +175,7 @@ Convenience computed properties (`isLoading`, `hasError`, `value`, `isSuccess`, 
 Services that perform I/O or background work use Swift **actors** for thread safety:
 
 - `ResignalAIClient`, `MockAIClient` — AI analysis
+- `AudioUploadServiceImpl` — chunked upload + transcription polling
 - `AttachmentServiceImpl` — file operations
 - `ChatServiceImpl` — network requests
 - `TranscriptionServiceImpl` — speech recognition

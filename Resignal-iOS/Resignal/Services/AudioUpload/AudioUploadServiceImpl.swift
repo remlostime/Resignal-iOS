@@ -213,8 +213,12 @@ extension AudioUploadServiceImpl {
         try validateHTTPResponse(response, data: data)
     }
 
-    /// GET /api/transcriptions/:jobId  →  { status, transcript?, ... }
+    /// GET /api/transcriptions/:jobId  →  { status, resultUrl?, ... }
+    ///
+    /// Polls until the job completes, then downloads the full transcript from the
+    /// Blob CDN URL returned in `resultUrl`.
     private func pollForTranscript(jobId: String) async throws -> String {
+        let decoder = JSONDecoder()
         let startTime = Date()
 
         while true {
@@ -231,18 +235,51 @@ extension AudioUploadServiceImpl {
             let (data, response) = try await URLSession.shared.data(for: request)
             try validateHTTPResponse(response, data: data)
 
-            if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let status = json["status"] as? String {
-                if status == "completed", let transcript = json["transcript"] as? String {
-                    return transcript
-                }
-                if status == "failed" {
-                    let msg = json["error"] as? String ?? "Transcription failed on server."
-                    throw AudioUploadError.serverError(statusCode: 0, message: msg)
-                }
+            let status = try decoder.decode(TranscriptionStatusResponse.self, from: data)
+
+            switch status.status {
+            case "completed":
+                return try await downloadTranscriptionResult(
+                    from: status.resultUrl,
+                    decoder: decoder
+                )
+            case "failed":
+                throw AudioUploadError.serverError(
+                    statusCode: 0,
+                    message: "Transcription failed on server."
+                )
+            default:
+                break
             }
 
             try await Task.sleep(nanoseconds: Config.pollingInterval)
+        }
+    }
+
+    /// Downloads and decodes the transcript payload from a public Blob CDN URL.
+    private func downloadTranscriptionResult(
+        from urlString: String?,
+        decoder: JSONDecoder
+    ) async throws -> String {
+        guard let urlString, let blobURL = URL(string: urlString) else {
+            throw AudioUploadError.resultDownloadFailed("Missing or invalid resultUrl.")
+        }
+
+        let (data, response) = try await URLSession.shared.data(from: blobURL)
+
+        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+            throw AudioUploadError.resultDownloadFailed(
+                "HTTP \(http.statusCode) from result URL."
+            )
+        }
+
+        do {
+            let result = try decoder.decode(TranscriptionResult.self, from: data)
+            return result.transcript
+        } catch {
+            throw AudioUploadError.resultDownloadFailed(
+                "Failed to parse result JSON: \(error.localizedDescription)"
+            )
         }
     }
 }

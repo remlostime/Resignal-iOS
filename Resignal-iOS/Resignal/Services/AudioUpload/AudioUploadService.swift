@@ -39,6 +39,7 @@ enum AudioUploadError: LocalizedError {
     case cancelled
     case invalidResponse
     case pollingTimeout
+    case resultDownloadFailed(String)
 
     var errorDescription: String? {
         switch self {
@@ -62,6 +63,8 @@ enum AudioUploadError: LocalizedError {
             return "Received an unexpected response from the server."
         case .pollingTimeout:
             return "Transcription is taking longer than expected. Please try again."
+        case .resultDownloadFailed(let reason):
+            return "Failed to download transcription result: \(reason)"
         }
     }
 }
