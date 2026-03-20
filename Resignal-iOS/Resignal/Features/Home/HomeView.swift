@@ -230,6 +230,7 @@ struct HomeView: View {
                 ))
             }
             .listStyle(.plain)
+            .contentMargins(.bottom, 80, for: .scrollContent)
             .refreshable {
                 await viewModel.loadInterviews()
             }
