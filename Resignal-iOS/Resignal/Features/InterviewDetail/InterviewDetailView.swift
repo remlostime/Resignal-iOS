@@ -18,6 +18,7 @@ struct InterviewDetailView: View {
     let interviewId: String
     
     @State private var viewModel: InterviewDetailViewModel?
+    @State private var feedbackScrollTask: Task<Void, Never>?
     
     // MARK: - Body
     
@@ -36,9 +37,11 @@ struct InterviewDetailView: View {
                     interviewId: interviewId,
                     interviewClient: container.interviewClient,
                     chatService: container.chatService,
-                    featureAccessService: container.featureAccessService
+                    featureAccessService: container.featureAccessService,
+                    appReviewService: container.appReviewService
                 )
             }
+            viewModel?.checkPendingReviewPrompt()
         }
         .task {
             if let viewModel, viewModel.state.isIdle {
@@ -97,7 +100,7 @@ struct InterviewDetailView: View {
                 get: { viewModel.selectedTab },
                 set: { viewModel.selectedTab = $0 }
             )) {
-                feedbackTabContent(feedback: feedback)
+                feedbackTabContent(feedback: feedback, viewModel: viewModel)
                     .tag(InterviewDetailTab.feedback)
                 
                 transcriptTabContent(viewModel: viewModel)
@@ -131,15 +134,52 @@ struct InterviewDetailView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
+        .sheet(isPresented: Binding(
+            get: { viewModel.showReviewPrompt },
+            set: { viewModel.showReviewPrompt = $0 }
+        )) {
+            AppReviewFlowView(appReviewService: viewModel.appReviewService)
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.hidden)
+        }
     }
     
-    private func feedbackTabContent(feedback: StructuredFeedback) -> some View {
+    private func feedbackTabContent(feedback: StructuredFeedback, viewModel: InterviewDetailViewModel) -> some View {
         ScrollView {
             VStack(spacing: AppTheme.Spacing.md) {
                 FeedbackSectionsView(feedback: feedback)
+                
+                feedbackBottomAnchor
             }
             .padding(AppTheme.Spacing.md)
         }
+        .onChange(of: viewModel.selectedTab) { _, _ in
+            feedbackScrollTask?.cancel()
+            feedbackScrollTask = nil
+        }
+    }
+    
+    /// Invisible anchor that fires a delayed review prompt when it scrolls into view.
+    private var feedbackBottomAnchor: some View {
+        GeometryReader { geo in
+            Color.clear
+                .onChange(of: geo.frame(in: .global).minY) { _, minY in
+                    let screenHeight = UIScreen.main.bounds.height
+                    let isVisible = minY < screenHeight && minY > 0
+                    
+                    if isVisible && feedbackScrollTask == nil {
+                        feedbackScrollTask = Task {
+                            try? await Task.sleep(for: .seconds(AppReviewConstants.feedbackReadDelay))
+                            guard !Task.isCancelled else { return }
+                            viewModel?.checkFeedbackReadTrigger()
+                        }
+                    } else if !isVisible {
+                        feedbackScrollTask?.cancel()
+                        feedbackScrollTask = nil
+                    }
+                }
+        }
+        .frame(height: 1)
     }
     
     @ViewBuilder

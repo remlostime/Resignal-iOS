@@ -69,6 +69,7 @@ protocol InterviewDetailViewModelProtocol: AnyObject, Observable {
     var errorMessage: String? { get }
     var showError: Bool { get set }
     var showPaywall: Bool { get set }
+    var showReviewPrompt: Bool { get set }
     var canSendAskMessage: Bool { get }
     var transcriptState: ViewState<String> { get }
     
@@ -77,6 +78,8 @@ protocol InterviewDetailViewModelProtocol: AnyObject, Observable {
     func loadTranscript() async
     func sendAskMessage() async
     func clearError()
+    func checkFeedbackReadTrigger()
+    func checkPendingReviewPrompt()
 }
 
 // MARK: - OnboardingViewModelProtocol

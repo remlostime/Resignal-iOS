@@ -18,6 +18,7 @@ final class EditorViewModel: EditorViewModelProtocol {
     private let aiClient: any AIClient
     private let attachmentService: AttachmentService
     private let featureAccessService: FeatureAccessServiceProtocol
+    private let appReviewService: AppReviewServiceProtocol
     
     // Session data
     var inputText: String = ""
@@ -65,12 +66,14 @@ final class EditorViewModel: EditorViewModelProtocol {
         aiClient: any AIClient,
         attachmentService: AttachmentService,
         featureAccessService: FeatureAccessServiceProtocol,
+        appReviewService: AppReviewServiceProtocol,
         initialTranscript: String? = nil,
         audioURL: URL? = nil
     ) {
         self.aiClient = aiClient
         self.attachmentService = attachmentService
         self.featureAccessService = featureAccessService
+        self.appReviewService = appReviewService
         self.audioURL = audioURL
         
         if let initialTranscript = initialTranscript, !initialTranscript.isEmpty {
@@ -117,6 +120,12 @@ final class EditorViewModel: EditorViewModelProtocol {
             let interviewId = response.interviewId ?? ""
             analysisState = .success(interviewId)
             featureAccessService.recordSessionCreation()
+            
+            appReviewService.recordSessionCompleted()
+            if appReviewService.lifetimeSessionCount >= AppReviewConstants.sessionCountForAutoPrompt
+                && appReviewService.shouldPromptReview() {
+                appReviewService.hasPendingPrompt = true
+            }
             
             return interviewId
             

@@ -25,6 +25,7 @@ final class InterviewDetailViewModel: InterviewDetailViewModelProtocol {
     private let interviewClient: any InterviewClient
     private let chatService: ChatService
     private let featureAccessService: FeatureAccessServiceProtocol
+    let appReviewService: AppReviewServiceProtocol
     
     let interviewId: String
     
@@ -47,6 +48,9 @@ final class InterviewDetailViewModel: InterviewDetailViewModelProtocol {
     
     // Paywall state
     var showPaywall: Bool = false
+    
+    // Review prompt state
+    var showReviewPrompt: Bool = false
     
     // MARK: - Computed Properties
     
@@ -73,12 +77,14 @@ final class InterviewDetailViewModel: InterviewDetailViewModelProtocol {
         interviewId: String,
         interviewClient: any InterviewClient,
         chatService: ChatService,
-        featureAccessService: FeatureAccessServiceProtocol
+        featureAccessService: FeatureAccessServiceProtocol,
+        appReviewService: AppReviewServiceProtocol
     ) {
         self.interviewId = interviewId
         self.interviewClient = interviewClient
         self.chatService = chatService
         self.featureAccessService = featureAccessService
+        self.appReviewService = appReviewService
     }
     
     // MARK: - Public Methods
@@ -165,11 +171,34 @@ final class InterviewDetailViewModel: InterviewDetailViewModelProtocol {
             chatMessages.append(assistantMessage)
             
             featureAccessService.recordAskMessage(forSessionId: interviewId)
+            
+            appReviewService.recordAskMessageSent()
+            if appReviewService.lifetimeAskMessageCount >= AppReviewConstants.askCountForPrompt
+                && appReviewService.shouldPromptReview() {
+                showReviewPrompt = true
+            }
+            
             isSendingMessage = false
         } catch {
             chatError = error.localizedDescription
             isSendingMessage = false
             debugLog("Chat error: \(error)")
+        }
+    }
+    
+    /// Called when the user has scrolled to the bottom of the feedback tab.
+    /// Checks if a review prompt should be shown based on session count.
+    func checkFeedbackReadTrigger() {
+        guard appReviewService.lifetimeSessionCount >= AppReviewConstants.minSessionsForFirstPrompt,
+              appReviewService.shouldPromptReview() else { return }
+        showReviewPrompt = true
+    }
+    
+    /// Checks if a pending prompt (from session completion) should be shown on appear.
+    func checkPendingReviewPrompt() {
+        if appReviewService.hasPendingPrompt && appReviewService.shouldPromptReview() {
+            appReviewService.hasPendingPrompt = false
+            showReviewPrompt = true
         }
     }
     
