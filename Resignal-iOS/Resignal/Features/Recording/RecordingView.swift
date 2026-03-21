@@ -20,6 +20,7 @@ struct RecordingView: View {
     
     @State private var viewModel: RecordingViewModel?
     @State private var showRecordingNotice = false
+    @State private var showCopiedToast = false
     
     // MARK: - Initialization
     
@@ -225,18 +226,30 @@ struct RecordingView: View {
             Text("Live Transcript")
                 .font(AppTheme.Typography.caption)
                 .foregroundStyle(AppTheme.Colors.textSecondary)
-            
+
             ScrollView {
-                Text(viewModel.transcriptText.isEmpty ? "Transcription will appear here..." : viewModel.transcriptText)
-                    .font(AppTheme.Typography.body)
-                    .foregroundStyle(viewModel.transcriptText.isEmpty ? AppTheme.Colors.textTertiary : AppTheme.Colors.textPrimary)
+                if viewModel.transcriptText.isEmpty {
+                    Text("Transcription will appear here...")
+                        .font(AppTheme.Typography.body)
+                        .foregroundStyle(AppTheme.Colors.textTertiary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(AppTheme.Spacing.sm)
+                } else {
+                    SelectableTextView(text: viewModel.transcriptText) {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        withAnimation(AppTheme.Animation.standard) {
+                            showCopiedToast = true
+                        }
+                    }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(AppTheme.Spacing.sm)
+                }
             }
             .frame(height: 150)
             .background(AppTheme.Colors.surface)
             .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.small))
         }
+        .toast(isPresented: $showCopiedToast, message: "Copied!")
     }
     
     private func controlsView(viewModel: RecordingViewModel) -> some View {

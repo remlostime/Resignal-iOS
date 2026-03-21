@@ -19,6 +19,7 @@ struct InterviewDetailView: View {
     
     @State private var viewModel: InterviewDetailViewModel?
     @State private var feedbackScrollTask: Task<Void, Never>?
+    @State private var showCopiedToast = false
     
     // MARK: - Body
     
@@ -197,16 +198,18 @@ struct InterviewDetailView: View {
             
         case .success(let transcript):
             ScrollView {
-                VStack(spacing: AppTheme.Spacing.md) {
-                    Text(transcript)
-                        .font(AppTheme.Typography.body)
-                        .foregroundStyle(AppTheme.Colors.textPrimary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(AppTheme.Spacing.md)
-                        .cardStyle()
+                SelectableTextView(text: transcript) {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    withAnimation(AppTheme.Animation.standard) {
+                        showCopiedToast = true
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(AppTheme.Spacing.md)
+                .cardStyle()
                 .padding(AppTheme.Spacing.md)
             }
+            .toast(isPresented: $showCopiedToast, message: "Copied!")
             
         case .error(let message):
             VStack(spacing: AppTheme.Spacing.md) {
