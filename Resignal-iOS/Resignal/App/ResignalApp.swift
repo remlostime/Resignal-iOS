@@ -188,16 +188,19 @@ struct RootView: View {
         case .home:
             HomeView()
             
-        case .editor(let initialTranscript, let audioURL):
-            EditorView(initialTranscript: initialTranscript, audioURL: audioURL)
+        case .editor(let initialTranscript, let audioURL, let recordingId):
+            EditorView(initialTranscript: initialTranscript, audioURL: audioURL, recordingId: recordingId)
             
         case .interviewDetail(let interviewId):
             InterviewDetailView(interviewId: interviewId)
             
         case .recording:
-            RecordingView { url, transcript in
-                router.replace(with: .editor(initialTranscript: transcript, audioURL: url))
+            RecordingView { url, transcript, recordingId in
+                router.replace(with: .editor(initialTranscript: transcript, audioURL: url, recordingId: recordingId))
             }
+            
+        case .draft(let recordingId):
+            DraftRetryView(recordingId: recordingId)
         }
     }
 }

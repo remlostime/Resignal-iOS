@@ -16,6 +16,7 @@ final class SettingsViewModel {
     
     private let apiClient: APIClientProtocol
     private let settingsService: SettingsServiceProtocol
+    private let audioCacheService: AudioCacheService
     
     // MARK: - State
     
@@ -24,17 +25,37 @@ final class SettingsViewModel {
     var showError = false
     var errorMessage = ""
     var showDeleteSuccess = false
+    var cacheSizeBytes: Int64 = 0
     
     var appVersion: String { settingsService.appVersion }
+    
+    var cacheSizeFormatted: String {
+        ByteCountFormatter.string(fromByteCount: cacheSizeBytes, countStyle: .file)
+    }
+    
+    var hasCachedAudio: Bool { cacheSizeBytes > 0 }
     
     // MARK: - Initialization
     
     init(
         apiClient: APIClientProtocol,
-        settingsService: SettingsServiceProtocol
+        settingsService: SettingsServiceProtocol,
+        audioCacheService: AudioCacheService = MockAudioCacheService()
     ) {
         self.apiClient = apiClient
         self.settingsService = settingsService
+        self.audioCacheService = audioCacheService
+    }
+    
+    func loadCacheSize() async {
+        cacheSizeBytes = await audioCacheService.totalCacheSize()
+    }
+    
+    func clearCache() {
+        Task {
+            await audioCacheService.evictAll()
+            cacheSizeBytes = 0
+        }
     }
     
     // MARK: - Actions

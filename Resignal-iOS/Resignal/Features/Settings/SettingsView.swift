@@ -26,8 +26,12 @@ struct SettingsView: View {
             List {
                 planStatusSection
                 membershipSection
+                storageSection
                 legalSection
                 aboutSection
+            }
+            .task {
+                await viewModel.loadCacheSize()
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
@@ -201,6 +205,22 @@ struct SettingsView: View {
         }
     }
     
+    private var storageSection: some View {
+        Section("Storage") {
+            HStack {
+                Text("Audio Cache")
+                Spacer()
+                Text(viewModel.cacheSizeFormatted)
+                    .foregroundStyle(AppTheme.Colors.textSecondary)
+            }
+            if viewModel.hasCachedAudio {
+                Button("Clear Cache", role: .destructive) {
+                    viewModel.clearCache()
+                }
+            }
+        }
+    }
+    
     private var aboutSection: some View {
         Section("About") {
             HStack {
@@ -223,7 +243,8 @@ struct SettingsView: View {
     SettingsView(
         viewModel: SettingsViewModel(
             apiClient: MockAPIClient(),
-            settingsService: SettingsService()
+            settingsService: SettingsService(),
+            audioCacheService: MockAudioCacheService()
         ),
         apiEnvironment: .prod
     )

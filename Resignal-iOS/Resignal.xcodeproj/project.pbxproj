@@ -59,6 +59,8 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
+				Services/AppReview/README.md,
+				Services/AudioCache/README.md,
 			);
 			target = 478A5C742F05EFBF0022ACD9 /* Resignal */;
 		};

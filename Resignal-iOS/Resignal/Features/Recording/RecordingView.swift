@@ -16,7 +16,7 @@ struct RecordingView: View {
     @Environment(DependencyContainer.self) private var container
     @Environment(\.dismiss) private var dismiss
     
-    let onComplete: ((URL, String) -> Void)?
+    let onComplete: ((URL, String, UUID?) -> Void)?
     
     @State private var viewModel: RecordingViewModel?
     @State private var showRecordingNotice = false
@@ -24,7 +24,7 @@ struct RecordingView: View {
     
     // MARK: - Initialization
     
-    init(onComplete: ((URL, String) -> Void)? = nil) {
+    init(onComplete: ((URL, String, UUID?) -> Void)? = nil) {
         self.onComplete = onComplete
     }
     
@@ -60,13 +60,14 @@ struct RecordingView: View {
                     recordingService: container.recordingService,
                     transcriptionService: container.transcriptionService,
                     audioUploadService: container.audioUploadService,
+                    audioCacheService: container.audioCacheService,
                     audioAPI: container.settingsService.audioAPI,
                     liveActivityService: container.liveActivityService
                 )
                 
-                vm.onStopFromLiveActivity = { [onComplete] url, transcript in
+                vm.onStopFromLiveActivity = { [onComplete] url, transcript, recordingId in
                     if let onComplete = onComplete {
-                        onComplete(url, transcript)
+                        onComplete(url, transcript, recordingId)
                     }
                 }
                 
@@ -254,66 +255,94 @@ struct RecordingView: View {
     
     private func controlsView(viewModel: RecordingViewModel) -> some View {
         VStack(spacing: AppTheme.Spacing.md) {
-            // Main record/stop button
-            HStack(spacing: AppTheme.Spacing.lg) {
-                if viewModel.isRecording || viewModel.isPaused {
-                    // Pause/Resume button
+            if viewModel.canRetry {
+                retryView(viewModel: viewModel)
+            } else {
+                HStack(spacing: AppTheme.Spacing.lg) {
+                    if viewModel.isRecording || viewModel.isPaused {
+                        Button {
+                            Task {
+                                if viewModel.isRecording {
+                                    await viewModel.pauseRecording()
+                                } else {
+                                    await viewModel.resumeRecording()
+                                }
+                            }
+                        } label: {
+                            Image(systemName: viewModel.isRecording ? "pause.circle.fill" : "play.circle.fill")
+                                .font(.system(size: 60))
+                                .foregroundStyle(AppTheme.Colors.secondary)
+                        }
+                        .disabled(viewModel.isProcessing)
+                    }
+                    
                     Button {
                         Task {
-                            if viewModel.isRecording {
-                                await viewModel.pauseRecording()
+                            if viewModel.isRecording || viewModel.isPaused {
+                                if let url = await viewModel.stopRecording() {
+                                    if let onComplete = onComplete {
+                                        onComplete(url, viewModel.transcriptText, viewModel.currentRecordingId)
+                                    } else {
+                                        dismiss()
+                                    }
+                                }
                             } else {
-                                await viewModel.resumeRecording()
+                                await viewModel.startRecording()
                             }
                         }
                     } label: {
-                        Image(systemName: viewModel.isRecording ? "pause.circle.fill" : "play.circle.fill")
-                            .font(.system(size: 60))
-                            .foregroundStyle(AppTheme.Colors.secondary)
+                        ZStack {
+                            Circle()
+                                .fill(viewModel.isRecording || viewModel.isPaused ? AppTheme.Colors.destructive : AppTheme.Colors.primary)
+                                .frame(width: 80, height: 80)
+                            
+                            if viewModel.isRecording || viewModel.isPaused {
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(Color.white)
+                                    .frame(width: 30, height: 30)
+                            } else {
+                                Circle()
+                                    .fill(Color.white)
+                                    .frame(width: 70, height: 70)
+                            }
+                        }
                     }
-                    .disabled(viewModel.isProcessing)
+                    .disabled(!viewModel.canRecord && !viewModel.canStop || viewModel.isProcessing)
                 }
                 
-                // Record/Stop button
-                Button {
-                    Task {
-                        if viewModel.isRecording || viewModel.isPaused {
-                            if let url = await viewModel.stopRecording() {
-                                if let onComplete = onComplete {
-                                    // Let the completion handler manage navigation
-                                    onComplete(url, viewModel.transcriptText)
-                                } else {
-                                    dismiss()
-                                }
-                            }
-                        } else {
-                            await viewModel.startRecording()
-                        }
-                    }
-                } label: {
-                    ZStack {
-                        Circle()
-                            .fill(viewModel.isRecording || viewModel.isPaused ? AppTheme.Colors.destructive : AppTheme.Colors.primary)
-                            .frame(width: 80, height: 80)
-                        
-                        if viewModel.isRecording || viewModel.isPaused {
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(Color.white)
-                                .frame(width: 30, height: 30)
-                        } else {
-                            Circle()
-                                .fill(Color.white)
-                                .frame(width: 70, height: 70)
-                        }
-                    }
-                }
-                .disabled(!viewModel.canRecord && !viewModel.canStop || viewModel.isProcessing)
+                Text(actionLabel(for: viewModel))
+                    .font(AppTheme.Typography.callout)
+                    .foregroundStyle(AppTheme.Colors.textSecondary)
             }
+        }
+    }
+    
+    private func retryView(viewModel: RecordingViewModel) -> some View {
+        VStack(spacing: AppTheme.Spacing.md) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 36))
+                .foregroundStyle(AppTheme.Colors.destructive)
             
-            // Action label
-            Text(actionLabel(for: viewModel))
+            Text("Transcription failed. Your recording is saved.")
                 .font(AppTheme.Typography.callout)
                 .foregroundStyle(AppTheme.Colors.textSecondary)
+                .multilineTextAlignment(.center)
+            
+            Button {
+                Task { await viewModel.retryTranscription() }
+            } label: {
+                HStack(spacing: AppTheme.Spacing.xs) {
+                    Image(systemName: "arrow.clockwise")
+                    Text("Retry Transcription")
+                }
+                .font(AppTheme.Typography.headline)
+                .foregroundStyle(AppTheme.Colors.background)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, AppTheme.Spacing.md)
+                .background(AppTheme.Colors.primary)
+                .clipShape(RoundedRectangle(cornerRadius: AppTheme.CornerRadius.medium))
+            }
+            .padding(.horizontal, AppTheme.Spacing.xl)
         }
     }
     

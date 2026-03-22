@@ -19,6 +19,7 @@ struct HomeView: View {
     @State private var showPaywall = false
     @State private var showSettings = false
     @State private var showMembershipSheet = false
+    @State private var pendingDrafts: [TranscriptionDraft] = []
     
     // MARK: - Body
     
@@ -56,7 +57,8 @@ struct HomeView: View {
             SettingsView(
                 viewModel: SettingsViewModel(
                     apiClient: container.apiClient,
-                    settingsService: container.settingsService
+                    settingsService: container.settingsService,
+                    audioCacheService: container.audioCacheService
                 ),
                 apiEnvironment: container.settingsService.apiEnvironment
             )
@@ -81,6 +83,7 @@ struct HomeView: View {
         }
         .task {
             await viewModel?.loadInterviews()
+            await loadPendingDrafts()
         }
     }
     
@@ -90,18 +93,24 @@ struct HomeView: View {
     private func contentView(viewModel: HomeViewModel) -> some View {
         @Bindable var bindableVM = viewModel
         
-        ZStack {
-            AppTheme.Colors.background
-                .ignoresSafeArea()
+        VStack(spacing: 0) {
+            if !pendingDrafts.isEmpty {
+                pendingDraftsBanner
+            }
             
-            if viewModel.state.isLoading {
-                ProgressView()
-            } else if viewModel.interviews.isEmpty {
-                emptyStateView
-            } else if viewModel.filteredInterviews.isEmpty {
-                noSearchResultsView
-            } else {
-                interviewListView(viewModel: viewModel)
+            ZStack {
+                AppTheme.Colors.background
+                    .ignoresSafeArea()
+                
+                if viewModel.state.isLoading {
+                    ProgressView()
+                } else if viewModel.interviews.isEmpty {
+                    emptyStateView
+                } else if viewModel.filteredInterviews.isEmpty {
+                    noSearchResultsView
+                } else {
+                    interviewListView(viewModel: viewModel)
+                }
             }
         }
         .alert("Delete Interview?", isPresented: $bindableVM.showDeleteConfirmation) {
@@ -265,6 +274,48 @@ struct HomeView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
+    }
+    
+    // MARK: - Pending Drafts
+    
+    private var pendingDraftsBanner: some View {
+        VStack(spacing: 0) {
+            ForEach(pendingDrafts) { draft in
+                Button {
+                    router.navigate(to: .draft(recordingId: draft.recordingId))
+                } label: {
+                    HStack(spacing: AppTheme.Spacing.sm) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(AppTheme.Colors.destructive)
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Transcription failed")
+                                .font(AppTheme.Typography.callout.weight(.semibold))
+                                .foregroundStyle(AppTheme.Colors.textPrimary)
+                            
+                            Text("Tap to retry — your recording is saved")
+                                .font(AppTheme.Typography.caption)
+                                .foregroundStyle(AppTheme.Colors.textSecondary)
+                        }
+                        
+                        Spacer()
+                        
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(AppTheme.Colors.textTertiary)
+                    }
+                    .padding(AppTheme.Spacing.md)
+                    .background(AppTheme.Colors.surface)
+                }
+            }
+            
+            Divider()
+        }
+    }
+    
+    private func loadPendingDrafts() async {
+        let drafts = await container.audioCacheService.allDrafts()
+        pendingDrafts = drafts.filter { $0.status == .failed || $0.status == .uploading || $0.status == .processing }
     }
     
     // MARK: - Navigation
