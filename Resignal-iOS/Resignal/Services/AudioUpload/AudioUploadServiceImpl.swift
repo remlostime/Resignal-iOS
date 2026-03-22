@@ -58,7 +58,10 @@ actor AudioUploadServiceImpl: AudioUploadService {
         isCancelled = false
         var chunks: [AudioChunkMetadata] = []
 
-        defer { if !chunks.isEmpty { chunkManager.cleanupChunks(chunks) } }
+        defer {
+            let multiChunkFiles = chunks.filter { $0.totalChunks > 1 }
+            if !multiChunkFiles.isEmpty { chunkManager.cleanupChunks(multiChunkFiles) }
+        }
 
         let directoryId = interviewId ?? UUID().uuidString
 

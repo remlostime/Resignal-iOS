@@ -21,6 +21,7 @@ protocol DependencyContainerProtocol {
     var subscriptionService: SubscriptionServiceProtocol { get }
     var featureAccessService: FeatureAccessServiceProtocol { get }
     var audioUploadService: AudioUploadService { get }
+    var audioCacheService: AudioCacheService { get }
     var interviewClient: any InterviewClient { get }
     var identityManager: IdentityManagerProtocol { get }
     var apiClient: APIClientProtocol { get }
@@ -44,6 +45,7 @@ final class DependencyContainer: DependencyContainerProtocol {
     let subscriptionService: SubscriptionServiceProtocol
     let featureAccessService: FeatureAccessServiceProtocol
     let audioUploadService: AudioUploadService
+    let audioCacheService: AudioCacheService
     let interviewClient: any InterviewClient
     let identityManager: IdentityManagerProtocol
     let apiClient: APIClientProtocol
@@ -92,6 +94,7 @@ final class DependencyContainer: DependencyContainerProtocol {
             self.chatService = MockChatService()
             self.liveActivityService = MockLiveActivityService()
             self.audioUploadService = MockAudioUploadService()
+            self.audioCacheService = MockAudioCacheService()
             self.interviewClient = MockInterviewClient()
             #if DEBUG
             let subscription = MockSubscriptionService()
@@ -118,6 +121,7 @@ final class DependencyContainer: DependencyContainerProtocol {
             self.chatService = ChatServiceImpl(model: aiModelValue, apiClient: api)
             self.liveActivityService = LiveActivityServiceImpl()
             self.audioUploadService = AudioUploadServiceImpl(baseURL: baseURL, identityManager: identity)
+            self.audioCacheService = AudioCacheServiceImpl()
             self.interviewClient = InterviewClientImpl(apiClient: api)
             let subscription = SubscriptionService(billingClient: billing)
             self.subscriptionService = subscription

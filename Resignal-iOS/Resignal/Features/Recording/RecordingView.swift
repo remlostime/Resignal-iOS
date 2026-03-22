@@ -16,7 +16,7 @@ struct RecordingView: View {
     @Environment(DependencyContainer.self) private var container
     @Environment(\.dismiss) private var dismiss
     
-    let onComplete: ((URL, String) -> Void)?
+    let onComplete: ((URL, String, UUID?) -> Void)?
     
     @State private var viewModel: RecordingViewModel?
     @State private var showRecordingNotice = false
@@ -24,7 +24,7 @@ struct RecordingView: View {
     
     // MARK: - Initialization
     
-    init(onComplete: ((URL, String) -> Void)? = nil) {
+    init(onComplete: ((URL, String, UUID?) -> Void)? = nil) {
         self.onComplete = onComplete
     }
     
@@ -60,13 +60,14 @@ struct RecordingView: View {
                     recordingService: container.recordingService,
                     transcriptionService: container.transcriptionService,
                     audioUploadService: container.audioUploadService,
+                    audioCacheService: container.audioCacheService,
                     audioAPI: container.settingsService.audioAPI,
                     liveActivityService: container.liveActivityService
                 )
                 
-                vm.onStopFromLiveActivity = { [onComplete] url, transcript in
+                vm.onStopFromLiveActivity = { [onComplete] url, transcript, recordingId in
                     if let onComplete = onComplete {
-                        onComplete(url, transcript)
+                        onComplete(url, transcript, recordingId)
                     }
                 }
                 
@@ -85,6 +86,11 @@ struct RecordingView: View {
             .presentationDetents([.medium])
             .presentationDragIndicator(.visible)
             .interactiveDismissDisabled()
+        }
+        .onChange(of: viewModel?.liveActivityFailedRecordingId) { _, recordingId in
+            if let recordingId {
+                router.replace(with: .draft(recordingId: recordingId))
+            }
         }
         .alert("Error", isPresented: Binding(
             get: { viewModel?.showError ?? false },
@@ -254,10 +260,8 @@ struct RecordingView: View {
     
     private func controlsView(viewModel: RecordingViewModel) -> some View {
         VStack(spacing: AppTheme.Spacing.md) {
-            // Main record/stop button
             HStack(spacing: AppTheme.Spacing.lg) {
                 if viewModel.isRecording || viewModel.isPaused {
-                    // Pause/Resume button
                     Button {
                         Task {
                             if viewModel.isRecording {
@@ -274,14 +278,14 @@ struct RecordingView: View {
                     .disabled(viewModel.isProcessing)
                 }
                 
-                // Record/Stop button
                 Button {
                     Task {
                         if viewModel.isRecording || viewModel.isPaused {
                             if let url = await viewModel.stopRecording() {
-                                if let onComplete = onComplete {
-                                    // Let the completion handler manage navigation
-                                    onComplete(url, viewModel.transcriptText)
+                                if viewModel.canRetry, let recordingId = viewModel.currentRecordingId {
+                                    router.replace(with: .draft(recordingId: recordingId))
+                                } else if let onComplete = onComplete {
+                                    onComplete(url, viewModel.transcriptText, viewModel.currentRecordingId)
                                 } else {
                                     dismiss()
                                 }
@@ -310,7 +314,6 @@ struct RecordingView: View {
                 .disabled(!viewModel.canRecord && !viewModel.canStop || viewModel.isProcessing)
             }
             
-            // Action label
             Text(actionLabel(for: viewModel))
                 .font(AppTheme.Typography.callout)
                 .foregroundStyle(AppTheme.Colors.textSecondary)

@@ -19,6 +19,7 @@ struct EditorView: View {
     
     let initialTranscript: String?
     let audioURL: URL?
+    let recordingId: UUID?
     
     @State private var viewModel: EditorViewModel?
     @FocusState private var isTextEditorFocused: Bool
@@ -27,9 +28,10 @@ struct EditorView: View {
     
     // MARK: - Initialization
     
-    init(initialTranscript: String? = nil, audioURL: URL? = nil) {
+    init(initialTranscript: String? = nil, audioURL: URL? = nil, recordingId: UUID? = nil) {
         self.initialTranscript = initialTranscript
         self.audioURL = audioURL
+        self.recordingId = recordingId
     }
     
     // MARK: - Body
@@ -64,6 +66,9 @@ struct EditorView: View {
                     initialTranscript: initialTranscript,
                     audioURL: audioURL
                 )
+            }
+            if let recordingId, initialTranscript?.isEmpty == false {
+                Task { await container.audioCacheService.evict(recordingId: recordingId) }
             }
         }
         .alert("Error", isPresented: Binding(

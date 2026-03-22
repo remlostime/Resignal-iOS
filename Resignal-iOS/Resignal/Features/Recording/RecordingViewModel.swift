@@ -20,6 +20,7 @@ final class RecordingViewModel {
     private let recordingService: RecordingService
     private let transcriptionService: TranscriptionService
     private let audioUploadService: AudioUploadService
+    private let audioCacheService: AudioCacheService
     private let audioAPI: AudioAPI
     private let liveActivityService: LiveActivityService
     
@@ -31,20 +32,21 @@ final class RecordingViewModel {
     var errorMessage: String = ""
     var hasPermissions: Bool = false
     var isRequestingPermissions: Bool = false
+    var canRetry: Bool = false
+    
+    /// Exposed so the Editor can evict the cache after displaying the transcript.
+    private(set) var currentRecordingId: UUID?
     
     private var durationTimer: Timer?
     private var levelTimer: Timer?
     private var liveActivityTimer: Timer?
     private var recordingURL: URL?
-    /// Transcript saved before pausing, to preserve when resuming
     private var savedTranscriptBeforePause: String = ""
-    /// Task that observes AudioUploadService state for progress updates
     private var uploadObserveTask: Task<Void, Never>?
-    /// Notification observer for stop recording from Live Activity
-    /// Using nonisolated(unsafe) to allow cleanup in deinit
     nonisolated(unsafe) private var stopRecordingObserver: NSObjectProtocol?
-    /// Callback triggered when recording is stopped from Live Activity
-    var onStopFromLiveActivity: ((URL, String) -> Void)?
+    var onStopFromLiveActivity: ((URL, String, UUID?) -> Void)?
+    /// Set when transcription fails during a Live Activity stop, so the View can navigate to draft.
+    var liveActivityFailedRecordingId: UUID?
     
     private var isWhisperMode: Bool { audioAPI == .openaiWhisper }
     
@@ -86,12 +88,14 @@ final class RecordingViewModel {
         recordingService: RecordingService,
         transcriptionService: TranscriptionService,
         audioUploadService: AudioUploadService,
+        audioCacheService: AudioCacheService,
         audioAPI: AudioAPI,
         liveActivityService: LiveActivityService
     ) {
         self.recordingService = recordingService
         self.transcriptionService = transcriptionService
         self.audioUploadService = audioUploadService
+        self.audioCacheService = audioCacheService
         self.audioAPI = audioAPI
         self.liveActivityService = liveActivityService
         
@@ -126,7 +130,11 @@ final class RecordingViewModel {
         guard canStop else { return }
         
         if let url = await stopRecording() {
-            onStopFromLiveActivity?(url, transcriptText)
+            if canRetry, let recordingId = currentRecordingId {
+                liveActivityFailedRecordingId = recordingId
+            } else {
+                onStopFromLiveActivity?(url, transcriptText, currentRecordingId)
+            }
         }
     }
     
@@ -341,9 +349,34 @@ final class RecordingViewModel {
     }
     
     /// Uploads the recording to the backend via AudioUploadService for Whisper transcription.
-    private func transcribeViaWhisper(url: URL) async {
+    /// Caches the audio to disk first so that the user can retry on failure.
+    private func transcribeViaWhisper(url: URL, existingRecordingId: UUID? = nil) async {
+        canRetry = false
         transcriptText = "Preparing audio..."
-        
+
+        let recordingId = existingRecordingId ?? UUID()
+        currentRecordingId = recordingId
+
+        let cachedURL: URL
+        if existingRecordingId != nil, let existing = await audioCacheService.cachedURL(for: recordingId) {
+            cachedURL = existing
+        } else {
+            do {
+                cachedURL = try await audioCacheService.cacheRecording(from: url, recordingId: recordingId)
+            } catch {
+                showError(message: "Failed to save recording: \(error.localizedDescription)")
+                return
+            }
+        }
+
+        var draft = TranscriptionDraft(
+            id: UUID(),
+            recordingId: recordingId,
+            createdAt: Date(),
+            status: .uploading
+        )
+        try? await audioCacheService.saveDraft(draft)
+
         uploadObserveTask = Task { [weak self] in
             guard let self else { return }
             let stream = await self.audioUploadService.observeState()
@@ -358,6 +391,8 @@ final class RecordingViewModel {
                     self.transcriptText = "Uploading audio... \(Int(progress * 100))%"
                 case .processing:
                     self.transcriptText = "Transcribing audio..."
+                    draft.status = .processing
+                    try? await self.audioCacheService.saveDraft(draft)
                 case .completed:
                     break
                 case .failed:
@@ -365,22 +400,41 @@ final class RecordingViewModel {
                 }
             }
         }
-        
+
         do {
             let transcript = try await audioUploadService.uploadInterviewAudio(
-                fileURL: url,
+                fileURL: cachedURL,
                 interviewId: nil
             )
             transcriptText = transcript
+            draft.status = .completed
+            draft.partialTranscript = transcript
+            try? await audioCacheService.saveDraft(draft)
         } catch {
             if (error as? AudioUploadError)?.isCancellation != true {
+                draft.status = .failed
+                draft.lastError = error.localizedDescription
+                try? await audioCacheService.saveDraft(draft)
                 showError(message: error.localizedDescription)
+                canRetry = true
             }
             transcriptText = ""
         }
-        
+
         uploadObserveTask?.cancel()
         uploadObserveTask = nil
+    }
+
+    /// Retries a previously failed Whisper transcription using the cached audio.
+    func retryTranscription() async {
+        guard let recordingId = currentRecordingId,
+              let cachedURL = await audioCacheService.cachedURL(for: recordingId) else {
+            showError(message: "Recording no longer available.")
+            return
+        }
+        recordingState = .processing
+        await transcribeViaWhisper(url: cachedURL, existingRecordingId: recordingId)
+        recordingState = .idle
     }
     
     /// Waits until the app is in the foreground (required for speech recognition from file)
