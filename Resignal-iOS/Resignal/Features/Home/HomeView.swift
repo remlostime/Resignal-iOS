@@ -411,6 +411,7 @@ struct DraftRowView: View {
                 .foregroundStyle(AppTheme.Colors.textSecondary)
                 .lineLimit(2)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(AppTheme.Spacing.md)
         .cardStyle()
         .overlay(
