@@ -45,6 +45,8 @@ final class RecordingViewModel {
     private var uploadObserveTask: Task<Void, Never>?
     nonisolated(unsafe) private var stopRecordingObserver: NSObjectProtocol?
     var onStopFromLiveActivity: ((URL, String, UUID?) -> Void)?
+    /// Set when transcription fails during a Live Activity stop, so the View can navigate to draft.
+    var liveActivityFailedRecordingId: UUID?
     
     private var isWhisperMode: Bool { audioAPI == .openaiWhisper }
     
@@ -128,7 +130,11 @@ final class RecordingViewModel {
         guard canStop else { return }
         
         if let url = await stopRecording() {
-            onStopFromLiveActivity?(url, transcriptText, currentRecordingId)
+            if canRetry, let recordingId = currentRecordingId {
+                liveActivityFailedRecordingId = recordingId
+            } else {
+                onStopFromLiveActivity?(url, transcriptText, currentRecordingId)
+            }
         }
     }
     

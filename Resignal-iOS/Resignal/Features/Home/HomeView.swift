@@ -89,28 +89,27 @@ struct HomeView: View {
     
     // MARK: - Subviews
     
+    private var hasAnyContent: Bool {
+        guard let viewModel else { return false }
+        return !viewModel.interviews.isEmpty || !pendingDrafts.isEmpty
+    }
+    
     @ViewBuilder
     private func contentView(viewModel: HomeViewModel) -> some View {
         @Bindable var bindableVM = viewModel
         
-        VStack(spacing: 0) {
-            if !pendingDrafts.isEmpty {
-                pendingDraftsBanner
-            }
+        ZStack {
+            AppTheme.Colors.background
+                .ignoresSafeArea()
             
-            ZStack {
-                AppTheme.Colors.background
-                    .ignoresSafeArea()
-                
-                if viewModel.state.isLoading {
-                    ProgressView()
-                } else if viewModel.interviews.isEmpty {
-                    emptyStateView
-                } else if viewModel.filteredInterviews.isEmpty {
-                    noSearchResultsView
-                } else {
-                    interviewListView(viewModel: viewModel)
-                }
+            if viewModel.state.isLoading {
+                ProgressView()
+            } else if viewModel.interviews.isEmpty && pendingDrafts.isEmpty {
+                emptyStateView
+            } else if viewModel.filteredInterviews.isEmpty && pendingDrafts.isEmpty {
+                noSearchResultsView
+            } else {
+                mergedListView(viewModel: viewModel)
             }
         }
         .alert("Delete Interview?", isPresented: $bindableVM.showDeleteConfirmation) {
@@ -135,7 +134,7 @@ struct HomeView: View {
         } message: {
             Text(viewModel.state.error ?? "An error occurred")
         }
-        .conditionally(!viewModel.interviews.isEmpty) { view in
+        .conditionally(hasAnyContent) { view in
             view.searchable(text: $bindableVM.searchText, prompt: "Search interviews")
         }
     }
@@ -212,22 +211,49 @@ struct HomeView: View {
         .accessibilityIdentifier(HomeAccessibility.noSearchResults)
     }
     
-    private func interviewListView(viewModel: HomeViewModel) -> some View {
+    private var mergedItems: [HomeListItem] {
+        let interviewItems = (viewModel?.filteredInterviews ?? []).map { HomeListItem.interview($0) }
+        let draftItems = pendingDrafts.map { HomeListItem.draft($0) }
+        return (interviewItems + draftItems).sorted { $0.createdAt > $1.createdAt }
+    }
+    
+    private func mergedListView(viewModel: HomeViewModel) -> some View {
         ZStack(alignment: .bottomTrailing) {
             List {
-                ForEach(viewModel.filteredInterviews) { interview in
-                    InterviewRowView(interview: interview)
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            handleInterviewTap(interview)
+                ForEach(mergedItems) { item in
+                    Group {
+                        switch item {
+                        case .interview(let interview):
+                            InterviewRowView(interview: interview)
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    handleInterviewTap(interview)
+                                }
+                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                    Button(role: .destructive) {
+                                        viewModel.confirmDelete(interview)
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
+                        case .draft(let draft):
+                            DraftRowView(draft: draft)
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    router.navigate(to: .draft(recordingId: draft.recordingId))
+                                }
+                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                    Button(role: .destructive) {
+                                        Task {
+                                            await container.audioCacheService.evict(recordingId: draft.recordingId)
+                                            pendingDrafts.removeAll { $0.id == draft.id }
+                                        }
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
                         }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            Button(role: .destructive) {
-                                viewModel.confirmDelete(interview)
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                        }
+                    }
                 }
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
@@ -242,6 +268,7 @@ struct HomeView: View {
             .contentMargins(.bottom, 80, for: .scrollContent)
             .refreshable {
                 await viewModel.loadInterviews()
+                await loadPendingDrafts()
             }
             .accessibilityIdentifier(HomeAccessibility.sessionList)
             
@@ -273,43 +300,6 @@ struct HomeView: View {
             PaywallView()
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
-        }
-    }
-    
-    // MARK: - Pending Drafts
-    
-    private var pendingDraftsBanner: some View {
-        VStack(spacing: 0) {
-            ForEach(pendingDrafts) { draft in
-                Button {
-                    router.navigate(to: .draft(recordingId: draft.recordingId))
-                } label: {
-                    HStack(spacing: AppTheme.Spacing.sm) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(AppTheme.Colors.destructive)
-                        
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Transcription failed")
-                                .font(AppTheme.Typography.callout.weight(.semibold))
-                                .foregroundStyle(AppTheme.Colors.textPrimary)
-                            
-                            Text("Tap to retry — your recording is saved")
-                                .font(AppTheme.Typography.caption)
-                                .foregroundStyle(AppTheme.Colors.textSecondary)
-                        }
-                        
-                        Spacer()
-                        
-                        Image(systemName: "chevron.right")
-                            .font(.caption)
-                            .foregroundStyle(AppTheme.Colors.textTertiary)
-                    }
-                    .padding(AppTheme.Spacing.md)
-                    .background(AppTheme.Colors.surface)
-                }
-            }
-            
-            Divider()
         }
     }
     
@@ -370,6 +360,63 @@ struct InterviewRowView: View {
         .padding(AppTheme.Spacing.md)
         .cardStyle()
         .accessibilityIdentifier(HomeAccessibility.interviewRow)
+    }
+}
+
+// MARK: - Merged List Item
+
+enum HomeListItem: Identifiable {
+    case interview(InterviewDTO)
+    case draft(TranscriptionDraft)
+    
+    var id: String {
+        switch self {
+        case .interview(let dto): return "interview-\(dto.id)"
+        case .draft(let draft): return "draft-\(draft.id.uuidString)"
+        }
+    }
+    
+    var createdAt: Date {
+        switch self {
+        case .interview(let dto): return dto.createdAt
+        case .draft(let draft): return draft.createdAt
+        }
+    }
+}
+
+// MARK: - Draft Row View
+
+struct DraftRowView: View {
+    
+    let draft: TranscriptionDraft
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
+            HStack(spacing: AppTheme.Spacing.xs) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(AppTheme.Colors.destructive)
+                    .font(AppTheme.Typography.callout)
+                
+                Text("Transcription Failed")
+                    .font(AppTheme.Typography.headline)
+                    .foregroundStyle(AppTheme.Colors.textPrimary)
+            }
+            
+            Text(draft.createdAt.relativeFormatted)
+                .font(AppTheme.Typography.caption)
+                .foregroundStyle(AppTheme.Colors.textTertiary)
+            
+            Text("Tap to retry — your recording is saved")
+                .font(AppTheme.Typography.callout)
+                .foregroundStyle(AppTheme.Colors.textSecondary)
+                .lineLimit(2)
+        }
+        .padding(AppTheme.Spacing.md)
+        .cardStyle()
+        .overlay(
+            RoundedRectangle(cornerRadius: AppTheme.CornerRadius.medium)
+                .strokeBorder(AppTheme.Colors.destructive.opacity(0.3), lineWidth: 1)
+        )
     }
 }
 
